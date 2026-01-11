@@ -1,23 +1,93 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { FileText, Trash2 } from 'lucide-react-native';
+import { View, Alert, Pressable, Image, Text, ActionSheetIOS, Platform } from 'react-native';
+import { FileText, Trash2, Pin } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import Reanimated, { useAnimatedStyle, useSharedValue, SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, SharedValue } from 'react-native-reanimated';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import { Card } from './design-system/Card';
+import { Typography } from './design-system/Typography';
+import { Theme } from '../lib/theme';
 
 interface PageCardProps {
     id: string;
     title: string;
     gist: string;
+    url?: string;
     tags?: string[];
     onDelete?: (id: string) => void;
+    onPin?: (id: string) => void;
+    isPinned?: boolean;
 }
 
-export function PageCard({ id, title, gist, tags = [], onDelete }: PageCardProps) {
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export function PageCard({ id, title, gist, url, tags = [], onDelete, onPin, isPinned, imageUrl }: PageCardProps & { imageUrl?: string }) {
     const router = useRouter();
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    // Fallback Title Logic
+    const displayTitle = (title && title !== 'Untitled Page') ? title : (url ? new URL(url).hostname.replace('www.', '') : 'Untitled Page');
+    const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+
+    // Formatting Tags: Primary Tag • Domain
+    const primaryTag = tags[0] || 'Saved';
+    const tagLine = `${primaryTag}  •  ${domain}`.toUpperCase();
+
+    // Hide summary if empty or "No summary generated"
+    const showSummary = gist && gist !== "No summary generated.";
+
+    const handlePressIn = () => {
+        scale.value = withSpring(0.98, { damping: 10, stiffness: 300 });
+    };
+
+    const handlePressOut = () => {
+        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+    };
 
     const handlePress = () => {
         router.push(`/page/${id}`);
+    };
+
+    const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const pinAction = isPinned ? 'Unpin Page' : 'Pin to Top';
+
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: ['Cancel', pinAction, 'Copy Link', 'Delete Page'],
+                    destructiveButtonIndex: 3,
+                    cancelButtonIndex: 0,
+                    userInterfaceStyle: 'light',
+                },
+                (buttonIndex) => {
+                    if (buttonIndex === 1) { // Pin/Unpin
+                        onPin?.(id);
+                    } else if (buttonIndex === 2) { // Copy Link
+                        if (url) Clipboard.setStringAsync(url);
+                    } else if (buttonIndex === 3) { // Delete
+                        onDelete?.(id);
+                    }
+                }
+            );
+        } else {
+            Alert.alert(
+                "Options",
+                displayTitle,
+                [
+                    { text: pinAction, onPress: () => onPin?.(id) },
+                    { text: "Copy Link", onPress: () => url && Clipboard.setStringAsync(url) },
+                    { text: "Delete", style: 'destructive', onPress: () => onDelete?.(id) },
+                    { text: "Cancel", style: "cancel" }
+                ]
+            );
+        }
     };
 
     const handleDelete = () => {
@@ -35,16 +105,15 @@ export function PageCard({ id, title, gist, tags = [], onDelete }: PageCardProps
         );
     };
 
-    const RightAction = (prog: SharedValue<number>, drag: SharedValue<number>) => {
-        // Simple red background for now
+    const RightAction = () => {
         return (
-            <TouchableOpacity
-                activeOpacity={0.8}
+            <Pressable
                 onPress={handleDelete}
-                className="bg-[#EF4444] justify-center items-center w-20 rounded-lg mb-3 ml-2"
+                className="bg-red-500 justify-center items-center w-20 rounded-[16px] mb-3 ml-2"
+                style={{ height: '100%', maxHeight: 300 }}
             >
                 <Trash2 size={24} color="white" />
-            </TouchableOpacity>
+            </Pressable>
         );
     };
 
@@ -54,34 +123,53 @@ export function PageCard({ id, title, gist, tags = [], onDelete }: PageCardProps
             renderRightActions={RightAction}
             overshootRight={false}
         >
-            <TouchableOpacity
+            <AnimatedPressable
                 onPress={handlePress}
-                activeOpacity={0.7}
-                className="bg-white p-4 rounded-lg border border-border mb-3 shadow-sm"
+                onLongPress={handleLongPress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={animatedStyle}
+                className="mb-3"
             >
-                <View className="flex-row items-start mb-2">
-                    <View className="mt-1 mr-2 opacity-60">
-                        <FileText size={18} color="#37352F" />
-                    </View>
-                    <Text className="text-ink font-sans font-semibold text-lg flex-1 leading-6">
-                        {title}
-                    </Text>
-                </View>
+                <Card className="overflow-hidden p-0 relative">
+                    {/* Pin Indicator */}
+                    {isPinned && (
+                        <View className="absolute top-2 right-2 z-10 bg-white/90 p-1.5 rounded-full shadow-sm">
+                            <Pin size={12} color={Theme.colors.text.primary} fill={Theme.colors.text.primary} />
+                        </View>
+                    )}
 
-                <Text className="text-ink/60 font-sans text-sm leading-5 mb-3" numberOfLines={2}>
-                    {gist}
-                </Text>
+                    {/* 1. Cover Image */}
+                    {imageUrl ? (
+                        <Image
+                            source={{ uri: imageUrl }}
+                            style={{ width: '100%', height: 140 }}
+                            className="bg-gray-100"
+                        />
+                    ) : null}
 
-                {tags.length > 0 && (
-                    <View className="flex-row flex-wrap gap-2">
-                        {tags.map((tag, index) => (
-                            <View key={index} className="bg-sidebar px-2 py-1 rounded-md border border-border">
-                                <Text className="text-ink/50 text-xs font-mono">{tag}</Text>
-                            </View>
-                        ))}
+                    <View className="p-5">
+                        {/* 2. Refined Eyebrow */}
+                        <View className="mb-2">
+                            <Text className="text-[11px] font-bold text-slate-500 tracking-widest leading-4">
+                                {tagLine}
+                            </Text>
+                        </View>
+
+                        {/* 3. Title */}
+                        <Typography variant="h3" className="mb-1 tracking-[-0.5px] text-ink" numberOfLines={2}>
+                            {displayTitle}
+                        </Typography>
+
+                        {/* 4. Body */}
+                        {showSummary && (
+                            <Typography variant="body" className="text-ink-secondary leading-[22px]" numberOfLines={3}>
+                                {gist}
+                            </Typography>
+                        )}
                     </View>
-                )}
-            </TouchableOpacity>
+                </Card>
+            </AnimatedPressable>
         </ReanimatedSwipeable>
     );
 }

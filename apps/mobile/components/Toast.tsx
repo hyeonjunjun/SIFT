@@ -24,7 +24,7 @@ export function Toast({ message, visible, onHide, duration = 3000 }: ToastProps)
         <Animated.View
             entering={FadeInDown.springify()}
             exiting={FadeOutDown}
-            className="absolute bottom-10 self-center z-50 bg-ink px-4 py-3 rounded-md flex-row items-center shadow-sm"
+            className="absolute bottom-24 self-center z-50 bg-ink px-4 py-3 rounded-md flex-row items-center shadow-sm"
             style={{ maxWidth: '90%' }}
         >
             <View className="mr-3">

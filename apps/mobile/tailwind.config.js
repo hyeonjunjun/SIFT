@@ -8,17 +8,17 @@ module.exports = {
             colors: {
                 // The Canvas
                 canvas: {
-                    DEFAULT: '#FFFFFF', // Cards
-                    subtle: '#F7F7F5',  // App Background / Sidebars (Notion Grey)
+                    DEFAULT: '#F2F2F7', // Apple System Gray 6
+                    card: '#FFFFFF',    // Pure white cards
                 },
                 // The Ink
                 ink: {
-                    DEFAULT: '#37352F', // Primary Text
-                    subtle: '#9B9A97',  // Metadata / Secondary
+                    DEFAULT: '#1C1C1E', // Soft Black (Apple Label)
+                    secondary: '#3A3A3C',  // Darker gray
                 },
                 // The Borders
                 border: {
-                    DEFAULT: '#E3E2E0',
+                    DEFAULT: '#E5E5EA',
                 }
             },
             fontFamily: {
