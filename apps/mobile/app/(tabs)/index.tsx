@@ -1,9 +1,10 @@
-import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity } from "react-native";
+import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { Archive, Trash2 } from 'lucide-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
@@ -13,6 +14,7 @@ import { HeroCarousel } from "../../components/home/HeroCarousel";
 import { FilterBar } from "../../components/home/FilterBar";
 import { MasonryList } from "../../components/home/MasonryList";
 import { useRouter } from "expo-router";
+import { useShareIntent } from 'expo-share-intent';
 
 interface Page {
     id: string;
@@ -30,38 +32,101 @@ interface Page {
 const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
 
 export default function Index() {
+    const scrollViewRef = useRef<ScrollView>(null);
     const [pages, setPages] = useState<Page[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
     const [toastVisible, setToastVisible] = useState(false);
+    const [toastAction, setToastAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
     const [manualUrl, setManualUrl] = useState("");
+    const lastCheckedUrl = useRef<string | null>(null);
 
     // Filter State
     const [activeFilter, setActiveFilter] = useState("All");
 
     const router = useRouter();
 
-    // Derived: Unique Tags
-    const allTags = Array.from(new Set(pages.flatMap(p => p.tags || []))).sort();
+    // Derived: Unique Tags (Custom Order)
+    const dynamicTags = Array.from(new Set(pages.flatMap(p => p.tags || [])));
+    const allTags = Array.from(new Set([...ALLOWED_TAGS, ...dynamicTags]));
 
     // Derived: Filtered Pages
     const filteredPages = activeFilter === 'All'
         ? pages
         : pages
             .filter(p => p.tags?.includes(activeFilter))
-            // When filtering, we might want to ignore 'pinned' sort and just show relevance/date?
-            // User said "hide pinned posts (do not remove pinned state)". 
-            // So we re-sort purely by date for the filtered view?
-            // The original 'pages' is already sorted by pin then date. filter() preserves order.
-            // If we want to "hide" the pinned nature, we should resort by created_at.
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
 
-    const showToast = (message: string) => {
+    const showToast = (message: string, action?: { label: string, onPress: () => void }) => {
         setToastMessage(message);
+        setToastAction(action);
         setToastVisible(true);
     };
+
+    // Greeting Logic
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good Morning";
+        if (hour < 18) return "Good Afternoon";
+        return "Good Evening";
+    };
+
+    // Listen for Double Tap
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('scrollToTopDashboard', () => {
+            if (scrollViewRef.current) {
+                scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                Haptics.selectionAsync(); // Subtle feedback
+            }
+        });
+        return () => sub.remove();
+    }, []);
+
+    // Magic Entry: Clipboard Snoop
+    const checkClipboard = useCallback(async () => {
+        try {
+            const content = await Clipboard.getStringAsync();
+            if (!content) return;
+
+            // Simple URL valid check
+            const isUrl = content.startsWith('http://') || content.startsWith('https://');
+
+            // Should verify it's not the same URL we just processed or snooped
+            if (isUrl && content !== lastCheckedUrl.current) {
+                // Check if we already have this page? (Optional optimization)
+                // For now, just prompt.
+                lastCheckedUrl.current = content; // Mark as seen so we don't spam
+
+                showToast("Link detected from clipboard.", {
+                    label: "Sift It",
+                    onPress: () => {
+                        setManualUrl(content); // Pre-fill visual
+                        processSharedUrl(content);
+                    }
+                });
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+        } catch (e) {
+            // Ignore clipboard errors
+        }
+    }, []);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') {
+                checkClipboard();
+            }
+        });
+
+        // Initial check on mount
+        checkClipboard();
+
+        return () => {
+            subscription.remove();
+        };
+    }, [checkClipboard]);
 
     const fetchPages = useCallback(async () => {
         try {
@@ -113,8 +178,9 @@ export default function Index() {
                 throw new Error('API failed');
             }
 
-            // Success is handled by Realtime subscription
+            // Success is handled by Realtime subscription, but let's give immediate feedback
             showToast("Sifted!");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         } catch (error) {
             console.error('Error processing URL:', error);
@@ -122,27 +188,45 @@ export default function Index() {
         }
     };
 
-    const handleDeepLink = useCallback((event: Linking.EventType) => {
-        const { url } = event;
-        const parsed = Linking.parse(url);
+    const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
 
-        if (parsed.queryParams?.url) {
-            const targetUrl = parsed.queryParams.url as string;
-            processSharedUrl(targetUrl);
+    useEffect(() => {
+        if (hasShareIntent && shareIntent?.value) {
+            console.log("Share Intent Received:", shareIntent);
+            if (shareIntent.type === 'text' || shareIntent.type === 'weburl') {
+                processSharedUrl(shareIntent.value);
+                resetShareIntent();
+            }
         }
-    }, []);
+    }, [hasShareIntent, shareIntent, resetShareIntent, processSharedUrl]);
+
+    const handleDeepLink = useCallback((event: { url: string }) => {
+        try {
+            const parsed = Linking.parse(event.url);
+            // Handle sift://share?url=...
+            if (parsed.path === 'share' || parsed.queryParams?.url) {
+                const sharedUrl = parsed.queryParams?.url;
+                if (typeof sharedUrl === 'string') {
+                    // Slight delay to allow app to hydrate if fresh launch
+                    setTimeout(() => processSharedUrl(sharedUrl), 500);
+                }
+            }
+        } catch (e) {
+            console.error("Deep link parse error", e);
+        }
+    }, [processSharedUrl]);
 
     useEffect(() => {
         fetchPages();
 
         const getInitialURL = async () => {
-            // ... existing deep link logic checks ...
-            const initialUrl = await Linking.getInitialURL();
-            if (initialUrl) {
-                const parsed = Linking.parse(initialUrl);
-                if (parsed.queryParams?.url) {
-                    processSharedUrl(parsed.queryParams.url as string);
+            try {
+                const initialUrl = await Linking.getInitialURL();
+                if (initialUrl) {
+                    handleDeepLink({ url: initialUrl });
                 }
+            } catch (e) {
+                console.error("Initial URL check failed", e);
             }
         };
 
@@ -174,16 +258,51 @@ export default function Index() {
     }, [fetchPages, handleDeepLink]);
 
     const onRefresh = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Tactile "Thud"
         setRefreshing(true);
         fetchPages();
     }, [fetchPages]);
 
     const deletePage = async (id: string) => {
         try {
-            const { error } = await supabase.from('pages').delete().eq('id', id);
-            if (error) throw error;
+            // Soft Delete via API (Bypass RLS)
+            const debuggerHost = Constants.expoConfig?.hostUri;
+            const localhost = debuggerHost?.split(':')[0] || 'localhost';
+            const apiUrl = `http://${localhost}:3000/api/archive`;
+
+            const response = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action: 'archive' })
+            });
+
+            if (!response.ok) throw new Error('Failed to archive');
+
+            // Optimistic Remove
             setPages((prev) => prev.filter((p) => p.id !== id));
-            showToast("Page Deleted");
+            showToast("Moved to Archive");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error) {
+            console.error('Error archiving page:', error);
+            showToast("Archive failed");
+        }
+    };
+
+    const deletePageForever = async (id: string) => {
+        try {
+            // Hard Delete via API (Bypass RLS)
+            const debuggerHost = Constants.expoConfig?.hostUri;
+            const localhost = debuggerHost?.split(':')[0] || 'localhost';
+            const apiUrl = `http://${localhost}:3000/api/archive?id=${id}`;
+
+            const response = await fetch(apiUrl, { method: 'DELETE' });
+
+            if (!response.ok) throw new Error('Failed to delete');
+
+            // Optimistic Remove
+            setPages((prev) => prev.filter((p) => p.id !== id));
+            showToast("Permanently Deleted");
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error) {
             console.error('Error deleting page:', error);
             showToast("Delete failed");
@@ -233,6 +352,7 @@ export default function Index() {
     return (
         <SafeAreaView className="flex-1 bg-canvas">
             <ScrollView
+                ref={scrollViewRef}
                 contentContainerClassName="pb-32"
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.text.primary} />
@@ -244,7 +364,7 @@ export default function Index() {
                         <View className="flex-row justify-between items-center mb-4">
                             <View>
                                 <Typography variant="caption" className="text-ink-secondary/70 uppercase tracking-widest font-semibold mb-1">
-                                    Good Afternoon
+                                    {getGreeting()}
                                 </Typography>
                                 <Typography variant="h1" className="text-[34px] font-bold tracking-tight text-ink">
                                     Ryan
@@ -292,7 +412,12 @@ export default function Index() {
                     />
 
                     {/* Masonry Feed */}
-                    <MasonryList pages={filteredPages} onDelete={deletePage} onPin={togglePin} />
+                    <MasonryList
+                        pages={filteredPages}
+                        onDelete={deletePage}
+                        onDeleteForever={deletePageForever}
+                        onPin={togglePin}
+                    />
                 </View>
 
                 {filteredPages.length === 0 && (
@@ -306,6 +431,7 @@ export default function Index() {
                 message={toastMessage}
                 visible={toastVisible}
                 onHide={() => setToastVisible(false)}
+                action={toastAction}
             />
         </SafeAreaView>
     );

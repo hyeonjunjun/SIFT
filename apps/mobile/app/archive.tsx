@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert, Text } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import { Theme } from '../lib/theme';
 import { Typography } from '../components/design-system/Typography';
@@ -28,14 +29,16 @@ export default function ArchiveScreen() {
 
     const fetchArchived = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('pages')
-                .select('*')
-                .eq('is_archived', true)
-                .order('created_at', { ascending: false });
+            const debuggerHost = Constants.expoConfig?.hostUri;
+            const localhost = debuggerHost?.split(':')[0] || 'localhost';
+            const apiUrl = `http://${localhost}:3000/api/archive`;
 
-            if (error) throw error;
-            if (data) setPages(data as Page[]);
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (Array.isArray(data)) {
+                setPages(data);
+            }
         } catch (e) {
             console.error('Error fetching archive:', e);
         } finally {
@@ -55,12 +58,17 @@ export default function ArchiveScreen() {
 
     const handleRestore = async (id: string) => {
         try {
-            const { error } = await supabase
-                .from('pages')
-                .update({ is_archived: false })
-                .eq('id', id);
+            const debuggerHost = Constants.expoConfig?.hostUri;
+            const localhost = debuggerHost?.split(':')[0] || 'localhost';
+            const apiUrl = `http://${localhost}:3000/api/archive`;
 
-            if (error) throw error;
+            const response = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action: 'restore' })
+            });
+
+            if (!response.ok) throw new Error('Failed');
 
             setPages(prev => prev.filter(p => p.id !== id));
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -81,12 +89,13 @@ export default function ArchiveScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            const { error } = await supabase
-                                .from('pages')
-                                .delete() // Hard delete
-                                .eq('id', id);
+                            const debuggerHost = Constants.expoConfig?.hostUri;
+                            const localhost = debuggerHost?.split(':')[0] || 'localhost';
+                            const apiUrl = `http://${localhost}:3000/api/archive?id=${id}`;
 
-                            if (error) throw error;
+                            const response = await fetch(apiUrl, { method: 'DELETE' });
+
+                            if (!response.ok) throw new Error('Failed');
 
                             setPages(prev => prev.filter(p => p.id !== id));
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -125,7 +134,7 @@ export default function ArchiveScreen() {
                     pages.map(page => (
                         <View key={page.id} className="bg-white rounded-xl p-4 mb-3 border border-border/50 shadow-sm flex-row justify-between items-center">
                             <View className="flex-1 mr-4">
-                                <Typography variant="h4" numberOfLines={1} className="mb-1 text-ink">{page.title}</Typography>
+                                <Typography variant="h3" numberOfLines={1} className="mb-1 text-ink text-base">{page.title}</Typography>
                                 <Typography variant="caption" className="text-ink-secondary" numberOfLines={1}>{page.url}</Typography>
                             </View>
 

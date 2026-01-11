@@ -17,13 +17,14 @@ interface PageCardProps {
     url?: string;
     tags?: string[];
     onDelete?: (id: string) => void;
+    onDeleteForever?: (id: string) => void;
     onPin?: (id: string) => void;
     isPinned?: boolean;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function PageCard({ id, title, gist, url, tags = [], onDelete, onPin, isPinned, imageUrl }: PageCardProps & { imageUrl?: string }) {
+export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps & { imageUrl?: string }) {
     const router = useRouter();
     const scale = useSharedValue(1);
 
@@ -56,34 +57,55 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onPin, isP
 
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        const pinAction = isPinned ? 'Unpin Page' : 'Pin to Top';
 
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
-                    options: ['Cancel', pinAction, 'Copy Link', 'Delete Page'],
-                    destructiveButtonIndex: 3,
+                    options: ['Cancel', 'Copy Link', 'Pin/Unpin Page', 'Archive Page', 'Delete Permanently'],
+                    destructiveButtonIndex: 4,
                     cancelButtonIndex: 0,
                     userInterfaceStyle: 'light',
                 },
                 (buttonIndex) => {
-                    if (buttonIndex === 1) { // Pin/Unpin
-                        onPin?.(id);
-                    } else if (buttonIndex === 2) { // Copy Link
+                    if (buttonIndex === 1) { // Copy Link
                         if (url) Clipboard.setStringAsync(url);
-                    } else if (buttonIndex === 3) { // Delete
+                    } else if (buttonIndex === 2) { // Pin
+                        onPin?.(id);
+                    } else if (buttonIndex === 3) { // Archive
                         onDelete?.(id);
+                    } else if (buttonIndex === 4) { // Delete Forever
+                        Alert.alert(
+                            "Delete Permanently",
+                            "This cannot be undone.",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
+                            ]
+                        );
                     }
                 }
             );
         } else {
+            // Android Alert
             Alert.alert(
                 "Options",
                 displayTitle,
                 [
-                    { text: pinAction, onPress: () => onPin?.(id) },
                     { text: "Copy Link", onPress: () => url && Clipboard.setStringAsync(url) },
-                    { text: "Delete", style: 'destructive', onPress: () => onDelete?.(id) },
+                    { text: "Pin/Unpin", onPress: () => onPin?.(id) },
+                    { text: "Archive", onPress: () => onDelete?.(id) },
+                    {
+                        text: "Delete Permanently", style: 'destructive', onPress: () => {
+                            Alert.alert(
+                                "Delete Permanently",
+                                "This cannot be undone.",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
+                                ]
+                            );
+                        }
+                    },
                     { text: "Cancel", style: "cancel" }
                 ]
             );

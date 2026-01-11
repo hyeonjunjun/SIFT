@@ -12,6 +12,7 @@ import {
     KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, MoreHorizontal, Pencil, Check, X } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -73,12 +74,18 @@ export default function PageDetail() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            const { error } = await supabase
-                                .from('pages')
-                                .update({ is_archived: true }) // Soft delete
-                                .eq('id', id);
+                            const debuggerHost = Constants.expoConfig?.hostUri;
+                            const localhost = debuggerHost?.split(':')[0] || 'localhost';
+                            const apiUrl = `http://${localhost}:3000/api/archive`;
 
-                            if (error) throw error;
+                            const response = await fetch(apiUrl, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id, action: 'archive' })
+                            });
+
+                            if (!response.ok) throw new Error('Failed to archive');
+
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             router.back();
                         } catch (e) {

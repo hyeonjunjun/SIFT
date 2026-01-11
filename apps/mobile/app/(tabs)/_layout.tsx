@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { Compass, Book, User, LayoutGrid, Layers } from "lucide-react-native";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, DeviceEventEmitter } from "react-native";
 import { Theme } from "../../lib/theme";
 import { BlurView } from "expo-blur";
 
@@ -30,6 +30,14 @@ export default function TabLayout() {
         >
             <Tabs.Screen
                 name="index"
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        if (navigation.isFocused()) {
+                            e.preventDefault();
+                            DeviceEventEmitter.emit('scrollToTopDashboard');
+                        }
+                    },
+                })}
                 options={{
                     title: "Dashboard",
                     tabBarIcon: ({ color }) => <LayoutGrid size={24} color={color} />,
