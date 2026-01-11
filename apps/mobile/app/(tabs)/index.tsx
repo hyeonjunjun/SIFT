@@ -191,10 +191,11 @@ export default function Index() {
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
 
     useEffect(() => {
-        if (hasShareIntent && shareIntent?.value) {
-            console.log("Share Intent Received:", shareIntent);
-            if (shareIntent.type === 'text' || shareIntent.type === 'weburl') {
-                processSharedUrl(shareIntent.value);
+        const intent = shareIntent as any;
+        if (hasShareIntent && intent?.value) {
+            console.log("Share Intent Received:", intent);
+            if (intent.type === 'text' || intent.type === 'weburl') {
+                processSharedUrl(intent.value);
                 resetShareIntent();
             }
         }
