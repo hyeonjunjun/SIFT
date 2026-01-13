@@ -42,7 +42,7 @@ const withShareExtensionExclusions = (config) => {
   # use_native_modules!
   
   # Inherit search paths and configuration from the main project
-  # inherit! :complete # Commented out to potentially avoid inheriting unwanted settings/deps, but usually needed because ShareExtension is inside the project
+  inherit! :complete
 end`;
 
         let newContent = podfileContent;
