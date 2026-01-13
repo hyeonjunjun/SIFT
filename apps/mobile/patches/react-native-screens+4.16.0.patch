@@ -1,3 +1,20 @@
+diff --git a/node_modules/react-native-screens/ios/RNSScreen.mm b/node_modules/react-native-screens/ios/RNSScreen.mm
+index b62a2e2..295f194 100644
+--- a/node_modules/react-native-screens/ios/RNSScreen.mm
++++ b/node_modules/react-native-screens/ios/RNSScreen.mm
+@@ -1611,7 +1611,12 @@ - (BOOL)hasNestedStack
+ - (CGSize)getStatusBarHeightIsModal:(BOOL)isModal
+ {
+ #if !TARGET_OS_TV && !TARGET_OS_VISION
++#if defined(RCT_APP_EXTENSION)
++  // App Extensions cannot use sharedApplication
++  CGSize fallbackStatusBarSize = CGSizeZero;
++#else
+   CGSize fallbackStatusBarSize = [[UIApplication sharedApplication] statusBarFrame].size;
++#endif
+ 
+   CGSize primaryStatusBarSize = self.view.window.windowScene.statusBarManager.statusBarFrame.size;
+   if (primaryStatusBarSize.height == 0 || primaryStatusBarSize.width == 0) {
 diff --git a/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm b/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm
 index fd6f70d..009de6b 100644
 --- a/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm
