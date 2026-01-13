@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native/React-Core.podspec b/node_modules/react-native/React-Core.podspec
+index 63eb78a..a1be640 100644
+--- a/node_modules/react-native/React-Core.podspec
++++ b/node_modules/react-native/React-Core.podspec
+@@ -122,7 +122,7 @@ Pod::Spec.new do |s|
+     s.dependency "React-hermes"
+   end
+ 
+-  s.resource_bundles = {'React-Core_privacy' => 'React/Resources/PrivacyInfo.xcprivacy'}
++  # s.resource_bundles = {'React-Core_privacy' => 'React/Resources/PrivacyInfo.xcprivacy'}
+ 
+   add_dependency(s, "React-runtimeexecutor", :additional_framework_paths => ["platform/ios"])
+   add_dependency(s, "React-jsinspector", :framework_name => 'jsinspector_modern')
