@@ -1,8 +1,8 @@
 const { withPodfile } = require('@expo/config-plugins');
 
 const withShareExtensionPodfile = (config) => {
-    return withPodfile(config, (config) => {
-        const targetBlock = `
+  return withPodfile(config, (config) => {
+    const targetBlock = `
 target 'ShareExtension' do
   use_expo_modules!
 
@@ -29,18 +29,27 @@ target 'ShareExtension' do
 end
 `;
 
-        const contents = config.modResults.contents;
-        // Regex to match existing ShareExtension target block (simple matching)
-        const regex = /target 'ShareExtension' do[\s\S]*?end/g;
+    // Regex to match existing ShareExtension target block (simple matching)
+    const regex = /target 'ShareExtension' do[\s\S]*?end/g;
+    let newContents = contents;
 
-        if (regex.test(contents)) {
-            config.modResults.contents = contents.replace(regex, targetBlock.trim());
-        } else {
-            config.modResults.contents += targetBlock;
-        }
+    if (regex.test(contents)) {
+      newContents = newContents.replace(regex, targetBlock.trim());
+    } else {
+      newContents += targetBlock;
+    }
 
-        return config;
-    });
+    // 2. Disable Privacy Manifest Aggregation (Fixes "Multiple commands produce" error)
+    // Replace the line enabling aggregation with false
+    newContents = newContents.replace(
+      /:privacy_file_aggregation_enabled => podfile_properties\['apple\.privacyManifestAggregationEnabled'\] != 'false',/g,
+      ':privacy_file_aggregation_enabled => false,'
+    );
+
+    config.modResults.contents = newContents;
+
+    return config;
+  });
 };
 
 module.exports = withShareExtensionPodfile;
