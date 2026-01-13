@@ -32,7 +32,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="index"
                 listeners={({ navigation }) => ({
-                    tabPress: (e) => {
+                    tabPress: (e: any) => {
                         if (navigation.isFocused()) {
                             e.preventDefault();
                             DeviceEventEmitter.emit('scrollToTopDashboard');

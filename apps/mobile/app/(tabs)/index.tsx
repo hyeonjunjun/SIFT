@@ -48,6 +48,7 @@ export default function HomeScreen() {
     const [manualUrl, setManualUrl] = useState("");
     const lastCheckedUrl = useRef<string | null>(null);
     const inputRef = useRef<TextInput>(null);
+    const scrollViewRef = useRef<ScrollView>(null);
 
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
 
