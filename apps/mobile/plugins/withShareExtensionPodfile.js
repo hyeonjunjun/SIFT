@@ -2,8 +2,8 @@ const { withPodfile } = require('@expo/config-plugins');
 
 const withShareExtensionPodfile = (config) => {
   return withPodfile(config, (config) => {
-    const targetBlock = `
     const contents = config.modResults.contents;
+    const targetBlock = `
 target 'ShareExtension' do
   use_expo_modules!
 
