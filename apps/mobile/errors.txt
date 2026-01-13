@@ -1,1 +1,0 @@
-﻿app/(tabs)/_layout.tsx(37,31): error TS2339: Property 'preventDefault' does not exist on type 'EventArg<"tabPress", false, undefined>'.

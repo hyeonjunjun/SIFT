@@ -1,1 +1,0 @@
-﻿scripts/verify_supabase.ts(3,20): error TS2307: Cannot find module 'dotenv' or its corresponding type declarations.
