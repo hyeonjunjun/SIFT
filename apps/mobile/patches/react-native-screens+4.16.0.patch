@@ -1,0 +1,16 @@
+diff --git a/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm b/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm
+index 52850a9..4015cfe 100644
+--- a/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm
++++ b/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm
+@@ -35,7 +35,11 @@ - (UIInterfaceOrientationMask)reactNativeScreensSupportedInterfaceOrientations
+   if (childOrientationProvidingVC != nil) {
+     RNSOrientation orientation = [childOrientationProvidingVC evaluateOrientation];
+     if (orientation == RNSOrientationInherit) {
++      #if TARGET_OS_MACCATALYST || TARGET_OS_TV || defined(RCT_APP_EXTENSION)
++      return UIInterfaceOrientationMaskAll;
++#else
+       return [[UIApplication sharedApplication] supportedInterfaceOrientationsForWindow:self.view.window];
++#endif
+     }
+ 
+     return rnscreens::conversion::UIInterfaceOrientationMaskFromRNSOrientation(orientation);

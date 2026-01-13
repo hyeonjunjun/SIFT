@@ -51,34 +51,26 @@ end
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
 
-    # share_extension_macro: Apply RCT_APP_EXTENSION=1 to specified targets
+    # share_extension_macro: Apply RCT_APP_EXTENSION=1 to all targets when building for ShareExtension
     begin
       installer.pods_project.targets.each do |target|
-        # 1. Apply to the ShareExtension target
-        if target.name == 'ShareExtension'
-          target.build_configurations.each do |config|
+        target.build_configurations.each do |config|
+          # Apply RCT_APP_EXTENSION to all targets when building for ShareExtension
+          # This prevents sharedApplication usage in extension context, and applies to React-Core and other shared pods
+          if target.name == 'ShareExtension' || target.name.start_with?('RN') || target.name.include?('React')
             config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
             unless config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'].include?('RCT_APP_EXTENSION=1')
               config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'RCT_APP_EXTENSION=1'
             end
-            config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
-            puts "[ShareExtension Fix] Applied RCT_APP_EXTENSION=1 to ShareExtension target"
           end
           
-          # 2. Iterate dependencies to find React-Core
-          target.dependencies.each do |dep|
-            if dep.target && (dep.target.name.include?('React-Core') || dep.target.name.include?('React-'))
-               puts "[ShareExtension Fix] Found dependency #{dep.target.name} for ShareExtension. Applying macro."
-               dep.target.build_configurations.each do |config|
-                 config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-                 unless config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'].include?('RCT_APP_EXTENSION=1')
-                   config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'RCT_APP_EXTENSION=1'
-                 end
-               end
-            end
+          # Ensure extension target has APPLICATION_EXTENSION_API_ONLY
+          if target.name == 'ShareExtension'
+            config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
           end
         end
       end
+      puts "[ShareExtension Fix] Applied RCT_APP_EXTENSION=1 to ShareExtension and related React pods"
     rescue => e
       puts "[ShareExtension Fix] Warning: Failed to apply macro: #{e.message}"
     end
