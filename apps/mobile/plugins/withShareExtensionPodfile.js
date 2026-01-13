@@ -35,20 +35,25 @@ end
     let newContents = contents;
 
     if (regex.test(contents)) {
+      console.log('Action: Replacing existing ShareExtension target in Podfile');
       newContents = newContents.replace(regex, targetBlock.trim());
     } else {
+      console.log('Action: Adding ShareExtension target to Podfile');
       newContents += targetBlock;
     }
 
     // 2. Disable Privacy Manifest Aggregation (Fixes "Multiple commands produce" error)
     // Replace the line enabling aggregation with false using a flexible regex
-    newContents = newContents.replace(
-      /:privacy_file_aggregation_enabled\s*=>\s*.*?,/g,
-      ':privacy_file_aggregation_enabled => false,'
-    );
-
-    // 3. Inject post_install hook to manually remove React-Core_privacy bundle if still present
-    // (Reverted broken script)
+    const privacyRegex = /:privacy_file_aggregation_enabled\s*=>\s*.*?,/g;
+    if (privacyRegex.test(newContents)) {
+      console.log('Action: Disabling Privacy Manifest Aggregation in Podfile');
+      newContents = newContents.replace(
+        privacyRegex,
+        ':privacy_file_aggregation_enabled => false,'
+      );
+    } else {
+      console.log('Warning: Could not find privacy_file_aggregation_enabled setting to replace.');
+    }
 
     config.modResults.contents = newContents;
 
