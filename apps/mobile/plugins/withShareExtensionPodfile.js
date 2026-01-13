@@ -42,10 +42,55 @@ end
       newContents += targetBlock;
     }
 
-    // 2. Disable Privacy Manifest Aggregation (Fixes "Multiple commands produce" error)
-    // (Removed: Handled via patch-package on React-Core.podspec)
+    // 2. Inject post_install hook to set RCT_APP_EXTENSION macro (Fixes 'sharedApplication' error)
+    const postInstallHook = `
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      :ccache_enabled => ccache_enabled?(podfile_properties),
+    )
 
-    config.modResults.contents = newContents;
+    # share_extension_macro: Apply RCT_APP_EXTENSION=1 to specified targets
+    begin
+      installer.pods_project.targets.each do |target|
+        # 1. Apply to the ShareExtension target
+        if target.name == 'ShareExtension'
+          target.build_configurations.each do |config|
+            config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+            unless config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'].include?('RCT_APP_EXTENSION=1')
+              config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'RCT_APP_EXTENSION=1'
+            end
+            config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
+            puts "[ShareExtension Fix] Applied RCT_APP_EXTENSION=1 to ShareExtension target"
+          end
+          
+          # 2. Iterate dependencies to find React-Core
+          target.dependencies.each do |dep|
+            if dep.target && (dep.target.name.include?('React-Core') || dep.target.name.include?('React-'))
+               puts "[ShareExtension Fix] Found dependency #{dep.target.name} for ShareExtension. Applying macro."
+               dep.target.build_configurations.each do |config|
+                 config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+                 unless config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'].include?('RCT_APP_EXTENSION=1')
+                   config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'RCT_APP_EXTENSION=1'
+                 end
+               end
+            end
+          end
+        end
+      end
+    rescue => e
+      puts "[ShareExtension Fix] Warning: Failed to apply macro: #{e.message}"
+    end
+`;
+
+    // Regex to match the standard react_native_post_install call
+    const postInstallRegex = /react_native_post_install\([\s\S]*?ccache_enabled\?\(podfile_properties\),\s*\)/;
+
+    if (postInstallRegex.test(newContents)) {
+      console.log('Action: Injecting RCT_APP_EXTENSION macro script');
+      newContents = newContents.replace(postInstallRegex, postInstallHook.trim());
+    }
 
     config.modResults.contents = newContents;
 
