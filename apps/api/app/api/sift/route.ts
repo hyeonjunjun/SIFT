@@ -61,13 +61,13 @@ function extractMetaTags(html: string) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { url, platform } = body;
+        const { url, platform, user_id } = body;
 
         if (!url) {
             return NextResponse.json({ error: 'URL is required' }, { status: 400 });
         }
 
-        console.log(`[SIFT] Processing URL: ${url} (${platform})`);
+        console.log(`[SIFT] Processing URL: ${url} (${platform}) User: ${user_id || 'Guest'}`);
         console.log(`[SIFT] Env Check - Apify: ${!!process.env.APIFY_API_TOKEN}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Supabase: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
 
         // 1. Scrape Content & Metadata
@@ -331,6 +331,7 @@ export async function POST(request: Request) {
         const { data, error } = await supabaseAdmin
             .from('pages')
             .insert({
+                user_id: user_id || null, // Associate with user if provided
                 url,
                 platform: platform || 'unknown',
                 title,

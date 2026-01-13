@@ -34,8 +34,10 @@ interface Page {
 
 const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
 
-export default function Index() {
-    const scrollViewRef = useRef<ScrollView>(null);
+import { useAuth } from "../../lib/auth";
+
+export default function HomeScreen() {
+    const { user } = useAuth(); // Get authenticated user
     const [pages, setPages] = useState<Page[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -199,6 +201,7 @@ export default function Index() {
                 body: JSON.stringify({
                     url: url,
                     platform: 'share_sheet',
+                    user_id: user?.id, // Pass User ID to API
                 }),
                 signal: controller.signal
             });
