@@ -41,9 +41,9 @@ end
     }
 
     // 2. Disable Privacy Manifest Aggregation (Fixes "Multiple commands produce" error)
-    // Replace the line enabling aggregation with false
+    // Replace the line enabling aggregation with false using a flexible regex
     newContents = newContents.replace(
-      /:privacy_file_aggregation_enabled => podfile_properties\['apple\.privacyManifestAggregationEnabled'\] != 'false',/g,
+      /:privacy_file_aggregation_enabled\s*=>\s*.*?,/g,
       ':privacy_file_aggregation_enabled => false,'
     );
 
