@@ -9,7 +9,18 @@ const withShareExtensionExclusions = (config) => {
         // with our custom block that avoids use_native_modules!
 
         // Regex to find the ShareExtension block
-        const shareExtensionRegex = /target 'ShareExtension' do[\s\S]*?end/g;
+        // Since ShareExtension is typically the last target, we replace from its start header to the end of the file.
+        // This avoids complex nested block matching.
+        const shareExtensionRegex = /target 'ShareExtension' do[\s\S]*$/;
+
+        // Add post_install hook to disable APPLICATION_EXTENSION_API_ONLY
+        const postInstallReplacement = `post_install do |installer|
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
+      end
+    end`;
+
 
         const replacement = `target 'ShareExtension' do
   # Only import what we actually need
@@ -22,10 +33,10 @@ const withShareExtensionExclusions = (config) => {
   pod 'React-RCTAnimation', :path => '../node_modules/react-native/Libraries/NativeAnimation'
   
   # Add expo-share-intent
-  pod 'expo-share-intent', :path => '../node_modules/expo-share-intent/ios'
+  pod 'ExpoShareIntentModule', :path => '../node_modules/expo-share-intent/ios'
   
   # Add expo-modules-core (required for expo-share-intent)
-  pod 'ExpoModulesCore', :path => '../node_modules/expo-modules-core/ios'
+  pod 'ExpoModulesCore', :path => '../node_modules/expo-modules-core'
   
   # DO NOT use use_native_modules!
   # use_native_modules!
@@ -34,19 +45,24 @@ const withShareExtensionExclusions = (config) => {
   # inherit! :complete # Commented out to potentially avoid inheriting unwanted settings/deps, but usually needed because ShareExtension is inside the project
 end`;
 
-        if (podfileContent.match(shareExtensionRegex)) {
-            config.modResults.contents = podfileContent.replace(shareExtensionRegex, replacement);
+        let newContent = podfileContent;
+
+        if (newContent.match(shareExtensionRegex)) {
+            newContent = newContent.replace(shareExtensionRegex, replacement);
         } else {
-            // If not found, append it (though it should be there due to expo-share-intent plugin?)
-            // Actually, expo-share-intent plugin usually adds this block. 
-            // If my plugin runs AFTER that, it should replace it.
-            // Or I can just ensure this plugin runs last.
-            // For now, let's assume it exists or we append it.
-            // But simpler: we just search for the block and replace.
-            // If it's not found, maybe we should warn.
+            // If not found, append it
             console.warn("ShareExtension block not found in Podfile, appending...");
-            config.modResults.contents += "\n" + replacement;
+            newContent += "\n" + replacement;
         }
+
+        // Apply post_install replacement to disable APPLICATION_EXTENSION_API_ONLY
+        if (newContent.includes('post_install do |installer|')) {
+            newContent = newContent.replace('post_install do |installer|', postInstallReplacement);
+        } else {
+            console.warn("post_install block not found during Config Plugin execution!");
+        }
+
+        config.modResults.contents = newContent;
 
         return config;
     });
