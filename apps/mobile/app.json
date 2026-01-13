@@ -82,7 +82,7 @@
           "appleTeamId": "8DA3BAGA32"
         }
       ],
-      "./plugins/withShareExtensionPodfile.js"
+      "./plugins/withShareExtensionExclusions.js"
     ],
     "extra": {
       "router": {},
