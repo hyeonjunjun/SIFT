@@ -35,12 +35,11 @@ export default function RootLayout() {
 
     return (
         <GestureHandlerRootView className="flex-1 bg-canvas">
-            <Stack
-                screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: Theme.colors.background },
-                }}
-            />
+            <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: Theme.colors.background } }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
+                <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+            </Stack>
         </GestureHandlerRootView>
     );
 }

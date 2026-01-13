@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
+      "buildNumber": "1",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -29,16 +30,7 @@
             "group.com.hkjstudio.sift"
           ]
         },
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSExtension": {
-          "NSExtensionAttributes": {
-            "NSExtensionActivationRule": {
-              "NSExtensionActivationSupportsWebURLWithMaxCount": 1
-            }
-          },
-          "NSExtensionPointIdentifier": "com.apple.share-services",
-          "NSExtensionPrincipalClass": "ShareViewController"
-        }
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -47,6 +39,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "intentFilters": [
         {
@@ -62,6 +55,9 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "INTERNET"
       ]
     },
     "web": {
@@ -87,24 +83,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4f97e75c-3da1-403c-9e5a-92156c51f400",
-        "build": {
-          "experimental": {
-            "ios": {
-              "appExtensions": [
-                {
-                  "targetName": "ShareExtension",
-                  "bundleIdentifier": "com.hkjstudio.sift.share-extension",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.hkjstudio.sift"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        }
+        "projectId": "4f97e75c-3da1-403c-9e5a-92156c51f400"
       }
     },
     "owner": "hkjstudio"
