@@ -4,7 +4,7 @@
     "slug": "sift",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/sift-white.png",
     "scheme": "sift",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -28,7 +28,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/sift-white.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
