@@ -48,30 +48,7 @@ end
     );
 
     // 3. Inject post_install hook to manually remove React-Core_privacy bundle if still present
-    const postInstallHook = `
-    react_native_post_install(
-      installer,
-      config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      :ccache_enabled => ccache_enabled?(podfile_properties),
-    )
-    
-    # Manually remove React-Core_privacy bundle to prevent duplicate output
-    installer.pods_project.targets.each do |target|
-      target.resource_bundles.each do |bundle_name, bundle_target|
-         if bundle_name == 'React-Core_privacy'
-           target.resource_bundles.delete(bundle_name)
-         end
-      end
-    end
-`;
-
-    // Regex to match the standard react_native_post_install call
-    const postInstallRegex = /react_native_post_install\([\s\S]*?\)/;
-
-    if (postInstallRegex.test(newContents)) {
-      newContents = newContents.replace(postInstallRegex, postInstallHook.trim());
-    }
+    // (Reverted broken script)
 
     config.modResults.contents = newContents;
 
