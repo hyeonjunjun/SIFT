@@ -82,7 +82,8 @@ end
 `;
 
     // Regex to match the standard react_native_post_install call
-    const postInstallRegex = /react_native_post_install\([\s\S]*?\)/;
+    // Note: We used specific matching because simpler regex stops at nested 'ccache_enabled?(...)' parens
+    const postInstallRegex = /react_native_post_install\([\s\S]*?ccache_enabled\?\(podfile_properties\),\s*\)/;
 
     if (postInstallRegex.test(newContents)) {
       console.log('Action: Injecting defensive React-Core privacy bundle removal script');
