@@ -1,73 +1,33 @@
 import { Tabs } from "expo-router";
-import { User, LayoutGrid, Layers } from "lucide-react-native";
-import { View, StyleSheet, DeviceEventEmitter, Pressable, Dimensions } from "react-native";
+import { DeviceEventEmitter, StyleSheet } from "react-native";
 import { Theme } from "../../lib/theme";
-import { BlurView } from "expo-blur";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
-
-const { width } = Dimensions.get('window');
-
-function TabBarIcon({ Icon, color, focused }: { Icon: any, color: string, focused: boolean }) {
-    const scale = useSharedValue(1);
-
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ scale: scale.value }]
-        };
-    });
-
-    const onPressIn = () => {
-        scale.value = withSpring(0.9);
-    };
-
-    const onPressOut = () => {
-        scale.value = withSpring(1);
-    };
-
-    return (
-        <Animated.View
-            style={[styles.iconContainer, animatedStyle]}
-            onTouchStart={onPressIn}
-            onTouchEnd={onPressOut}
-        >
-            <Icon size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-        </Animated.View>
-    );
-}
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
+                // 1. THE BELI-STYLE CONTAINER
                 tabBarStyle: {
-                    position: 'absolute',
-                    bottom: 40,
-                    left: '5%',
-                    right: '5%',
-                    width: '90%',
-                    maxWidth: 400,
-                    alignSelf: 'center',
-                    height: 64,
-                    borderRadius: 30,
-                    backgroundColor: Theme.colors.surface,
-                    borderTopWidth: 0,
-                    borderWidth: 1,
-                    borderColor: Theme.colors.border,
-                    ...Theme.shadows.dock,
-                    elevation: 10,
-                    paddingBottom: 0,
+                    backgroundColor: Theme.colors.background, // Oatmeal
+                    borderTopWidth: 0.5,        // Hairline divider
+                    borderTopColor: 'rgba(0,0,0,0.1)',
+                    height: 95,                 // Taller = More Premium
+                    paddingTop: 10,
+                    paddingBottom: 35,          // Space for home indicator
+                    elevation: 0,               // Flat look
+                    shadowOpacity: 0,
                 },
-                tabBarBackground: () => (
-                    <BlurView
-                        intensity={50}
-                        style={[StyleSheet.absoluteFill, { borderRadius: 30, overflow: 'hidden' }]}
-                        tint="light"
-                    />
-                ),
-                tabBarActiveTintColor: Theme.colors.text.action,
-                tabBarInactiveTintColor: Theme.colors.text.tertiary,
-                tabBarShowLabel: false,
+                // 2. THE TEXT
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontWeight: '700',
+                    marginTop: 4,
+                },
+                // 3. THE COLORS
+                tabBarActiveTintColor: Theme.colors.text.primary,   // Charcoal/Black
+                tabBarInactiveTintColor: '#999999',                 // Muted Gray
             }}
         >
             <Tabs.Screen
@@ -81,33 +41,43 @@ export default function TabLayout() {
                     },
                 })}
                 options={{
-                    title: "Dashboard",
-                    tabBarIcon: ({ color, focused }) => <TabBarIcon Icon={LayoutGrid} color={color} focused={focused} />,
+                    title: "Home",
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons
+                            name={focused ? "grid" : "grid-outline"}
+                            size={24}
+                            color={color}
+                        />
+                    ),
                 }}
             />
             <Tabs.Screen
                 name="library"
                 options={{
                     title: "Library",
-                    tabBarIcon: ({ color, focused }) => <TabBarIcon Icon={Layers} color={color} focused={focused} />,
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons
+                            name={focused ? "layers" : "layers-outline"}
+                            size={24}
+                            color={color}
+                        />
+                    ),
                 }}
             />
             <Tabs.Screen
                 name="settings"
                 options={{
                     title: "Profile",
-                    tabBarIcon: ({ color, focused }) => <TabBarIcon Icon={User} color={color} focused={focused} />,
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons
+                            name={focused ? "person" : "person-outline"}
+                            size={24}
+                            color={color}
+                        />
+                    ),
                 }}
             />
         </Tabs>
     );
 }
 
-const styles = StyleSheet.create({
-    iconContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 44,
-        width: 44,
-    }
-});
