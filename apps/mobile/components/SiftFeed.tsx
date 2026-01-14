@@ -238,25 +238,28 @@ const styles = StyleSheet.create({
     },
     image: {
         width: '100%',
-        borderRadius: 16, // Soft "Apple-style" corners
+        borderRadius: Theme.borderRadius.card, // 24px
         marginBottom: 12,
-        backgroundColor: '#F2F2F7', // Loading placeholder color
+        backgroundColor: Theme.colors.border, // Subtle placeholder
     },
     meta: {
-        paddingHorizontal: 4, // Slight visual indent
+        paddingHorizontal: 4,
     },
     eyebrow: {
         fontSize: 10,
         fontWeight: '700',
-        color: '#8E8E93', // Muted uppercase
+        color: Theme.colors.text.tertiary,
         marginBottom: 4,
         letterSpacing: 0.5,
+        textTransform: 'uppercase',
     },
     title: {
-        fontSize: 15,
-        fontWeight: '600', // Semi-bold (not heavy bold)
-        color: '#1C1C1E',
-        lineHeight: 20,
+        fontSize: Theme.typography.header.cardTitle.fontSize,
+        fontWeight: Theme.typography.header.cardTitle.fontWeight as any,
+        letterSpacing: Theme.typography.header.cardTitle.letterSpacing,
+        color: Theme.typography.header.cardTitle.color,
+        fontFamily: Theme.typography.header.cardTitle.fontFamily,
+        lineHeight: 24,
         marginBottom: 8,
     },
     sourceRow: {
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
         borderRadius: 2,
     },
     sourceText: {
-        fontSize: 12,
-        color: '#8E8E93',
+        fontSize: Theme.typography.caption.fontSize,
+        color: Theme.typography.caption.color,
     },
 });

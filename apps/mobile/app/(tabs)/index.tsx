@@ -388,7 +388,7 @@ export default function Index() {
         <SafeAreaView className="flex-1 bg-canvas">
             <ScrollView
                 ref={scrollViewRef}
-                contentContainerClassName="pb-32"
+                contentContainerStyle={{ paddingBottom: 140 }}
                 onScroll={onScroll}
                 scrollEventThrottle={16}
                 refreshControl={

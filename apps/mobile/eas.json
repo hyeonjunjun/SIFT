@@ -18,7 +18,13 @@
         "preview": {
             "distribution": "internal"
         },
-        "production": {}
+        "production": {
+            "distribution": "store",
+            "autoIncrement": true,
+            "ios": {
+                "resourceClass": "medium"
+            }
+        }
     },
     "submit": {
         "production": {}

@@ -1,8 +1,39 @@
 import { Tabs } from "expo-router";
-import { Compass, Book, User, LayoutGrid, Layers } from "lucide-react-native";
-import { View, StyleSheet, DeviceEventEmitter } from "react-native";
+import { User, LayoutGrid, Layers } from "lucide-react-native";
+import { View, StyleSheet, DeviceEventEmitter, Pressable, Dimensions } from "react-native";
 import { Theme } from "../../lib/theme";
 import { BlurView } from "expo-blur";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+
+const { width } = Dimensions.get('window');
+
+function TabBarIcon({ Icon, color, focused }: { Icon: any, color: string, focused: boolean }) {
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ scale: scale.value }]
+        };
+    });
+
+    const onPressIn = () => {
+        scale.value = withSpring(0.9);
+    };
+
+    const onPressOut = () => {
+        scale.value = withSpring(1);
+    };
+
+    return (
+        <Animated.View
+            style={[styles.iconContainer, animatedStyle]}
+            onTouchStart={onPressIn}
+            onTouchEnd={onPressOut}
+        >
+            <Icon size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+        </Animated.View>
+    );
+}
 
 export default function TabLayout() {
     return (
@@ -11,24 +42,32 @@ export default function TabLayout() {
                 headerShown: false,
                 tabBarStyle: {
                     position: 'absolute',
-                    borderTopWidth: 0.5, // Hairline border
-                    borderTopColor: 'rgba(0,0,0,0.15)', // Subtle contrast definition
-                    elevation: 0,
-                    height: 85,
-                    paddingTop: 8,
+                    bottom: 40,
+                    left: '5%',
+                    right: '5%',
+                    width: '90%',
+                    maxWidth: 400,
+                    alignSelf: 'center',
+                    height: 64,
+                    borderRadius: 30,
+                    backgroundColor: Theme.colors.surface,
+                    borderTopWidth: 0,
+                    borderWidth: 1,
+                    borderColor: Theme.colors.border,
+                    ...Theme.shadows.dock,
+                    elevation: 10,
+                    paddingBottom: 0,
                 },
                 tabBarBackground: () => (
-                    <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="light" />
+                    <BlurView
+                        intensity={50}
+                        style={[StyleSheet.absoluteFill, { borderRadius: 30, overflow: 'hidden' }]}
+                        tint="light"
+                    />
                 ),
-                tabBarActiveTintColor: Theme.colors.primary, // Brand Indigo
-
+                tabBarActiveTintColor: Theme.colors.text.action,
                 tabBarInactiveTintColor: Theme.colors.text.tertiary,
-                tabBarShowLabel: true,
-                tabBarLabelStyle: {
-                    fontSize: 11,
-                    fontWeight: '600',
-                    marginTop: 4,
-                }
+                tabBarShowLabel: false,
             }}
         >
             <Tabs.Screen
@@ -43,23 +82,32 @@ export default function TabLayout() {
                 })}
                 options={{
                     title: "Dashboard",
-                    tabBarIcon: ({ color }) => <LayoutGrid size={24} color={color} />,
+                    tabBarIcon: ({ color, focused }) => <TabBarIcon Icon={LayoutGrid} color={color} focused={focused} />,
                 }}
             />
             <Tabs.Screen
                 name="library"
                 options={{
                     title: "Library",
-                    tabBarIcon: ({ color }) => <Layers size={24} color={color} />,
+                    tabBarIcon: ({ color, focused }) => <TabBarIcon Icon={Layers} color={color} focused={focused} />,
                 }}
             />
             <Tabs.Screen
                 name="settings"
                 options={{
                     title: "Profile",
-                    tabBarIcon: ({ color }) => <User size={24} color={color} />,
+                    tabBarIcon: ({ color, focused }) => <TabBarIcon Icon={User} color={color} focused={focused} />,
                 }}
             />
         </Tabs>
     );
 }
+
+const styles = StyleSheet.create({
+    iconContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 44,
+        width: 44,
+    }
+});
