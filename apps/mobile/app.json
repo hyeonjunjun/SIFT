@@ -10,13 +10,13 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#FDFCF8"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "config": {
         "usesNonExemptEncryption": false
       },
