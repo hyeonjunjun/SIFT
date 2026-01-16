@@ -1,14 +1,15 @@
 import React, { useCallback, useState } from 'react';
 import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
-import { Theme } from '../../lib/theme';
+import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
+import { TEXT } from '../../lib/typography';
 import { MagnifyingGlass, Sliders, ArrowUpRight } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
+import ScreenWrapper from '../../components/ScreenWrapper';
 
 const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - (Theme.spacing.l * 2) - 15) / 2;
+const COLUMN_WIDTH = (width - (SPACING.l * 2) - 15) / 2;
 
 interface SiftItem {
     id: string;
@@ -36,8 +37,7 @@ export default function SiftScreen() {
                 .eq('is_archived', false)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setPages(data || []);
+            if (data) setPages(data || []);
         } catch (error) {
             console.error('Error fetching sifts:', error);
         } finally {
@@ -70,40 +70,43 @@ export default function SiftScreen() {
     if (loading && !refreshing) {
         return (
             <View style={styles.loaderContainer}>
-                <ActivityIndicator color={Theme.colors.primary} />
+                <ActivityIndicator color={COLORS.sage} />
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* 1. HEADER */}
+        <ScreenWrapper edges={['top']}>
+            {/* 1. EDITORIAL HEADER */}
             <View style={styles.header}>
-                <Typography variant="h1">Sift</Typography>
+                <View>
+                    <Typography variant="label" color={COLORS.stone}>Your Collection</Typography>
+                    <Typography variant="h1">Library</Typography>
+                </View>
                 <TouchableOpacity style={styles.filterButton}>
-                    <Sliders size={20} color={Theme.colors.text.primary} />
+                    <Sliders size={20} color={COLORS.ink} />
                 </TouchableOpacity>
             </View>
 
             {/* 2. SEARCH BAR */}
             <View style={styles.searchContainer}>
-                <MagnifyingGlass size={18} color={Theme.colors.text.tertiary} style={styles.searchIcon} />
+                <MagnifyingGlass size={18} color={COLORS.stone} style={styles.searchIcon} />
                 <TextInput
                     style={styles.input}
-                    placeholder="Search your curation..."
-                    placeholderTextColor={Theme.colors.text.tertiary}
+                    placeholder="Search sifts..."
+                    placeholderTextColor={COLORS.stone}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     autoCapitalize="none"
                 />
             </View>
 
-            {/* 3. MASONRY GRID */}
+            {/* 3. MASONRY GRID (29CM Editorial Style) */}
             <ScrollView
                 contentContainerStyle={styles.gridContainer}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
             >
                 <View style={styles.column}>
@@ -119,13 +122,11 @@ export default function SiftScreen() {
 
                 {filteredPages.length === 0 && (
                     <View style={styles.emptyState}>
-                        <Typography variant="body" style={{ textAlign: 'center', opacity: 0.5 }}>
-                            {searchQuery ? "No results found." : "No sifts yet."}
-                        </Typography>
+                        <Typography variant="body" color={COLORS.stone}>No sifts yet.</Typography>
                     </View>
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </ScreenWrapper>
     );
 }
 
@@ -136,57 +137,47 @@ const Card = ({ item }: { item: SiftItem }) => (
             style={styles.cardImage}
         />
         <View style={styles.cardInfo}>
-            <Typography variant="h2" style={styles.cardTitle}>{item.title}</Typography>
-            <Typography variant="caption" style={styles.cardTag}>
+            <Typography variant="bodyMedium" numberOfLines={2} style={styles.cardTitle}>{item.title}</Typography>
+            <Typography variant="label" style={styles.cardTag} color={COLORS.stone}>
                 {item.tags?.[0] || item.metadata?.category || 'Sifted'}
             </Typography>
-        </View>
-        <View style={styles.iconBadge}>
-            <ArrowUpRight size={14} color="#FFF" weight="bold" />
         </View>
     </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Theme.colors.background
-    },
     loaderContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Theme.colors.background,
+        backgroundColor: COLORS.canvas,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: Theme.spacing.l,
-        marginTop: 10,
-        marginBottom: 20,
+        alignItems: 'flex-start',
+        paddingHorizontal: SPACING.l,
+        marginTop: SPACING.m,
+        marginBottom: SPACING.l,
     },
     filterButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: Theme.colors.border,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.paper,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFF',
+        ...Theme.shadows.soft,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: Theme.spacing.l,
-        marginBottom: 25,
-        paddingHorizontal: 15,
+        marginHorizontal: SPACING.l,
+        marginBottom: SPACING.xl,
+        paddingHorizontal: SPACING.m,
         height: 48,
-        backgroundColor: '#FFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: Theme.colors.border,
+        backgroundColor: COLORS.vapor,
+        borderRadius: RADIUS.m,
     },
     searchIcon: {
         marginRight: 10
@@ -194,26 +185,26 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         fontSize: 15,
-        color: Theme.colors.text.primary,
-        fontFamily: 'System',
+        color: COLORS.ink,
+        fontFamily: 'Inter_400Regular',
     },
     gridContainer: {
         flexDirection: 'row',
-        paddingHorizontal: Theme.spacing.l,
-        paddingBottom: 140
+        paddingHorizontal: SPACING.l,
+        paddingBottom: 160
     },
     column: {
         width: COLUMN_WIDTH,
         gap: 15
     },
     card: {
-        borderRadius: 16,
-        backgroundColor: '#FFF',
+        borderRadius: RADIUS.l,
+        backgroundColor: COLORS.paper,
         overflow: 'hidden',
         marginBottom: 15,
-        ...Theme.shadows.card,
-        borderWidth: 1,
-        borderColor: Theme.colors.border,
+        ...Theme.shadows.soft,
+        shadowOpacity: 0.04,
+        shadowRadius: 20,
     },
     cardImage: {
         width: '100%',
@@ -221,31 +212,21 @@ const styles = StyleSheet.create({
         resizeMode: 'cover'
     },
     cardInfo: {
-        padding: 12
+        padding: SPACING.m,
     },
     cardTitle: {
         fontSize: 14,
-        marginBottom: 4
+        lineHeight: 18,
+        marginBottom: 6,
     },
     cardTag: {
-        color: Theme.colors.text.tertiary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    iconBadge: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        fontSize: 9,
+        letterSpacing: 1.5,
     },
     emptyState: {
-        width: width - (Theme.spacing.l * 2),
+        width: width - (SPACING.l * 2),
         padding: 40,
         alignItems: 'center',
     }
 });
+

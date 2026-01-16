@@ -10,6 +10,11 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@expo-google-fonts/geist-mono": "^0.4.1",
+    "@expo-google-fonts/instrument-serif": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@shopify/react-native-skia": "^2.4.14",
     "@supabase/supabase-js": "^2.89.0",
     "@types/showdown": "^2.0.6",
     "expo": "~54.0.30",
@@ -17,6 +22,7 @@
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.12",
     "expo-dev-client": "~6.0.20",
+    "expo-font": "^14.0.10",
     "expo-haptics": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",

@@ -1,14 +1,19 @@
 import "../global.css";
 import { Stack } from "expo-router";
 import { useShareIntent } from "expo-share-intent";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Theme } from "../lib/theme";
+import { Theme, COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
 import { View, ImageBackground, StyleSheet } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
+
+// Fonts
+import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display';
+import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif';
+import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 
 // Safe Splash Screen Prevention
 try {
@@ -20,6 +25,15 @@ try {
 export default function RootLayout() {
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
 
+    const [fontsLoaded] = useFonts({
+        PlayfairDisplay_700Bold,
+        PlayfairDisplay_600SemiBold,
+        InstrumentSerif_400Regular,
+        Inter_400Regular,
+        Inter_500Medium,
+        Inter_700Bold
+    });
+
     useEffect(() => {
         // Safe Hide
         try {
@@ -30,7 +44,6 @@ export default function RootLayout() {
     useEffect(() => {
         if (hasShareIntent && shareIntent.type === "weburl") {
             console.log("🚀 Sifting URL from Share Sheet:", shareIntent.webUrl);
-            // TODO: Handle the URL (e.g., navigate to a specific screen or call an API)
             resetShareIntent();
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
@@ -41,10 +54,8 @@ export default function RootLayout() {
     const [showOnboarding, setShowOnboarding] = useState(false);
 
     useEffect(() => {
-        // Check Onboarding state & Prepare resources
         async function prepare() {
             try {
-                // Check if user has completed onboarding (Mocking secure store check for now or implementing)
                 const hasLaunched = await SecureStore.getItemAsync('has_launched');
                 if (hasLaunched !== 'true') {
                     setShowOnboarding(true);
@@ -58,14 +69,12 @@ export default function RootLayout() {
         prepare();
     }, []);
 
-    // Combine states to determine when to dismiss splash
     useEffect(() => {
-        if (appReady && splashAnimationFinished) {
+        if (appReady && fontsLoaded && splashAnimationFinished) {
             setSplashDismissed(true);
         }
-    }, [appReady, splashAnimationFinished]);
+    }, [appReady, fontsLoaded, splashAnimationFinished]);
 
-    // 1. Show Splash until animation finishes AND app is ready
     if (!splashDismissed) {
         return (
             <SplashScreen
@@ -74,20 +83,16 @@ export default function RootLayout() {
         );
     }
 
-    // 2. Show Onboarding if needed
     if (showOnboarding) {
         return (
             <Onboarding
-                onComplete={() => {
-                    setShowOnboarding(false);
-                    // Force refresh or just let state update mount Stack
-                }}
+                onComplete={() => setShowOnboarding(false)}
             />
         );
     }
 
     return (
-        <GestureHandlerRootView className="flex-1 bg-canvas">
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.canvas }}>
             <ImageBackground
                 source={require("../assets/noise.png")}
                 style={StyleSheet.absoluteFill}
@@ -103,3 +108,4 @@ export default function RootLayout() {
         </GestureHandlerRootView>
     );
 }
+

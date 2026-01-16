@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, Image, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Typography } from "../../components/design-system/Typography";
-import { Theme } from "../../lib/theme";
-import { Gear, Shield, Bell, CaretRight, User as UserIcon } from 'phosphor-react-native';
+import { COLORS, SPACING, Theme, RADIUS } from "../../lib/theme";
+import { TEXT } from "../../lib/typography";
+import { Gear, Shield, Bell, CaretRight, User as UserIcon, SignOut } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
+import ScreenWrapper from "../../components/ScreenWrapper";
 import { useFocusEffect } from "expo-router";
 
 const { width } = Dimensions.get('window');
@@ -23,11 +24,7 @@ export default function ProfileScreen() {
                 .eq('is_pinned', true)
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error('Error fetching saved pages:', error);
-            } else if (data) {
-                setSavedPages(data as any);
-            }
+            if (data) setSavedPages(data as any);
         } catch (e) {
             console.error(e);
         } finally {
@@ -48,69 +45,75 @@ export default function ProfileScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <ScreenWrapper edges={['top']}>
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.text.primary} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
             >
                 {/* 1. USER HEADER */}
                 <View style={styles.header}>
-                    <Image
-                        source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400' }}
-                        style={styles.avatar}
-                    />
+                    <View style={styles.avatarContainer}>
+                        <Image
+                            source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400' }}
+                            style={styles.avatar}
+                        />
+                    </View>
                     <Typography variant="h1" style={styles.name}>Ryan Jun</Typography>
-                    <Typography variant="body" style={styles.handle}>@ryanjun • Pro Member</Typography>
+                    <Typography variant="body" color={COLORS.stone}>@ryanjun • Pro Member</Typography>
 
                     <View style={styles.statsRow}>
-                        <Stat label="Sifts" value="1,240" />
+                        <Stat label="Sifts" value="1.2k" />
                         <Stat label="Lists" value="12" />
-                        <Stat label="Following" value="84" />
+                        <Stat label="Karma" value="84" />
                     </View>
                 </View>
 
                 {/* 2. BENTO ACTIONS */}
-                <Typography variant="caption" style={styles.sectionTitle}>Account</Typography>
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label" color={COLORS.stone}>Account Settings</Typography>
+                </View>
+
                 <View style={styles.bentoGrid}>
-                    <BentoTile icon={UserIcon} title="Personal Info" subtitle="Edit details" wide />
+                    <BentoTile icon={UserIcon} title="Personal Info" subtitle="Profile & Identity" wide />
                     <View style={styles.row}>
                         <BentoTile icon={Bell} title="Notifications" />
                         <BentoTile icon={Shield} title="Privacy" />
                     </View>
-                    <BentoTile icon={Gear} title="App Settings" subtitle="Preferences & Display" wide />
+                    <BentoTile icon={Gear} title="Preferences" subtitle="Display & Interface" wide />
                 </View>
 
-                {/* 3. SAVED ITEMS */}
-                <View style={[styles.sectionHeader, { marginTop: 40 }]}>
-                    <Typography variant="h1" style={styles.sectionTitleLarge}>Saved</Typography>
-                    <TouchableOpacity>
-                        <Typography variant="action" style={{ color: Theme.colors.text.tertiary }}>VIEW ALL</Typography>
-                    </TouchableOpacity>
+                {/* 3. SAVED ITEMS SECTION */}
+                <View style={[styles.sectionHeader, { marginTop: SPACING.xl }]}>
+                    <Typography variant="label" color={COLORS.stone}>Pinned Artifacts</Typography>
                 </View>
 
-                <SiftFeed pages={savedPages} loading={loading} />
+                <View style={styles.feedWrapper}>
+                    <SiftFeed pages={savedPages} loading={loading} />
 
-                {savedPages.length === 0 && !loading && (
-                    <View style={styles.emptyState}>
-                        <Typography variant="body" style={{ textAlign: 'center', opacity: 0.5 }}>No saved items yet.</Typography>
-                    </View>
-                )}
+                    {savedPages.length === 0 && !loading && (
+                        <View style={styles.emptyState}>
+                            <Typography variant="body" color={COLORS.stone}>No pinned items yet.</Typography>
+                        </View>
+                    )}
+                </View>
 
                 <TouchableOpacity style={styles.logoutButton}>
-                    <Typography variant="action" style={styles.logoutText}>Log Out</Typography>
+                    <SignOut size={18} color={COLORS.terracotta} style={{ marginRight: 8 }} />
+                    <Typography variant="bodyMedium" color={COLORS.terracotta}>Sign Out</Typography>
                 </TouchableOpacity>
 
             </ScrollView>
-        </SafeAreaView>
+        </ScreenWrapper>
     );
 }
 
 const Stat = ({ label, value }: { label: string, value: string }) => (
     <View style={styles.statItem}>
-        <Typography variant="h3" style={styles.statValue}>{value}</Typography>
-        <Typography variant="caption" style={styles.statLabel}>{label}</Typography>
+        <Typography variant="h2" style={styles.statValue}>{value}</Typography>
+        <Typography variant="label" style={styles.statLabel}>{label}</Typography>
     </View>
 );
 
@@ -119,83 +122,72 @@ const BentoTile = ({ icon: Icon, title, subtitle, wide }: { icon: any, title: st
         style={({ pressed }) => [
             styles.tile,
             wide ? styles.tileWide : styles.tileHalf,
-            pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
+            pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
         ]}
     >
         <View style={styles.tileHeader}>
             <View style={styles.iconBox}>
-                <Icon size={20} color={Theme.colors.text.primary} weight="duotone" />
+                <Icon size={20} color={COLORS.ink} weight="duotone" />
             </View>
-            {wide && <CaretRight size={16} color={Theme.colors.text.tertiary} />}
+            {wide && <CaretRight size={16} color={COLORS.stone} />}
         </View>
         <View>
-            <Typography variant="h3" style={styles.tileTitle}>{title}</Typography>
-            {subtitle && <Typography variant="caption" style={styles.tileSubtitle}>{subtitle}</Typography>}
+            <Typography variant="bodyMedium" style={styles.tileTitle}>{title}</Typography>
+            {subtitle && <Typography variant="caption" color={COLORS.stone}>{subtitle}</Typography>}
         </View>
     </Pressable>
 );
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Theme.colors.background,
-    },
     scrollContent: {
-        paddingBottom: 140,
+        paddingBottom: 160,
     },
     header: {
         alignItems: 'center',
-        marginTop: 20,
-        marginBottom: 40,
+        marginTop: SPACING.m,
+        marginBottom: SPACING.xl,
+    },
+    avatarContainer: {
+        padding: 4,
+        backgroundColor: COLORS.paper,
+        borderRadius: 54,
+        marginBottom: SPACING.m,
+        ...Theme.shadows.soft,
     },
     avatar: {
         width: 100,
         height: 100,
         borderRadius: 50,
-        marginBottom: 15,
-        borderWidth: 3,
-        borderColor: '#FFF',
     },
     name: {
-        fontSize: 24,
-        color: Theme.colors.text.primary,
-    },
-    handle: {
-        fontSize: 14,
-        color: Theme.colors.text.tertiary,
-        marginTop: 4,
+        marginBottom: 2,
     },
     statsRow: {
         flexDirection: 'row',
-        marginTop: 20,
-        gap: 30,
+        marginTop: SPACING.l,
+        gap: 40,
+        backgroundColor: COLORS.paper,
+        paddingVertical: SPACING.m,
+        paddingHorizontal: SPACING.xl,
+        borderRadius: RADIUS.l,
+        ...Theme.shadows.soft,
     },
     statItem: {
         alignItems: 'center',
     },
     statValue: {
         fontSize: 18,
-        fontWeight: '700',
-        color: Theme.colors.text.primary,
     },
     statLabel: {
-        fontSize: 12,
-        color: Theme.colors.text.tertiary,
+        fontSize: 9,
         marginTop: 2,
     },
-    sectionTitle: {
-        marginLeft: 20,
-        marginBottom: 10,
-        fontWeight: '700',
-        letterSpacing: 1,
-        color: Theme.colors.text.tertiary,
-        textTransform: 'uppercase',
-    },
-    sectionTitleLarge: {
-        fontSize: 24,
+    sectionHeader: {
+        paddingHorizontal: SPACING.l,
+        marginBottom: SPACING.s,
     },
     bentoGrid: {
-        paddingHorizontal: 20,
+        paddingHorizontal: SPACING.l,
         gap: 12,
     },
     row: {
@@ -203,13 +195,11 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     tile: {
-        backgroundColor: '#FFF',
-        borderRadius: 20,
-        padding: 16,
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.l,
+        padding: SPACING.m,
         justifyContent: 'space-between',
-        borderWidth: 1,
-        borderColor: Theme.colors.border,
-        ...Theme.shadows.card,
+        ...Theme.shadows.soft,
     },
     tileWide: {
         width: '100%',
@@ -218,7 +208,7 @@ const styles = StyleSheet.create({
     },
     tileHalf: {
         flex: 1,
-        height: 140,
+        height: 130,
         flexDirection: 'column',
     },
     tileHeader: {
@@ -228,40 +218,31 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     iconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Theme.colors.background,
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.m,
+        backgroundColor: COLORS.vapor,
         justifyContent: 'center',
         alignItems: 'center',
     },
     tileTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: Theme.colors.text.primary,
+        fontSize: 15,
     },
-    tileSubtitle: {
-        fontSize: 13,
-        color: Theme.colors.text.tertiary,
-        marginTop: 2,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: Theme.spacing.l,
-        marginBottom: Theme.spacing.m,
+    feedWrapper: {
+        marginTop: SPACING.s,
     },
     logoutButton: {
-        marginTop: 40,
+        marginTop: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
         alignSelf: 'center',
-    },
-    logoutText: {
-        color: Theme.colors.danger,
-        fontSize: 14,
-        fontWeight: '600',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        backgroundColor: 'rgba(198, 125, 99, 0.08)',
+        borderRadius: RADIUS.pill,
     },
     emptyState: {
-        padding: Theme.spacing.xl,
+        padding: SPACING.xl,
+        alignItems: 'center',
     }
 });

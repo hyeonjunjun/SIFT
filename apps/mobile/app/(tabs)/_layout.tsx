@@ -1,7 +1,8 @@
 import { Tabs } from "expo-router";
-import { DeviceEventEmitter } from "react-native";
-import { Theme } from "../../lib/theme";
+import { DeviceEventEmitter, StyleSheet } from "react-native";
+import { COLORS, Theme } from "../../lib/theme";
 import { House, Archive, User } from 'phosphor-react-native';
+import { BlurView } from 'expo-blur';
 
 export default function TabLayout() {
     return (
@@ -9,22 +10,28 @@ export default function TabLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: Theme.colors.background,
-                    borderTopWidth: 0.5,
-                    borderTopColor: 'rgba(0,0,0,0.1)',
-                    height: 95,
-                    paddingTop: 10,
-                    paddingBottom: 35,
+                    position: 'absolute',
+                    backgroundColor: 'rgba(238, 235, 230, 0.85)', // Oatmeal with slight transparency
+                    borderTopWidth: 0,
+                    height: 90,
+                    paddingTop: 12,
+                    paddingBottom: 32,
                     elevation: 0,
-                    shadowOpacity: 0,
+                    shadowOpacity: 0.05,
+                    shadowRadius: 15,
+                    shadowOffset: { width: 0, height: -4 },
                 },
+                tabBarBackground: () => (
+                    <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="light" />
+                ),
                 tabBarLabelStyle: {
-                    fontSize: 11,
-                    fontWeight: '700',
+                    fontSize: 10,
+                    fontFamily: 'Inter_700Bold',
+                    letterSpacing: 0.5,
                     marginTop: 4,
                 },
-                tabBarActiveTintColor: Theme.colors.text.primary,
-                tabBarInactiveTintColor: '#999999',
+                tabBarActiveTintColor: COLORS.ink,
+                tabBarInactiveTintColor: COLORS.stone,
             }}
         >
             <Tabs.Screen
@@ -38,10 +45,10 @@ export default function TabLayout() {
                     },
                 })}
                 options={{
-                    title: "Home",
+                    title: "FEED",
                     tabBarIcon: ({ color, focused }) => (
                         <House
-                            size={24}
+                            size={22}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -51,10 +58,10 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="library"
                 options={{
-                    title: "Sift",
+                    title: "ARCHIVE",
                     tabBarIcon: ({ color, focused }) => (
                         <Archive
-                            size={24}
+                            size={22}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -64,10 +71,10 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="settings"
                 options={{
-                    title: "Profile",
+                    title: "IDENTITY",
                     tabBarIcon: ({ color, focused }) => (
                         <User
-                            size={24}
+                            size={22}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
