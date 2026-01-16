@@ -1,0 +1,61 @@
+diff --git a/node_modules/react-native/React-Core.podspec b/node_modules/react-native/React-Core.podspec
+index 63eb78a..9b761a6 100644
+--- a/node_modules/react-native/React-Core.podspec
++++ b/node_modules/react-native/React-Core.podspec
+@@ -51,7 +51,7 @@ Pod::Spec.new do |s|
+   s.author                 = "Meta Platforms, Inc. and its affiliates"
+   s.platforms              = min_supported_versions
+   s.source                 = source
+-  s.resource_bundle        = { "RCTI18nStrings" => ["React/I18n/strings/*.lproj"]}
++  # s.resource_bundle        = { "RCTI18nStrings" => ["React/I18n/strings/*.lproj"]}
+   s.compiler_flags         = js_engine_flags()
+   s.header_dir             = "React"
+   s.weak_framework         = "JavaScriptCore"
+@@ -122,7 +122,7 @@ Pod::Spec.new do |s|
+     s.dependency "React-hermes"
+   end
+ 
+-  s.resource_bundles = {'React-Core_privacy' => 'React/Resources/PrivacyInfo.xcprivacy'}
++  # s.resource_bundles = {'React-Core_privacy' => 'React/Resources/PrivacyInfo.xcprivacy'}
+ 
+   add_dependency(s, "React-runtimeexecutor", :additional_framework_paths => ["platform/ios"])
+   add_dependency(s, "React-jsinspector", :framework_name => 'jsinspector_modern')
+diff --git a/node_modules/react-native/React/Base/RCTUtils.mm b/node_modules/react-native/React/Base/RCTUtils.mm
+index af16d36..f1215e3 100644
+--- a/node_modules/react-native/React/Base/RCTUtils.mm
++++ b/node_modules/react-native/React/Base/RCTUtils.mm
+@@ -613,7 +613,7 @@ BOOL RCTRunningInAppExtension(void)
+   if (RCTRunningInAppExtension()) {
+     return nil;
+   }
+-  return [[UIApplication class] performSelector:@selector(sharedApplication)];
++  return nil; // PATCH: Always nil for extension safety
+ }
+ 
+ UIWindow *__nullable RCTKeyWindow(void)
+diff --git a/node_modules/react-native/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm b/node_modules/react-native/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
+index 1494fd2..cee373d 100644
+--- a/node_modules/react-native/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
++++ b/node_modules/react-native/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
+@@ -204,7 +204,7 @@ - (void)_keyboardWillChangeFrame:(NSNotification *)notification
+   self.firstResponderFocus = CGRectNull;
+ 
+   CGFloat contentDiff = 0;
+-  if ([[UIApplication sharedApplication] sendAction:@selector(reactUpdateResponderOffsetForScrollView:)
++  if (NO && [[UIApplication sharedApplication] sendAction:@selector(reactUpdateResponderOffsetForScrollView:)
+                                                  to:nil
+                                                from:self
+                                            forEvent:nil]) {
+diff --git a/node_modules/react-native/React/Views/ScrollView/RCTScrollView.m b/node_modules/react-native/React/Views/ScrollView/RCTScrollView.m
+index 59f956d..2c0de10 100644
+--- a/node_modules/react-native/React/Views/ScrollView/RCTScrollView.m
++++ b/node_modules/react-native/React/Views/ScrollView/RCTScrollView.m
+@@ -310,7 +310,7 @@ - (void)_keyboardWillChangeFrame:(NSNotification *)notification
+   self.firstResponderFocus = CGRectNull;
+ 
+   CGFloat contentDiff = 0;
+-  if ([[UIApplication sharedApplication] sendAction:@selector(reactUpdateResponderOffsetForScrollView:)
++  if (NO && [[UIApplication sharedApplication] sendAction:@selector(reactUpdateResponderOffsetForScrollView:)
+                                                  to:nil
+                                                from:self
+                                            forEvent:nil]) {

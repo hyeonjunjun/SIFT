@@ -10,12 +10,16 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#FDFCF8"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
+      "buildNumber": "11",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -23,7 +27,8 @@
               "sift"
             ]
           }
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -32,7 +37,10 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
+      "versionCode": 4,
+      "allowBackup": false,
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -46,7 +54,21 @@
             "BROWSABLE",
             "DEFAULT"
           ]
+        },
+        {
+          "action": "SEND",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
         }
+      ],
+      "permissions": [
+        "INTERNET"
       ]
     },
     "web": {
@@ -57,17 +79,24 @@
       [
         "expo-share-intent",
         {
-          "ios": {
-            "appGroupIdentifier": "group.com.hkjstudio.sift",
-            "activationRules": {
-              "NSExtensionActivationSupportsWebURLWithMaxCount": 1
-            }
+          "iosAppGroupIdentifier": "group.com.hkjstudio.sift",
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1
           },
           "android": {
             "disableCreateTask": false
-          }
+          },
+          "appleTeamId": "8DA3BAGA32"
         }
-      ]
-    ]
+      ],
+      "./plugins/withShareExtensionExclusions.js"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4f97e75c-3da1-403c-9e5a-92156c51f400"
+      }
+    },
+    "owner": "hkjstudio"
   }
 }

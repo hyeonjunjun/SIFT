@@ -32,10 +32,12 @@ const ExpoSecureStoreAdapter = {
     },
 };
 
-// URL and KEY should be in .env
-// URL and KEY should be in .env
-const supabaseUrl = 'https://twgfzcjqqhabnuqsyhvp.supabase.co';
-const supabaseAnonKey = 'sb_publishable_p6uwBDhBGf4bItVnUNv4ow_-D9ik8LI';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+    console.warn("Supabase environment variables are missing! The app will likely fail to fetch data.");
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {

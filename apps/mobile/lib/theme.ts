@@ -1,63 +1,84 @@
+import { Platform } from "react-native";
+
+export const COLORS = {
+    // The Foundation
+    canvas: '#FDFCF8',      // Oatmeal (Main Background)
+    paper: '#FFFFFF',       // White (Cards)
+    surface: 'rgba(253, 252, 248, 0.85)', // Warm translucent glass
+    vapor: '#F2F2F7',       // Light Gray (Inputs/Secondary backgrounds)
+
+    // The Ink
+    ink: '#1A1A1A',         // Soft Charcoal (Primary Text)
+    stone: '#999999',       // Muted Gray (Secondary Text)
+    subtle: 'rgba(0,0,0,0.06)', // Subtle borders
+
+    // The Accents
+    sage: '#7A8B7D',        // Dried Sage (Primary Brand Color)
+    terracotta: '#C67D63',  // Warning/Delete
+
+    // Overlays
+    overlay: 'rgba(0, 0, 0, 0.04)', // Grain texture tint
+};
+
+export const SPACING = {
+    xs: 4,
+    s: 8,
+    m: 16,
+    l: 24,
+    xl: 32,
+    xxl: 48,
+};
+
+export const RADIUS = {
+    s: 8,
+    m: 16,  // Standard interior elements
+    l: 24,  // Standard card corners
+    pill: 100,
+    dock: 32,
+};
+
 export const Theme = {
     colors: {
-        background: '#F2F2F7', // Apple System Gray 6
-        surface: '#FFFFFF',    // Pure white cards
+        background: COLORS.canvas,
+        surface: COLORS.surface,
         text: {
-            primary: '#1C1C1E',  // Soft Black (Apple Label)
-            secondary: '#3A3A3C', // Darker gray for better readability
-            tertiary: '#8E8E93',
+            primary: COLORS.ink,
+            secondary: COLORS.stone,
+            tertiary: '#A1A1A1',
+            action: COLORS.ink,
         },
-        border: '#E5E5EA',     // Very subtle divider
-        accent: '#007AFF',     // iOS Blue
-        danger: '#FF3B30',
+        border: COLORS.subtle,
+        primary: COLORS.sage,
+        accent: COLORS.ink,
+        danger: COLORS.terracotta,
+        overlay: 'rgba(0,0,0,0.4)',
     },
-    spacing: {
-        xs: 4,
-        s: 8,
-        m: 16,
-        l: 24,
-        xl: 32,
-    },
-    borderRadius: {
-        card: 16,
-        pill: 9999, // Pill shape
-        button: 12, // Standard button
-    },
-    typography: {
-        header: {
-            fontSize: 28,
-            fontWeight: '700',
-            letterSpacing: -0.5, // The "tight" editorial look
-            color: '#1C1C1E',
-        },
-        subheader: {
-            fontSize: 20,
-            fontWeight: '600',
-            letterSpacing: -0.3,
-            color: '#1C1C1E',
-        },
-        body: {
-            fontSize: 17,
-            lineHeight: 22,
-            color: '#3A3A3C',
-        },
-        caption: {
-            fontSize: 13,
-            color: '#8E8E93',
-        }
-    },
+    spacing: SPACING,
+    borderRadius: RADIUS,
     shadows: {
-        card: {
+        soft: {
             shadowColor: "#000",
-            shadowOffset: {
-                width: 0,
-                height: 4,
-            },
-            shadowOpacity: 0.08, // Very low opacity (no harsh black shadows)
-            shadowRadius: 12,    // High radius for "glow" effect
-            elevation: 5,        // Android fallback
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.04,
+            shadowRadius: 12,
+            elevation: 2,
+        },
+        medium: {
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.08,
+            shadowRadius: 24,
+            elevation: 5,
+        },
+        dock: {
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.08,
+            shadowRadius: 30,
+            elevation: 10,
         }
     }
 } as const;
 
 export type ThemeType = typeof Theme;
+

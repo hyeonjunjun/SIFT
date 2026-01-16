@@ -1,0 +1,69 @@
+diff --git a/node_modules/react-native-screens/ios/RNSScreen.mm b/node_modules/react-native-screens/ios/RNSScreen.mm
+index b62a2e2..295f194 100644
+--- a/node_modules/react-native-screens/ios/RNSScreen.mm
++++ b/node_modules/react-native-screens/ios/RNSScreen.mm
+@@ -1611,7 +1611,12 @@ - (BOOL)hasNestedStack
+ - (CGSize)getStatusBarHeightIsModal:(BOOL)isModal
+ {
+ #if !TARGET_OS_TV && !TARGET_OS_VISION
++#if defined(RCT_APP_EXTENSION)
++  // App Extensions cannot use sharedApplication
++  CGSize fallbackStatusBarSize = CGSizeZero;
++#else
+   CGSize fallbackStatusBarSize = [[UIApplication sharedApplication] statusBarFrame].size;
++#endif
+ 
+   CGSize primaryStatusBarSize = self.view.window.windowScene.statusBarManager.statusBarFrame.size;
+   if (primaryStatusBarSize.height == 0 || primaryStatusBarSize.width == 0) {
+diff --git a/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm b/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm
+index fd6f70d..009de6b 100644
+--- a/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm
++++ b/node_modules/react-native-screens/ios/RNSScreenWindowTraits.mm
+@@ -130,6 +130,10 @@ + (void)enforceDesiredDeviceOrientation
+     if (newOrientation != UIInterfaceOrientationUnknown) {
+ #if RNS_IPHONE_OS_VERSION_AVAILABLE(16_0)
+       if (@available(iOS 16.0, *)) {
++#if TARGET_OS_MACCATALYST || TARGET_OS_TV || defined(RCT_APP_EXTENSION)
++        // App Extensions cannot use sharedApplication - skip scene handling
++        return;
++#else
+         NSArray *array = [[[UIApplication sharedApplication] connectedScenes] allObjects];
+ 
+         // when an app supports multiple scenes (e.g. CarPlay), it is possible that
+@@ -151,15 +155,20 @@ + (void)enforceDesiredDeviceOrientation
+         [scene requestGeometryUpdateWithPreferences:geometryPreferences
+                                        errorHandler:^(NSError *_Nonnull error){
+                                        }];
++#endif
+ 
+         // `attemptRotationToDeviceOrientation` is deprecated for modern OS versions
+         // so we need to use `setNeedsUpdateOfSupportedInterfaceOrientations`
++#if TARGET_OS_MACCATALYST || TARGET_OS_TV || defined(RCT_APP_EXTENSION)
++        // App Extensions cannot use sharedApplication - skip orientation update
++#else
+         UIViewController *topController = [UIApplication sharedApplication].keyWindow.rootViewController;
+         while (topController.presentedViewController) {
+           topController = topController.presentedViewController;
+         }
+ 
+         [topController setNeedsUpdateOfSupportedInterfaceOrientations];
++#endif
+       } else
+ #endif // Check for iOS 16
+       {
+diff --git a/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm b/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm
+index 52850a9..4015cfe 100644
+--- a/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm
++++ b/node_modules/react-native-screens/ios/UIViewController+RNScreens.mm
+@@ -35,7 +35,11 @@ - (UIInterfaceOrientationMask)reactNativeScreensSupportedInterfaceOrientations
+   if (childOrientationProvidingVC != nil) {
+     RNSOrientation orientation = [childOrientationProvidingVC evaluateOrientation];
+     if (orientation == RNSOrientationInherit) {
++      #if TARGET_OS_MACCATALYST || TARGET_OS_TV || defined(RCT_APP_EXTENSION)
++      return UIInterfaceOrientationMaskAll;
++#else
+       return [[UIApplication sharedApplication] supportedInterfaceOrientationsForWindow:self.view.window];
++#endif
+     }
+ 
+     return rnscreens::conversion::UIInterfaceOrientationMaskFromRNSOrientation(orientation);

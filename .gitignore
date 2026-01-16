@@ -63,3 +63,4 @@ local.properties
 *.log
 podfile.lock
 DerivedData/
+apps/mobile/Sift.app

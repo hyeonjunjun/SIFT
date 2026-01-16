@@ -1,0 +1,38 @@
+diff --git a/node_modules/react-native-reanimated/apple/reanimated/apple/keyboardObserver/REAKeyboardEventObserver.mm b/node_modules/react-native-reanimated/apple/reanimated/apple/keyboardObserver/REAKeyboardEventObserver.mm
+index 4ad1d9d..eee0eda 100644
+--- a/node_modules/react-native-reanimated/apple/reanimated/apple/keyboardObserver/REAKeyboardEventObserver.mm
++++ b/node_modules/react-native-reanimated/apple/reanimated/apple/keyboardObserver/REAKeyboardEventObserver.mm
+@@ -415,7 +415,11 @@ - (REAUIView *_Nullable)getKeyboardView
+   if (_keyboardView) {
+     return _keyboardView;
+   }
++#if defined(RCT_APP_EXTENSION)
++  NSArray<UIWindow *> *windows = @[];
++#else
+   NSArray<UIWindow *> *windows = [UIApplication sharedApplication].windows;
++#endif
+   auto window = [self findClass:@"UITextEffectsWindow" inViewsList:windows];
+   auto keyboardContainer = [self findClass:@"UIInputSetContainerView" inViewsList:window.subviews];
+   _keyboardView = [self findClass:@"UIInputSetHostView" inViewsList:keyboardContainer.subviews];
+diff --git a/node_modules/react-native-reanimated/apple/reanimated/apple/sensor/ReanimatedSensor.m b/node_modules/react-native-reanimated/apple/reanimated/apple/sensor/ReanimatedSensor.m
+index 4e408e7..5609f45 100644
+--- a/node_modules/react-native-reanimated/apple/reanimated/apple/sensor/ReanimatedSensor.m
++++ b/node_modules/react-native-reanimated/apple/reanimated/apple/sensor/ReanimatedSensor.m
+@@ -196,9 +196,17 @@ - (int)getInterfaceOrientation
+ {
+   UIInterfaceOrientation orientation = UIInterfaceOrientationPortrait;
+   if (@available(iOS 13.0, *)) {
++#if defined(RCT_APP_EXTENSION)
++    orientation = UIInterfaceOrientationPortrait;
++#else
+     orientation = UIApplication.sharedApplication.windows.firstObject.windowScene.interfaceOrientation;
++#endif
+   } else {
++#if defined(RCT_APP_EXTENSION)
++    orientation = UIInterfaceOrientationPortrait;
++#else
+     orientation = UIApplication.sharedApplication.statusBarOrientation;
++#endif
+   }
+   switch (orientation) {
+     case UIInterfaceOrientationLandscapeLeft:

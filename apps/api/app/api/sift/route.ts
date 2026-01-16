@@ -58,13 +58,27 @@ function extractMetaTags(html: string) {
     };
 }
 
+// CORS Headers for Mobile
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+};
+
+export async function OPTIONS() {
+    return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { url, platform, user_id } = body;
 
         if (!url) {
-            return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+            return NextResponse.json(
+                { status: 'error', message: 'URL is required' },
+                { status: 400, headers: corsHeaders }
+            );
         }
 
         console.log(`[SIFT] Processing URL: ${url} (${platform}) User: ${user_id || 'Guest'}`);
@@ -348,16 +362,17 @@ export async function POST(request: Request) {
             .select()
             .single();
 
-        if (error) {
-            console.error('[SIFT] Supabase Error:', error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-
-        return NextResponse.json({ success: true, page: data });
+        return NextResponse.json(
+            { status: 'success', data: data },
+            { headers: corsHeaders }
+        );
 
     } catch (error: unknown) {
         console.error('[SIFT] Internal Error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
+        return NextResponse.json(
+            { status: 'error', message: errorMessage },
+            { status: 500, headers: corsHeaders }
+        );
     }
 }

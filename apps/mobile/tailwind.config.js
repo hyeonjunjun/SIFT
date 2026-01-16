@@ -8,21 +8,23 @@ module.exports = {
             colors: {
                 // The Canvas
                 canvas: {
-                    DEFAULT: '#F2F2F7', // Apple System Gray 6
-                    card: '#FFFFFF',    // Pure white cards
+                    DEFAULT: '#FDFCF8', // Oatmeal
+                    card: 'rgba(253, 252, 248, 0.85)', // Glass
                 },
                 // The Ink
                 ink: {
-                    DEFAULT: '#1C1C1E', // Soft Black (Apple Label)
-                    secondary: '#3A3A3C',  // Darker gray
+                    DEFAULT: '#1C1C1E', // Soft Black
+                    secondary: '#666666',  // Medium Gray
+                    tertiary: '#A1A1A1',   // Muted Warm Gray
                 },
                 // The Borders
                 border: {
-                    DEFAULT: '#E5E5EA',
+                    DEFAULT: 'rgba(0,0,0,0.06)',
                 }
             },
             fontFamily: {
                 sans: ['Inter', 'System'],
+                serif: ['Georgia', 'Times New Roman', 'serif'], // Added Serif
                 mono: ['Menlo', 'SF Mono', 'Courier New', 'monospace'],
             },
             borderRadius: {

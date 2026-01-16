@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, Platform } from 'react-native';
+import { View, Image, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Theme } from '../lib/theme';
+import { COLORS, SPACING, Theme, RADIUS } from '../lib/theme';
 import { ShimmerSkeleton } from './ShimmerSkeleton';
+import { Typography } from './design-system/Typography';
 import Animated, { FadeIn, FadeOut, Layout, Easing } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
-// Calculate flexible column width: (Screen Width - Padding) / 2
-const COLUMN_WIDTH = (width - 48) / 2;
+const COLUMN_WIDTH = (width - (SPACING.l * 2) - 15) / 2;
 
 interface Page {
     id: string;
@@ -24,24 +24,22 @@ interface Page {
 
 interface SiftFeedProps {
     pages: Page[];
+    onPin?: (id: string) => void;
+    onArchive?: (id: string) => void;
+    onDeleteForever?: (id: string) => void;
+    mode?: 'feed' | 'archive';
+    loading?: boolean;
 }
 
-// Skeleton Card Component
 const SkeletonCard = () => {
-    // Random height between 180 and 300 for organic feel
     const randomHeight = Math.floor(Math.random() * (300 - 180 + 1) + 180);
-
     return (
         <View style={styles.cardContainer}>
-            <ShimmerSkeleton width="100%" height={randomHeight} borderRadius={16} style={{ marginBottom: 12 }} />
+            <ShimmerSkeleton width="100%" height={randomHeight} borderRadius={RADIUS.l} style={{ marginBottom: 12 }} />
             <View style={{ paddingHorizontal: 4 }}>
-                <ShimmerSkeleton width={60} height={10} borderRadius={4} style={{ marginBottom: 8 }} />
-                <ShimmerSkeleton width="90%" height={16} borderRadius={4} style={{ marginBottom: 6 }} />
-                <ShimmerSkeleton width="60%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ShimmerSkeleton width={16} height={16} borderRadius={4} style={{ marginRight: 6 }} />
-                    <ShimmerSkeleton width={80} height={10} borderRadius={4} />
-                </View>
+                <ShimmerSkeleton width={60} height={10} borderRadius={RADIUS.s} style={{ marginBottom: 8 }} />
+                <ShimmerSkeleton width="90%" height={16} borderRadius={RADIUS.s} style={{ marginBottom: 6 }} />
+                <ShimmerSkeleton width="60%" height={16} borderRadius={RADIUS.s} />
             </View>
         </View>
     );
@@ -63,7 +61,6 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
     const handleLongPress = () => {
         const archiveLabel = mode === 'archive' ? 'Restore' : 'Archive';
         const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', archiveLabel, 'Delete Forever'];
-        // Use Alert for cross-platform simplicity or ActionSheetIOS if available
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
@@ -100,21 +97,25 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
             delayLongPress={300}
         >
             {/* 1. Bezel-less Image with Organic Corners */}
-            {item.image && (
+            <View style={styles.imageWrapper}>
                 <Image
                     source={{ uri: item.image }}
                     style={[styles.image, { height: item.height }]}
                     resizeMode="cover"
                 />
-            )}
+            </View>
 
-            {/* 2. Editorial Metadata (No Box) */}
+            {/* 2. Editorial Metadata */}
             <View style={styles.meta}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={styles.eyebrow}>{item.category.toUpperCase()}</Text>
-                    {item.is_pinned && <Text style={{ fontSize: 10 }}>📌</Text>}
+                <View style={styles.eyebrowRow}>
+                    <Typography variant="label" color={COLORS.stone} style={styles.eyebrow}>
+                        {item.category.toUpperCase()}
+                    </Typography>
+                    {item.is_pinned && <Typography variant="label">📌</Typography>}
                 </View>
-                <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+                <Typography variant="bodyMedium" numberOfLines={2} style={styles.title}>
+                    {item.title}
+                </Typography>
 
                 {/* 3. Minimalist Source Tag */}
                 <View style={styles.sourceRow}>
@@ -122,25 +123,14 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
                         source={{ uri: `https://www.google.com/s2/favicons?domain=${item.source}&sz=32` }}
                         style={styles.favicon}
                     />
-                    <Text style={styles.sourceText}>{item.source}</Text>
+                    <Typography variant="label" color={COLORS.stone}>{item.source}</Typography>
                 </View>
             </View>
         </Pressable>
     );
 };
 
-// Define props
-interface SiftFeedProps {
-    pages: Page[];
-    onPin?: (id: string) => void;
-    onArchive?: (id: string) => void;
-    onDeleteForever?: (id: string) => void;
-    mode?: 'feed' | 'archive';
-    loading?: boolean;
-}
-
 export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mode = 'feed', loading = false }: SiftFeedProps) {
-    // Loading State
     if (loading) {
         return (
             <View style={styles.masonryContainer}>
@@ -154,14 +144,10 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
         );
     }
 
-    // Transform Data & Assign Deterministic Heights
     const transformedData = useMemo(() => {
         return pages.map((page, index) => {
-            // Deterministic pseudo-random height based on index/id for stability
-            // Heights: 180, 220, 260, 300
-            const heights = [180, 220, 260, 300];
+            const heights = [200, 240, 180, 280];
             const height = heights[index % heights.length];
-
             const domain = page.url ? new URL(page.url).hostname.replace('www.', '') : 'sift.app';
 
             return {
@@ -169,20 +155,18 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
                 title: page.title || 'Untitled',
                 category: page.tags?.[0] || 'Saved',
                 source: domain,
-                image: page.metadata?.image_url || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80', // Gradient fallback
+                image: page.metadata?.image_url || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
                 height: height,
-                is_pinned: page.is_pinned // Pass pinned state
+                is_pinned: page.is_pinned
             };
         });
     }, [pages]);
 
-    // Split data into two columns for the "Waterfall" effect
     const leftColumn = transformedData.filter((_, i) => i % 2 === 0);
     const rightColumn = transformedData.filter((_, i) => i % 2 !== 0);
 
     return (
         <View style={styles.masonryContainer}>
-            {/* Left Column */}
             <View style={styles.column}>
                 {leftColumn.map(item => (
                     <Animated.View
@@ -201,7 +185,6 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
                     </Animated.View>
                 ))}
             </View>
-            {/* Right Column */}
             <View style={styles.column}>
                 {rightColumn.map(item => (
                     <Animated.View
@@ -228,35 +211,42 @@ const styles = StyleSheet.create({
     masonryContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 16, // Match parent padding if needed, or controlled by parent
+        paddingHorizontal: SPACING.l,
     },
     column: {
         width: COLUMN_WIDTH,
     },
     cardContainer: {
-        marginBottom: 24, // Generous spacing for "Airy" feel
+        marginBottom: SPACING.xl,
+    },
+    imageWrapper: {
+        borderRadius: RADIUS.l,
+        overflow: 'hidden',
+        backgroundColor: COLORS.paper,
+        ...Theme.shadows.soft,
+        shadowOpacity: 0.04,
+        shadowRadius: 20,
     },
     image: {
         width: '100%',
-        borderRadius: 16, // Soft "Apple-style" corners
-        marginBottom: 12,
-        backgroundColor: '#F2F2F7', // Loading placeholder color
     },
     meta: {
-        paddingHorizontal: 4, // Slight visual indent
+        paddingTop: SPACING.m,
+        paddingHorizontal: 4,
+    },
+    eyebrowRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 4,
     },
     eyebrow: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#8E8E93', // Muted uppercase
-        marginBottom: 4,
-        letterSpacing: 0.5,
+        fontSize: 9,
+        letterSpacing: 1.5,
     },
     title: {
-        fontSize: 15,
-        fontWeight: '600', // Semi-bold (not heavy bold)
-        color: '#1C1C1E',
-        lineHeight: 20,
+        fontSize: 14,
+        lineHeight: 18,
         marginBottom: 8,
     },
     sourceRow: {
@@ -270,8 +260,5 @@ const styles = StyleSheet.create({
         marginRight: 6,
         borderRadius: 2,
     },
-    sourceText: {
-        fontSize: 12,
-        color: '#8E8E93',
-    },
 });
+
