@@ -23,6 +23,9 @@
             "autoIncrement": true,
             "ios": {
                 "resourceClass": "medium"
+            },
+            "android": {
+                "resourceClass": "large"
             }
         }
     },
