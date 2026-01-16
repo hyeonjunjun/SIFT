@@ -81,8 +81,11 @@ export default function Index() {
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
 
-    const showToast = (message: string, action?: { label: string, onPress: () => void }, secondaryAction?: { label: string, onPress: () => void }) => {
+    const [toastDuration, setToastDuration] = useState(3000);
+
+    const showToast = (message: string, duration = 3000, action?: { label: string, onPress: () => void }, secondaryAction?: { label: string, onPress: () => void }) => {
         setToastMessage(message);
+        setToastDuration(duration);
         setToastAction(action);
         setToastSecondaryAction(secondaryAction);
         setToastVisible(true);
@@ -122,7 +125,7 @@ export default function Index() {
                 // For now, just prompt.
                 lastCheckedUrl.current = content; // Mark as seen so we don't spam
 
-                showToast("Link detected from clipboard.", {
+                showToast("Link detected from clipboard.", 5000, {
                     label: "Sift It",
                     onPress: () => {
                         setManualUrl(content); // Pre-fill visual
@@ -185,12 +188,12 @@ export default function Index() {
         console.log('Processing shared URL:', url);
 
         setProcessingUrl(url);
-        showToast("Currently Sifting...");
+        showToast("Currently Sifting...", 0); // 0 means persistent
 
         // "Taking longer" feedback (Optional, safeSift handles the actual fetch)
         const feedbackTimer = setTimeout(() => {
-            showToast("Still sifting...", undefined, undefined);
-        }, 30000);
+            showToast("Still sifting...", 0);
+        }, 15000);
 
         try {
             // Layer 2: Pipeline Guard
@@ -473,6 +476,7 @@ export default function Index() {
             <Toast
                 message={toastMessage}
                 visible={toastVisible}
+                duration={toastDuration}
                 onHide={() => setToastVisible(false)}
                 action={toastAction}
                 secondaryAction={toastSecondaryAction}

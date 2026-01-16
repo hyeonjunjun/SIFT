@@ -35,15 +35,21 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
     useEffect(() => {
         if (visible) {
             progress.value = 0;
-            const time = duration; // Always use duration (default 3000)
-            progress.value = withTiming(100, { duration: time, easing: Easing.linear });
+            const time = duration === 0 ? 0 : duration;
 
-            const timer = setTimeout(() => {
-                onHideRef.current();
-            }, time);
-            return () => clearTimeout(timer);
+            if (time > 0) {
+                progress.value = withTiming(100, { duration: time, easing: Easing.linear });
+                const timer = setTimeout(() => {
+                    onHideRef.current();
+                }, time);
+                return () => clearTimeout(timer);
+            } else {
+                // Persistent: stay at 0 or 100? Let's say 0 but maybe a slow pulse?
+                // Just keep it visible.
+                progress.value = 0;
+            }
         }
-    }, [visible, duration, message]); // Reset timer on message change
+    }, [visible, duration, message]);
 
     if (!visible) return null;
 
@@ -51,8 +57,8 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
         <Animated.View
             entering={FadeInDown.duration(300).easing(Easing.inOut(Easing.ease))}
             exiting={FadeOutDown}
-            className="absolute bottom-24 self-center bg-ink px-4 py-3 rounded-md flex-row items-center shadow-md justify-between overflow-hidden"
-            style={{ maxWidth: '90%', minWidth: action ? 300 : undefined, elevation: 99, zIndex: 9999 }}
+            className="absolute bottom-32 self-center bg-ink px-4 py-3 rounded-md flex-row items-center shadow-lg justify-between overflow-hidden"
+            style={{ maxWidth: '90%', minWidth: action ? 300 : undefined, elevation: 999, zIndex: 99999 }}
         >
             <View className="flex-row items-center flex-1">
                 <View className="mr-3">
