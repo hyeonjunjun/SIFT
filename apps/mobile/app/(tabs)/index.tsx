@@ -131,6 +131,7 @@ export default function HomeScreen() {
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
+                .eq('user_id', user?.id)
                 .eq('is_archived', false)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
@@ -142,7 +143,7 @@ export default function HomeScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [user?.id]);
 
     const [processingUrl, setProcessingUrl] = useState<string | null>(null);
 

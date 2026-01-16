@@ -8,10 +8,12 @@ import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { useFocusEffect } from "expo-router";
+import { useAuth } from "../../lib/auth";
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
+    const { user, signOut } = useAuth();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -21,6 +23,7 @@ export default function ProfileScreen() {
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
+                .eq('user_id', user?.id)
                 .eq('is_pinned', true)
                 .order('created_at', { ascending: false });
 
@@ -61,8 +64,8 @@ export default function ProfileScreen() {
                             style={styles.avatar}
                         />
                     </View>
-                    <Typography variant="h1" style={styles.name}>Ryan Jun</Typography>
-                    <Typography variant="body" color={COLORS.stone}>@ryanjun • Pro Member</Typography>
+                    <Typography variant="h1" style={styles.name}>{user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User"}</Typography>
+                    <Typography variant="body" color={COLORS.stone}>{user?.email || "Guest"} • Pro Member</Typography>
 
                     <View style={styles.statsRow}>
                         <Stat label="Sifts" value="1.2k" />
@@ -100,7 +103,7 @@ export default function ProfileScreen() {
                     )}
                 </View>
 
-                <TouchableOpacity style={styles.logoutButton}>
+                <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
                     <SignOut size={18} color={COLORS.terracotta} style={{ marginRight: 8 }} />
                     <Typography variant="bodyMedium" color={COLORS.terracotta}>Sign Out</Typography>
                 </TouchableOpacity>

@@ -7,6 +7,7 @@ import { TEXT } from '../../lib/typography';
 import { MagnifyingGlass, Sliders, ArrowUpRight } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
+import { useAuth } from '../../lib/auth';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - (SPACING.l * 2) - 15) / 2;
@@ -24,6 +25,7 @@ interface SiftItem {
 }
 
 export default function SiftScreen() {
+    const { user } = useAuth();
     const [pages, setPages] = useState<SiftItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -34,6 +36,7 @@ export default function SiftScreen() {
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
+                .eq('user_id', user?.id)
                 .eq('is_archived', false)
                 .order('created_at', { ascending: false });
 
