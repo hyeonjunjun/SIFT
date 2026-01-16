@@ -1,83 +1,105 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Image, ImageBackground } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withRepeat,
     withTiming,
-    withSequence,
     Easing,
-    withDelay
+    withDelay,
+    FadeIn,
+    runOnJS
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Typography } from './design-system/Typography';
+import { BlurView } from 'expo-blur';
 
-const { width, height } = Dimensions.get('window');
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 interface SplashScreenProps {
     onFinish?: () => void;
 }
 
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
+    const logoOpacity = useSharedValue(0);
+    const logoScale = useSharedValue(0.9);
     const containerOpacity = useSharedValue(1);
-    const contentOpacity = useSharedValue(0);
+    const noiseOpacity = useSharedValue(0);
+
+    const [isFinished, setIsFinished] = useState(false);
 
     useEffect(() => {
-        // 1. Reveal content gently
-        contentOpacity.value = withDelay(300, withTiming(1, { duration: 1000, easing: Easing.bezier(0.25, 0.1, 0.25, 1.0) }));
+        // 1. Fade in Noise Texture
+        noiseOpacity.value = withTiming(0.04, { duration: 800 });
 
-        // 2. Start fade out sequence
-        const timeout = setTimeout(() => {
-            containerOpacity.value = withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) });
-        }, 2200);
+        // 2. Logo Animation Sequence: Scale + Fade
+        logoOpacity.value = withDelay(200, withTiming(1, {
+            duration: 800,
+            easing: Easing.bezier(0.33, 1, 0.68, 1)
+        }));
 
-        // 3. Finish logic
-        const finishTimeout = setTimeout(() => {
-            if (onFinish) onFinish();
-        }, 2800);
+        logoScale.value = withDelay(200, withTiming(1, {
+            duration: 1200,
+            easing: Easing.out(Easing.back(1.5))
+        }));
 
-        return () => {
-            clearTimeout(timeout);
-            clearTimeout(finishTimeout);
-        };
+        // 3. Exit Sequence
+        const exitTimeout = setTimeout(() => {
+            containerOpacity.value = withTiming(0, {
+                duration: 500,
+                easing: Easing.bezier(0.45, 0, 0.55, 1)
+            }, (finished) => {
+                if (finished && onFinish) {
+                    runOnJS(onFinish)();
+                }
+            });
+        }, 1800);
+
+        return () => clearTimeout(exitTimeout);
     }, []);
 
     const containerStyle = useAnimatedStyle(() => ({
-        opacity: containerOpacity.value
+        opacity: containerOpacity.value,
+        backgroundColor: '#FDFCF8',
     }));
 
-    const contentStyle = useAnimatedStyle(() => ({
-        opacity: contentOpacity.value,
-        transform: [{ scale: withTiming(1.02, { duration: 2500 }) }] // Subtle zoom
+    const logoStyle = useAnimatedStyle(() => ({
+        opacity: logoOpacity.value,
+        transform: [{ scale: logoScale.value }],
     }));
 
     return (
-        <Animated.View style={[styles.container, containerStyle]}>
-            {/* Direct match to native splash image */}
-            <Image
-                source={require('../assets/splash-icon.png')}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
+        <Animated.View style={[StyleSheet.absoluteFill, containerStyle, { zIndex: 9999 }]}>
+            {/* 1. Underlying Porcelain Canvas */}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FDFCF8' }]} />
+
+            {/* 2. Tactile Grain Layer */}
+            <Animated.Image
+                source={require('../assets/noise.png')}
+                style={[StyleSheet.absoluteFill, { opacity: 0.04 }]}
+                resizeMode="repeat"
             />
 
-            {/* Animated Logo & Tagline (if we want to layer it) */}
-            <Animated.View style={[styles.content, contentStyle]}>
-                {/* The image already has 'sift' in it, so we can either keep it blank 
-                    or overlay a high-quality text layer if we want to animate it. 
-                    Given the request for a 'smooth circular gradient', the image handles it best. */}
-            </Animated.View>
+            {/* 3. Centered Logo Layer */}
+            <View style={styles.center}>
+                <Animated.View style={logoStyle}>
+                    <Image
+                        source={require('../assets/sift black.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                </Animated.View>
+            </View>
         </Animated.View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#FDFCF8',
-    },
-    content: {
+    center: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    logo: {
+        width: 120,
+        height: 120,
     }
 });
+
