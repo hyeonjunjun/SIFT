@@ -6,68 +6,66 @@ import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
 
-export default function SignUpScreen() {
+export default function WaitlistScreen() {
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [joined, setJoined] = useState(false);
     const router = useRouter();
 
-    const handleSignUp = async () => {
-        if (!email || !password) {
-            Alert.alert('Missing Info', 'Please enter both email and password.');
+    const handleJoinWaitlist = async () => {
+        if (!email) {
+            Alert.alert('Email Required', 'Please enter your email to join.');
             return;
         }
 
         setLoading(true);
 
-        // 1. Check Waitlist Status
-        const { data: waitlistData, error: waitlistError } = await supabase
+        const { error } = await supabase
             .from('waitlist')
-            .select('status')
-            .eq('email', email.toLowerCase().trim())
-            .single();
-
-        if (waitlistError || !waitlistData || waitlistData.status !== 'approved') {
-            setLoading(false);
-            Alert.alert(
-                'Beta Access Required',
-                'Your email is not yet approved for beta access. Would you like to join the waitlist?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Join Waitlist', onPress: () => router.push('/auth/waitlist') }
-                ]
-            );
-            return;
-        }
-
-        // 2. Proceed with Auth
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-        });
+            .insert({ email, status: 'pending' });
 
         if (error) {
-            Alert.alert('Sign Up Failed', error.message);
+            if (error.code === '23505') { // Unique constraint
+                setJoined(true);
+            } else {
+                Alert.alert('Error', error.message);
+            }
             setLoading(false);
         } else {
-            Alert.alert('Success', 'Please check your inbox for email verification!');
+            setJoined(true);
             setLoading(false);
-            router.back(); // Go back to login
         }
     };
+
+    if (joined) {
+        return (
+            <ScreenWrapper edges={['top', 'bottom']}>
+                <View style={styles.container}>
+                    <Typography variant="h1" style={styles.logo}>You're on the list!</Typography>
+                    <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
+                        We'll notify you as soon as a spot opens up.
+                    </Typography>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.replace('/auth/login')}
+                    >
+                        <Typography variant="bodyMedium" color={COLORS.paper}>Back to Login</Typography>
+                    </TouchableOpacity>
+                </View>
+            </ScreenWrapper>
+        );
+    }
 
     return (
         <ScreenWrapper edges={['top', 'bottom']}>
             <View style={styles.container}>
-                {/* Header */}
                 <View style={styles.header}>
-                    <Typography variant="h1" style={styles.logo}>Join Sift</Typography>
+                    <Typography variant="h1" style={styles.logo}>Sift is in Beta</Typography>
                     <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
-                        Start curating your digital diet.
+                        Join the waitlist to get early access.
                     </Typography>
                 </View>
 
-                {/* Form */}
                 <View style={styles.form}>
                     <View style={styles.inputContainer}>
                         <TextInput
@@ -81,37 +79,25 @@ export default function SignUpScreen() {
                         />
                     </View>
 
-                    <View style={styles.inputContainer}>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Password"
-                            placeholderTextColor={COLORS.stone}
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                        />
-                    </View>
-
                     <TouchableOpacity
-                        style={[styles.signUpButton, loading && styles.buttonDisabled]}
-                        onPress={handleSignUp}
+                        style={[styles.button, loading && styles.buttonDisabled]}
+                        onPress={handleJoinWaitlist}
                         disabled={loading}
                     >
                         {loading ? (
                             <ActivityIndicator color={COLORS.paper} />
                         ) : (
-                            <Typography variant="body" color={COLORS.paper}>Create Account</Typography>
+                            <Typography variant="body" color={COLORS.paper}>Join Waitlist</Typography>
                         )}
                     </TouchableOpacity>
                 </View>
 
-                {/* Footer */}
                 <TouchableOpacity
-                    onPress={() => router.back()}
+                    onPress={() => router.replace('/auth/login')}
                     style={styles.footer}
                 >
                     <Typography variant="body" color={COLORS.stone}>
-                        Already have an account? <Typography variant="body" color={COLORS.ink}>Sign In</Typography>
+                        Already approved? <Typography variant="bodyMedium" color={COLORS.ink}>Sign In</Typography>
                     </Typography>
                 </TouchableOpacity>
             </View>
@@ -130,12 +116,14 @@ const styles = StyleSheet.create({
         marginBottom: 60,
     },
     logo: {
-        fontSize: 42,
+        fontSize: 32,
         letterSpacing: -1,
         color: COLORS.ink,
+        textAlign: 'center',
     },
     subtitle: {
         marginTop: SPACING.s,
+        textAlign: 'center',
     },
     form: {
         width: '100%',
@@ -154,7 +142,7 @@ const styles = StyleSheet.create({
         color: COLORS.ink,
         fontFamily: 'InstrumentSerif_400Regular',
     },
-    signUpButton: {
+    button: {
         backgroundColor: COLORS.ink,
         height: 54,
         borderRadius: RADIUS.m,
@@ -162,6 +150,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: SPACING.s,
         ...Theme.shadows.soft,
+    },
+    backButton: {
+        backgroundColor: COLORS.ink,
+        height: 54,
+        borderRadius: RADIUS.m,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 40,
+        width: '100%',
     },
     buttonDisabled: {
         opacity: 0.7,
