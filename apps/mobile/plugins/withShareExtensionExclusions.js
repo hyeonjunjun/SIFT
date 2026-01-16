@@ -2,6 +2,9 @@
 const { withPodfile } = require('expo/config-plugins');
 
 const withShareExtensionExclusions = (config) => {
+    if (config.modRequest?.platform !== 'ios') {
+        return config;
+    }
     return withPodfile(config, (config) => {
         const podfileContent = config.modResults.contents;
 
