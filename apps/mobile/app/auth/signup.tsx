@@ -61,9 +61,9 @@ export default function SignUpScreen() {
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <Typography variant="h1" style={styles.logo}>join sift</Typography>
-                    <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
-                        Start curating your digital diet.
+                    <Typography variant="h1" style={styles.logoText}>join sift</Typography>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>
+                        START CURATING YOUR DIGITAL DIET
                     </Typography>
                 </View>
 
@@ -111,7 +111,7 @@ export default function SignUpScreen() {
                     style={styles.footer}
                 >
                     <Typography variant="body" color={COLORS.stone}>
-                        Already have an account? <Typography variant="body" color={COLORS.ink}>Sign In</Typography>
+                        Already have an account? <Typography variant="label" color={COLORS.ink}>Sign In</Typography>
                     </Typography>
                 </TouchableOpacity>
             </View>
@@ -122,48 +122,55 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: SPACING.xl,
+        paddingHorizontal: 40,
         justifyContent: 'center',
+        backgroundColor: COLORS.canvas,
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
-        marginTop: SPACING.xxl,
+        marginBottom: 60,
     },
-    logo: {
-        fontSize: 48,
-        letterSpacing: -2,
+    logoText: {
+        fontSize: 64,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        letterSpacing: -3,
         color: COLORS.ink,
-        lineHeight: 56,
+        lineHeight: 72,
     },
-    subtitle: {
-        marginTop: SPACING.s,
+    smallCapsLabel: {
+        fontSize: 10,
+        letterSpacing: 2,
+        marginTop: -5,
     },
     form: {
         width: '100%',
-        gap: SPACING.m,
+        gap: 12,
     },
     inputContainer: {
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.m,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
-        ...Theme.shadows.soft,
+        borderColor: 'rgba(0,0,0,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 2,
     },
     input: {
-        padding: SPACING.m,
-        fontSize: 16,
+        padding: 16,
+        fontSize: 17,
         color: COLORS.ink,
-        fontFamily: 'InstrumentSerif_400Regular',
+        fontFamily: 'PlayfairDisplay_600SemiBold',
+        fontStyle: 'italic',
     },
     signUpButton: {
         backgroundColor: COLORS.ink,
         height: 54,
-        borderRadius: RADIUS.m,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: SPACING.s,
-        ...Theme.shadows.soft,
+        marginTop: 8,
     },
     buttonDisabled: {
         opacity: 0.7,

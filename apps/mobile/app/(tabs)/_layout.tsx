@@ -1,8 +1,8 @@
 import { Tabs } from "expo-router";
 import { DeviceEventEmitter, StyleSheet } from "react-native";
 import { COLORS, Theme } from "../../lib/theme";
-import { House, Archive, User } from 'phosphor-react-native';
-import { BlurView } from 'expo-blur';
+import { House, Books, Fingerprint, SquaresFour } from 'phosphor-react-native';
+import { View } from "react-native";
 
 export default function TabLayout() {
     return (
@@ -10,25 +10,21 @@ export default function TabLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    position: 'absolute',
-                    backgroundColor: 'rgba(238, 235, 230, 0.85)', // Oatmeal with slight transparency
-                    borderTopWidth: 0,
-                    height: 90,
+                    backgroundColor: COLORS.canvas,
+                    borderTopWidth: 0.5,
+                    borderTopColor: 'rgba(0,0,0,0.05)',
+                    height: 85,
                     paddingTop: 12,
-                    paddingBottom: 32,
+                    paddingBottom: 25,
                     elevation: 0,
-                    shadowOpacity: 0.05,
-                    shadowRadius: 15,
-                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0, // Remove shadow for flat anchor look
                 },
-                tabBarBackground: () => (
-                    <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="light" />
-                ),
                 tabBarLabelStyle: {
                     fontSize: 10,
-                    fontFamily: 'Inter_700Bold',
-                    letterSpacing: 0.5,
+                    fontFamily: 'Inter_500Medium',
+                    letterSpacing: 1,
                     marginTop: 4,
+                    textTransform: 'uppercase',
                 },
                 tabBarActiveTintColor: COLORS.ink,
                 tabBarInactiveTintColor: COLORS.stone,
@@ -47,8 +43,8 @@ export default function TabLayout() {
                 options={{
                     title: "FEED",
                     tabBarIcon: ({ color, focused }) => (
-                        <House
-                            size={22}
+                        <SquaresFour
+                            size={24}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -60,8 +56,8 @@ export default function TabLayout() {
                 options={{
                     title: "ARCHIVE",
                     tabBarIcon: ({ color, focused }) => (
-                        <Archive
-                            size={22}
+                        <Books
+                            size={24}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -73,8 +69,8 @@ export default function TabLayout() {
                 options={{
                     title: "IDENTITY",
                     tabBarIcon: ({ color, focused }) => (
-                        <User
-                            size={22}
+                        <Fingerprint
+                            size={24}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />

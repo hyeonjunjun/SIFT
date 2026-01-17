@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Archive, Plus, House, User, MagnifyingGlass } from 'phosphor-react-native';
+import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Books, Fingerprint } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
@@ -50,15 +50,18 @@ export default function HomeScreen() {
     const inputRef = useRef<TextInput>(null);
     const scrollViewRef = useRef<ScrollView>(null);
 
-    const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+    const { hasShareIntent, shareIntent: intent, resetShareIntent } = useShareIntent();
     const [activeFilter, setActiveFilter] = useState("All");
+    const [queue, setQueue] = useState<string[]>([]);
+    const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+    const [currentStep, setCurrentStep] = useState(0);
     const router = useRouter();
     const params = useLocalSearchParams();
 
     useEffect(() => {
         if (params.siftUrl) {
             const url = decodeURIComponent(params.siftUrl as string);
-            processSharedUrl(url);
+            addToQueue(url);
             router.setParams({ siftUrl: undefined });
         }
     }, [params.siftUrl]);
@@ -157,55 +160,100 @@ export default function HomeScreen() {
         }
     }, [user, pages.length]);
 
-    const [processingUrl, setProcessingUrl] = useState<string | null>(null);
+    const addToQueue = (url: string) => {
+        if (!url) return;
+        // Basic dedupe for current session
+        if (lastCheckedUrl.current === url && isProcessingQueue) return;
 
-    const processSharedUrl = async (url: string) => {
-        if (processingUrl === url) return;
-        setProcessingUrl(url);
-        showToast("Currently Sifting...", 0);
-        const feedbackTimer = setTimeout(() => showToast("Still sifting...", 0), 15000);
-        try {
-            await safeSift(url, user?.id);
-            showToast("Sifted!");
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (error: any) {
-            showToast(error.message || "Error sifting");
-        } finally {
-            clearTimeout(feedbackTimer);
-            setTimeout(() => setProcessingUrl(null), 2000);
+        console.log(`[QUEUE] Adding URL: ${url}`);
+        setQueue(prev => [...prev, url]);
+        lastCheckedUrl.current = url;
+    };
+
+    useEffect(() => {
+        if (queue.length > 0 && !isProcessingQueue) {
+            processQueue();
         }
+    }, [queue, isProcessingQueue]);
+
+    const processQueue = async () => {
+        if (queue.length === 0) return;
+        setIsProcessingQueue(true);
+
+        const urlsToProcess = [...queue];
+        setQueue([]); // Clear queue as we are processing these
+
+        for (let i = 0; i < urlsToProcess.length; i++) {
+            const url = urlsToProcess[i];
+            setCurrentStep(i + 1);
+
+            const total = urlsToProcess.length;
+            const progressMsg = total > 1 ? `Sifting (${i + 1} of ${total})...` : "Currently Sifting...";
+
+            showToast(progressMsg, 60000);
+
+            try {
+                const result = await safeSift(url, user?.id);
+                if (result) {
+                    if (i === total - 1) {
+                        setToastVisible(false);
+                        setTimeout(() => {
+                            showToast("Sifted!", 3000);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }, 100);
+                    }
+                    // Refresh feed
+                    fetchPages();
+                }
+            } catch (error: any) {
+                console.error(`[QUEUE] Error sifting ${url}:`, error);
+                showToast(error.message || "Error sifting URL");
+                break; // Stop queue on error
+            }
+        }
+
+        setIsProcessingQueue(false);
     };
 
     useEffect(() => {
         const intent = shareIntent as any;
         if (hasShareIntent && intent?.value) {
             if (intent.type === 'text' || intent.type === 'weburl') {
-                processSharedUrl(intent.value);
+                addToQueue(intent.value);
                 resetShareIntent();
             }
         }
-    }, [hasShareIntent, shareIntent, resetShareIntent, processSharedUrl]);
+    }, [hasShareIntent, intent, resetShareIntent, addToQueue]);
 
     const handleDeepLink = useCallback((event: { url: string }) => {
         try {
-            const parsed = Linking.parse(event.url);
-            if (parsed.path === 'share' || parsed.queryParams?.url) {
-                const sharedUrl = parsed.queryParams?.url;
-                if (typeof sharedUrl === 'string') {
-                    setTimeout(() => processSharedUrl(sharedUrl), 500);
+            const { queryParams } = Linking.parse(event.url);
+            if (queryParams?.siftUrl) {
+                addToQueue(decodeURIComponent(queryParams.siftUrl as string));
+            }
+        } catch (e) {
+            console.error("Deep link error:", e);
+        }
+    }, [addToQueue]);
+
+    useEffect(() => {
+        const getInitialLink = async () => {
+            const initialUrl = await Linking.getInitialURL();
+            if (initialUrl) {
+                const { queryParams } = Linking.parse(initialUrl);
+                if (queryParams?.siftUrl) {
+                    addToQueue(decodeURIComponent(queryParams.siftUrl as string));
                 }
             }
-        } catch (e) { }
-    }, [processSharedUrl]);
+        };
+        getInitialLink();
+
+        const sub = Linking.addEventListener('url', handleDeepLink);
+        return () => sub.remove();
+    }, [handleDeepLink, addToQueue]);
 
     useEffect(() => {
         fetchPages();
-        const getInitialURL = async () => {
-            const initialUrl = await Linking.getInitialURL();
-            if (initialUrl) handleDeepLink({ url: initialUrl });
-        };
-        getInitialURL();
-        const listener = Linking.addEventListener('url', handleDeepLink);
         const subscription = supabase
             .channel('public:pages')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pages' }, (payload) => {
@@ -216,9 +264,8 @@ export default function HomeScreen() {
 
         return () => {
             subscription.unsubscribe();
-            listener.remove();
         };
-    }, [fetchPages, handleDeepLink]);
+    }, [fetchPages]);
 
     const lastScrollY = useRef(0);
     const onScroll = useCallback((event: any) => {
@@ -311,40 +358,32 @@ export default function HomeScreen() {
                 <View style={styles.bentoContainer}>
                     <View style={styles.bentoHeader}>
                         <View style={styles.greetingBox}>
-                            <Typography variant="label" color={COLORS.stone}>{getGreeting()}</Typography>
-                            <Typography variant="h1">Dashboard</Typography>
+                            <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>{getGreeting().toUpperCase()}</Typography>
+                            <Typography variant="h1" style={styles.serifTitle}>Ryan</Typography>
                         </View>
-                        <TouchableOpacity
-                            onPress={() => router.push('/archive')}
-                            style={styles.archiveIcon}
-                        >
-                            <Archive size={22} color={COLORS.ink} />
-                        </TouchableOpacity>
                     </View>
 
-                    {/* 2. INPUT BLOCK (BENTO) */}
-                    <View style={styles.inputBlock}>
-                        <View style={styles.inputContainer}>
-                            <TextInput
-                                ref={inputRef}
-                                style={styles.textInput}
-                                placeholder="Sift a new URL..."
-                                placeholderTextColor={COLORS.stone}
-                                value={manualUrl}
-                                onChangeText={setManualUrl}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                keyboardType="url"
-                                returnKeyType="go"
-                                onSubmitEditing={handleSubmitUrl}
-                            />
-                            <TouchableOpacity
-                                style={styles.submitButton}
-                                onPress={handleSubmitUrl}
-                            >
-                                <Plus size={20} color={COLORS.paper} weight="bold" />
-                            </TouchableOpacity>
-                        </View>
+                    {/* 2. INPUT BLOCK (PAPER LOOK) */}
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            ref={inputRef}
+                            style={styles.textInput}
+                            placeholder="Sift a new URL..."
+                            placeholderTextColor="#888"
+                            value={manualUrl}
+                            onChangeText={setManualUrl}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            keyboardType="url"
+                            returnKeyType="go"
+                            onSubmitEditing={handleSubmitUrl}
+                        />
+                        <TouchableOpacity
+                            style={styles.submitButton}
+                            onPress={handleSubmitUrl}
+                        >
+                            <Plus size={20} color={COLORS.paper} weight="bold" />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -400,41 +439,48 @@ const styles = StyleSheet.create({
     },
     greetingBox: {
         flex: 1,
+        marginBottom: 24,
     },
-    archiveIcon: {
-        backgroundColor: COLORS.paper,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...Theme.shadows.soft,
+    smallCapsLabel: {
+        fontSize: 11,
+        letterSpacing: 1.5,
+        color: '#999',
+        fontFamily: 'Inter_500Medium',
+        marginBottom: 4,
     },
-    inputBlock: {
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.l,
-        padding: SPACING.m,
-        ...Theme.shadows.soft,
+    serifTitle: {
+        fontFamily: 'PlayfairDisplay_700Bold',
+        fontSize: 32,
+        color: '#1A1A1A',
+        lineHeight: 40,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        height: 48,
-        backgroundColor: COLORS.vapor,
-        borderRadius: RADIUS.m,
+        height: 54,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
         paddingHorizontal: SPACING.m,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 2,
     },
     textInput: {
         flex: 1,
-        fontSize: 15,
-        fontFamily: 'Inter_400Regular',
+        fontSize: 17,
+        fontFamily: 'PlayfairDisplay_600SemiBold', // Serif for "Paper" look
+        fontStyle: 'italic',
         color: COLORS.ink,
     },
     submitButton: {
         backgroundColor: COLORS.ink,
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
     },

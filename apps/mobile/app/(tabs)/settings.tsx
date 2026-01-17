@@ -3,7 +3,7 @@ import { View, ScrollView, RefreshControl, Image, TouchableOpacity, StyleSheet, 
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, Theme, RADIUS } from "../../lib/theme";
 import { TEXT } from "../../lib/typography";
-import { Gear, Shield, Bell, CaretRight, User as UserIcon, SignOut } from 'phosphor-react-native';
+import { Gear, Shield, Bell, CaretRight, User as UserIcon, SignOut, Cube, Fingerprint, BookOpen, ClockCounterClockwise } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -56,36 +56,28 @@ export default function ProfileScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
             >
-                {/* 1. USER HEADER */}
+                {/* 1. USER HEADER (Dossier Look) */}
                 <View style={styles.header}>
-                    <View style={styles.avatarContainer}>
-                        <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400' }}
-                            style={styles.avatar}
-                        />
-                    </View>
-                    <Typography variant="h1" style={styles.name}>{user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User"}</Typography>
-                    <Typography variant="body" color={COLORS.stone}>{user?.email || "Guest"} • Pro Member</Typography>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>PRO MEMBER</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>Rykjun</Typography>
 
-                    <View style={styles.statsRow}>
-                        <Stat label="Sifts" value="1.2k" />
-                        <Stat label="Lists" value="12" />
-                        <Stat label="Karma" value="84" />
+                    <View style={styles.profileMeta}>
+                        <Typography variant="body" color={COLORS.stone}>{user?.email || "Guest"}</Typography>
                     </View>
                 </View>
 
-                {/* 2. BENTO ACTIONS */}
-                <View style={styles.sectionHeader}>
-                    <Typography variant="label" color={COLORS.stone}>Account Settings</Typography>
-                </View>
-
-                <View style={styles.bentoGrid}>
-                    <BentoTile icon={UserIcon} title="Personal Info" subtitle="Profile & Identity" wide />
-                    <View style={styles.row}>
-                        <BentoTile icon={Bell} title="Notifications" />
-                        <BentoTile icon={Shield} title="Privacy" />
+                {/* 2. DOSSIER ACTIONS (MASONRY GRID) */}
+                <View style={styles.dossierGrid}>
+                    <View style={styles.dossierColumn}>
+                        <DossierTile icon={UserIcon} title="IDENTITY" />
+                        <DossierTile icon={Bell} title="ALERTS" />
+                        <DossierTile icon={BookOpen} title="GUIDES" />
                     </View>
-                    <BentoTile icon={Gear} title="Preferences" subtitle="Display & Interface" wide />
+                    <View style={styles.dossierColumn}>
+                        <DossierTile icon={Shield} title="PRIVACY" />
+                        <DossierTile icon={Gear} title="SETTINGS" />
+                        <DossierTile icon={ClockCounterClockwise} title="HISTORY" />
+                    </View>
                 </View>
 
                 {/* 3. SAVED ITEMS SECTION */}
@@ -113,31 +105,17 @@ export default function ProfileScreen() {
     );
 }
 
-const Stat = ({ label, value }: { label: string, value: string }) => (
-    <View style={styles.statItem}>
-        <Typography variant="h2" style={styles.statValue}>{value}</Typography>
-        <Typography variant="label" style={styles.statLabel}>{label}</Typography>
-    </View>
-);
 
-const BentoTile = ({ icon: Icon, title, subtitle, wide }: { icon: any, title: string, subtitle?: string, wide?: boolean }) => (
+
+const DossierTile = ({ icon: Icon, title }: { icon: any, title: string }) => (
     <Pressable
         style={({ pressed }) => [
             styles.tile,
-            wide ? styles.tileWide : styles.tileHalf,
             pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
         ]}
     >
-        <View style={styles.tileHeader}>
-            <View style={styles.iconBox}>
-                <Icon size={20} color={COLORS.ink} weight="duotone" />
-            </View>
-            {wide && <CaretRight size={16} color={COLORS.stone} />}
-        </View>
-        <View>
-            <Typography variant="bodyMedium" style={styles.tileTitle}>{title}</Typography>
-            {subtitle && <Typography variant="caption" color={COLORS.stone}>{subtitle}</Typography>}
-        </View>
+        <Icon size={32} color={COLORS.ink} weight="thin" />
+        <Typography variant="label" style={styles.tileLabel}>{title}</Typography>
     </Pressable>
 );
 
@@ -146,90 +124,59 @@ const styles = StyleSheet.create({
         paddingBottom: 160,
     },
     header: {
-        alignItems: 'center',
+        paddingHorizontal: SPACING.l,
         marginTop: SPACING.m,
+        marginBottom: 24,
+    },
+    smallCapsLabel: {
+        fontSize: 11,
+        letterSpacing: 1.5,
+        color: '#999',
+        fontFamily: 'Inter_500Medium',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    serifTitle: {
+        fontFamily: 'PlayfairDisplay_700Bold',
+        fontSize: 32,
+        color: '#1A1A1A',
+        lineHeight: 40,
+    },
+    profileMeta: {
+        marginTop: SPACING.xs,
+    },
+    dossierGrid: {
+        paddingHorizontal: SPACING.l,
+        flexDirection: 'row',
+        gap: 12,
         marginBottom: SPACING.xl,
     },
-    avatarContainer: {
-        padding: 4,
-        backgroundColor: COLORS.paper,
-        borderRadius: 54,
-        marginBottom: SPACING.m,
-        ...Theme.shadows.soft,
+    dossierColumn: {
+        flex: 1,
+        gap: 12,
     },
-    avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-    },
-    name: {
-        marginBottom: 2,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        marginTop: SPACING.l,
-        gap: 40,
-        backgroundColor: COLORS.paper,
-        paddingVertical: SPACING.m,
-        paddingHorizontal: SPACING.xl,
-        borderRadius: RADIUS.l,
-        ...Theme.shadows.soft,
-    },
-    statItem: {
+    tile: {
+        backgroundColor: '#FFFFFF',
+        aspectRatio: 1,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        justifyContent: 'center',
         alignItems: 'center',
+        padding: SPACING.m,
+        ...Theme.shadows.soft,
+        shadowOpacity: 0.02,
     },
-    statValue: {
-        fontSize: 18,
-    },
-    statLabel: {
+    tileLabel: {
+        position: 'absolute',
+        bottom: 12,
         fontSize: 9,
-        marginTop: 2,
+        letterSpacing: 1,
+        color: COLORS.stone,
     },
     sectionHeader: {
         paddingHorizontal: SPACING.l,
         marginBottom: SPACING.s,
-    },
-    bentoGrid: {
-        paddingHorizontal: SPACING.l,
-        gap: 12,
-    },
-    row: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    tile: {
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.l,
-        padding: SPACING.m,
-        justifyContent: 'space-between',
-        ...Theme.shadows.soft,
-    },
-    tileWide: {
-        width: '100%',
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    tileHalf: {
-        flex: 1,
-        height: 130,
-        flexDirection: 'column',
-    },
-    tileHeader: {
-        width: '100%',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 10,
-    },
-    iconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: RADIUS.m,
-        backgroundColor: COLORS.vapor,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    tileTitle: {
-        fontSize: 15,
     },
     feedWrapper: {
         marginTop: SPACING.s,

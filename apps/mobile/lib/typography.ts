@@ -26,7 +26,7 @@ export const TEXT: Record<string, TextStyle> = {
         fontFamily: 'Inter_700Bold',
         fontSize: 11,
         color: COLORS.stone,
-        letterSpacing: 1.2,
+        letterSpacing: 1.5,
         textTransform: 'uppercase',
     },
 

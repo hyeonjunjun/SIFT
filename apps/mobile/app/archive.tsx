@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert, Text } from 'react-native';
+import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert, Text, StyleSheet } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
-import { Theme } from '../lib/theme';
+import { Theme, COLORS, SPACING } from '../lib/theme';
 import { Typography } from '../components/design-system/Typography';
-import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
+import { CaretLeft, Trash } from 'phosphor-react-native';
 import { API_URL } from '../lib/config';
 import * as Haptics from 'expo-haptics';
 import SiftFeed from '../components/SiftFeed';
@@ -121,12 +121,15 @@ export default function ArchiveScreen() {
         <SafeAreaView className="flex-1 bg-canvas">
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Header */}
-            <View className="px-5 py-4 flex-row items-center border-b border-border/50">
-                <TouchableOpacity onPress={() => router.back()} className="mr-4">
-                    <ArrowLeft color={Theme.colors.text.primary} size={24} />
+            {/* Header (Editorial) */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <CaretLeft color={COLORS.ink} size={28} weight="regular" />
                 </TouchableOpacity>
-                <Typography variant="h3" className="text-ink">Archive</Typography>
+                <View style={styles.headerTitleBox}>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR TRASH</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>Archive</Typography>
+                </View>
             </View>
 
             <ScrollView
@@ -136,9 +139,9 @@ export default function ArchiveScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.text.primary} />}
             >
                 {pages.length === 0 && !loading ? (
-                    <View className="items-center justify-center mt-20 opacity-50">
-                        <Trash2 size={48} color={Theme.colors.text.tertiary} />
-                        <Typography variant="body" className="mt-4 text-ink-secondary">Trash is empty</Typography>
+                    <View style={styles.emptyState}>
+                        <Trash size={48} color={COLORS.stone} weight="thin" />
+                        <Typography variant="body" color={COLORS.stone} style={{ marginTop: 16 }}>Trash is empty</Typography>
                     </View>
                 ) : (
                     <SiftFeed
@@ -153,3 +156,39 @@ export default function ArchiveScreen() {
         </SafeAreaView>
     );
 }
+const styles = StyleSheet.create({
+    header: {
+        paddingHorizontal: SPACING.l,
+        paddingTop: 60,
+        marginBottom: 24,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    backButton: {
+        marginTop: 4,
+        marginRight: 12,
+    },
+    headerTitleBox: {
+        flex: 1,
+    },
+    smallCapsLabel: {
+        fontSize: 11,
+        letterSpacing: 1.5,
+        color: '#999',
+        fontFamily: 'Inter_500Medium',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    serifTitle: {
+        fontFamily: 'PlayfairDisplay_700Bold',
+        fontSize: 32,
+        color: '#1A1A1A',
+        lineHeight: 40,
+    },
+    emptyState: {
+        paddingTop: 100,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: 0.6,
+    }
+});

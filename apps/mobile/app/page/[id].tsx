@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, MoreHorizontal, Share as ShareIcon, Edit3, Trash2 } from 'lucide-react-native';
-import { Theme } from '../../lib/theme';
+import { CaretLeft, DotsThree, Export, NotePencil, Trash } from 'phosphor-react-native';
+import { Theme, COLORS, SPACING } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
 
@@ -70,13 +70,17 @@ export default function PageDetail() {
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Custom Nav Header (Floating) */}
+            {/* Standardized Header */}
             <View style={styles.navBar}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
-                    <ArrowLeft size={24} color={Theme.colors.text.primary} />
+                    <CaretLeft size={28} color={COLORS.ink} />
                 </TouchableOpacity>
+                <View style={styles.headerTitleBox}>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>SAVED ARTIFACT</Typography>
+                    <Typography variant="h1" numberOfLines={1} style={styles.serifTitle}>{page?.title || 'Loading...'}</Typography>
+                </View>
                 <TouchableOpacity style={styles.navButton}>
-                    <MoreHorizontal size={24} color={Theme.colors.text.primary} />
+                    <DotsThree size={28} color={COLORS.ink} />
                 </TouchableOpacity>
             </View>
 
@@ -98,7 +102,7 @@ export default function PageDetail() {
                 {/* Card 2: Header Info */}
                 <View style={styles.bentoCard}>
                     <View style={styles.tagRow}>
-                        <Typography variant="action" style={{ color: Theme.colors.text.tertiary }}>
+                        <Typography variant="label" style={styles.metaLabel}>
                             {page?.tags?.[0] || 'SAVED'} • {new Date(page?.created_at).toLocaleDateString()}
                         </Typography>
                     </View>
@@ -117,14 +121,14 @@ export default function PageDetail() {
                 </View>
 
                 {/* Card 3: Actions (2 cols) */}
-                <View style={{ flexDirection: 'row', gap: Theme.spacing.l }}>
+                <View style={{ flexDirection: 'row', gap: SPACING.l }}>
                     <TouchableOpacity style={[styles.bentoCard, styles.actionCard, { flex: 1 }]}>
-                        <Edit3 size={20} color={Theme.colors.text.primary} style={{ marginBottom: 8 }} />
-                        <Typography variant="h2">Edit</Typography>
+                        <NotePencil size={24} color={COLORS.stone} weight="thin" style={{ marginBottom: 8 }} />
+                        <Typography variant="label">Edit</Typography>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.bentoCard, styles.actionCard, { flex: 1 }]}>
-                        <ShareIcon size={20} color={Theme.colors.text.primary} style={{ marginBottom: 8 }} />
-                        <Typography variant="h2">Share</Typography>
+                        <Export size={24} color={COLORS.stone} weight="thin" style={{ marginBottom: 8 }} />
+                        <Typography variant="label">Share</Typography>
                     </TouchableOpacity>
                 </View>
 
@@ -151,54 +155,74 @@ export default function PageDetail() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Theme.colors.background,
+        backgroundColor: COLORS.canvas,
     },
     navBar: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: Theme.spacing.l,
-        paddingTop: 60, // Safe Area
-        paddingBottom: Theme.spacing.m,
-        zIndex: 10,
+        paddingHorizontal: SPACING.l,
+        paddingTop: 60,
+        paddingBottom: 12,
+        alignItems: 'flex-start',
     },
     navButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: Theme.colors.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...Theme.shadows.card,
+        marginTop: 4,
+    },
+    headerTitleBox: {
+        flex: 1,
+        marginHorizontal: 16,
+    },
+    smallCapsLabel: {
+        fontSize: 10,
+        letterSpacing: 1.5,
+        color: '#999',
+        fontFamily: 'Inter_500Medium',
+        marginBottom: 2,
+        textTransform: 'uppercase',
+    },
+    serifTitle: {
+        fontFamily: 'PlayfairDisplay_700Bold',
+        fontSize: 24, // Smaller for detail page header to fit long titles
+        color: '#1A1A1A',
+        lineHeight: 30,
     },
     scrollContent: {
-        paddingHorizontal: Theme.spacing.l, // 20px
+        paddingHorizontal: SPACING.l,
         paddingBottom: 140,
-        gap: Theme.spacing.l, // 20px gap between cards
+        gap: SPACING.l,
     },
     bentoCard: {
-        backgroundColor: Theme.colors.surface,
-        borderRadius: Theme.borderRadius.card, // 24px
-        padding: Theme.spacing.l, // 20px
-        ...Theme.shadows.card,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: SPACING.l,
         borderWidth: 1,
-        borderColor: Theme.colors.border,
+        borderColor: 'rgba(0,0,0,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 2,
     },
     actionCard: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 24,
+        paddingVertical: 20,
     },
     tagRow: {
         marginBottom: 8,
+    },
+    metaLabel: {
+        fontSize: 10,
+        color: '#999',
+        letterSpacing: 1,
     },
     sourceRow: {
         flexDirection: 'row',
         alignItems: 'center',
         opacity: 0.8,
-        marginTop: 4,
+        marginTop: 12,
         paddingVertical: 4,
         paddingHorizontal: 8,
-        backgroundColor: Theme.colors.background,
+        backgroundColor: COLORS.canvas,
         alignSelf: 'flex-start',
         borderRadius: 8,
     },

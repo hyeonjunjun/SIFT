@@ -6,6 +6,8 @@ import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 
 const { width } = Dimensions.get('window');
 
@@ -36,14 +38,52 @@ export default function LoginScreen() {
         }
     };
 
+    const handleAppleSignIn = async () => {
+        try {
+            const rawNonce = Math.random().toString(36).substring(2, 11);
+            const hashedNonce = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256,
+                rawNonce
+            );
+
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+                nonce: hashedNonce,
+            });
+
+            if (credential.identityToken) {
+                const { error } = await supabase.auth.signInWithIdToken({
+                    provider: 'apple',
+                    token: credential.identityToken,
+                    nonce: rawNonce,
+                });
+
+                if (error) {
+                    Alert.alert('Apple Auth Failed', error.message);
+                }
+            } else {
+                throw new Error('No identity token received.');
+            }
+        } catch (e: any) {
+            if (e.code === 'ERR_CANCELED') {
+                // handle cancel
+            } else {
+                Alert.alert('Error', e.message);
+            }
+        }
+    };
+
     return (
         <ScreenWrapper edges={['top', 'bottom']}>
             <View style={styles.container}>
                 {/* Logo / Header */}
                 <View style={styles.header}>
-                    <Typography variant="h1" style={styles.logo}>sift</Typography>
-                    <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
-                        Refine your digital intake.
+                    <Typography variant="h1" style={styles.logoText}>sift</Typography>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>
+                        REFINE YOUR DIGITAL INTAKE
                     </Typography>
                 </View>
 
@@ -94,14 +134,17 @@ export default function LoginScreen() {
 
                 {/* Social Auth */}
                 <View style={styles.socialContainer}>
-                    <TouchableOpacity style={styles.socialButtonApple}>
-                        <AppleLogo size={20} color={COLORS.paper} weight="fill" />
-                        <Typography variant="bodyMedium" color={COLORS.paper} style={styles.socialText}>Continue with Apple</Typography>
+                    <TouchableOpacity
+                        style={styles.socialButtonApple}
+                        onPress={handleAppleSignIn}
+                    >
+                        <AppleLogo size={22} color={COLORS.paper} weight="fill" />
+                        <Typography variant="label" color={COLORS.paper} style={styles.socialText}>Continue with Apple</Typography>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.socialButtonGoogle}>
-                        <GoogleLogo size={20} color={COLORS.ink} weight="bold" />
-                        <Typography variant="bodyMedium" color={COLORS.ink} style={styles.socialText}>Continue with Google</Typography>
+                        <GoogleLogo size={22} color={COLORS.ink} weight="bold" />
+                        <Typography variant="label" color={COLORS.ink} style={styles.socialText}>Continue with Google</Typography>
                     </TouchableOpacity>
                 </View>
 
@@ -122,48 +165,55 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: SPACING.xl,
+        paddingHorizontal: 40,
         justifyContent: 'center',
+        backgroundColor: COLORS.canvas,
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
-        marginTop: SPACING.xxl, // Extra space to prevent cutoff
+        marginBottom: 60,
     },
-    logo: {
-        fontSize: 52,
-        letterSpacing: -2,
+    logoText: {
+        fontSize: 72,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        letterSpacing: -3,
         color: COLORS.ink,
-        lineHeight: 60, // Ensure height accommodates the font
+        lineHeight: 80,
     },
-    subtitle: {
-        marginTop: SPACING.s,
+    smallCapsLabel: {
+        fontSize: 10,
+        letterSpacing: 2,
+        marginTop: -5,
     },
     form: {
         width: '100%',
-        gap: SPACING.m,
+        gap: 12,
     },
     inputContainer: {
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.m,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
-        ...Theme.shadows.soft,
+        borderColor: 'rgba(0,0,0,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 2,
     },
     input: {
-        padding: SPACING.m,
-        fontSize: 16,
+        padding: 16,
+        fontSize: 17,
         color: COLORS.ink,
-        fontFamily: 'InstrumentSerif_400Regular', // Using Serif for inputs for that "Archive" feel
+        fontFamily: 'PlayfairDisplay_600SemiBold',
+        fontStyle: 'italic',
     },
     loginButton: {
         backgroundColor: COLORS.ink,
         height: 54,
-        borderRadius: RADIUS.m,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: SPACING.s,
-        ...Theme.shadows.soft,
+        marginTop: 8,
     },
     buttonDisabled: {
         opacity: 0.7,
@@ -181,29 +231,29 @@ const styles = StyleSheet.create({
     dividerText: {
         paddingHorizontal: SPACING.m,
         letterSpacing: 1,
+        fontSize: 10,
+        color: '#999',
     },
     socialContainer: {
-        gap: SPACING.m,
+        gap: 12,
     },
     socialButtonApple: {
         flexDirection: 'row',
         backgroundColor: '#000000',
-        height: 50,
-        borderRadius: RADIUS.pill,
+        height: 52,
+        borderRadius: 26,
         justifyContent: 'center',
         alignItems: 'center',
-        ...Theme.shadows.soft,
     },
     socialButtonGoogle: {
         flexDirection: 'row',
-        backgroundColor: COLORS.paper,
-        height: 50,
-        borderRadius: RADIUS.pill,
+        backgroundColor: '#FFFFFF',
+        height: 52,
+        borderRadius: 26,
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.08)',
         justifyContent: 'center',
         alignItems: 'center',
-        ...Theme.shadows.soft,
     },
     socialText: {
         marginLeft: 10,

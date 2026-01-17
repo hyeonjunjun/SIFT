@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
-      "buildNumber": "14",
+      "buildNumber": "15",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -89,6 +89,7 @@
           "appleTeamId": "8DA3BAGA32"
         }
       ],
+      "expo-apple-authentication",
       "./plugins/withShareExtensionExclusions.js"
     ],
     "extra": {

@@ -82,22 +82,22 @@ export default function SiftScreen() {
         <ScreenWrapper edges={['top']}>
             {/* 1. EDITORIAL HEADER */}
             <View style={styles.header}>
-                <View>
-                    <Typography variant="label" color={COLORS.stone}>Your Collection</Typography>
-                    <Typography variant="h1">Library</Typography>
+                <View style={styles.headerTitleBox}>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR COLLECTION</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>Library</Typography>
                 </View>
                 <TouchableOpacity style={styles.filterButton}>
                     <Sliders size={20} color={COLORS.ink} />
                 </TouchableOpacity>
             </View>
 
-            {/* 2. SEARCH BAR */}
+            {/* 2. SEARCH BAR (PAPER LOOK) */}
             <View style={styles.searchContainer}>
                 <MagnifyingGlass size={18} color={COLORS.stone} style={styles.searchIcon} />
                 <TextInput
                     style={styles.input}
                     placeholder="Search sifts..."
-                    placeholderTextColor={COLORS.stone}
+                    placeholderTextColor="#888"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     autoCapitalize="none"
@@ -161,7 +161,24 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         paddingHorizontal: SPACING.l,
         marginTop: SPACING.m,
-        marginBottom: SPACING.l,
+        marginBottom: 24,
+    },
+    headerTitleBox: {
+        flex: 1,
+    },
+    smallCapsLabel: {
+        fontSize: 11,
+        letterSpacing: 1.5,
+        color: '#999',
+        fontFamily: 'Inter_500Medium',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    serifTitle: {
+        fontFamily: 'PlayfairDisplay_700Bold',
+        fontSize: 32,
+        color: '#1A1A1A',
+        lineHeight: 40,
     },
     filterButton: {
         width: 44,
@@ -178,18 +195,26 @@ const styles = StyleSheet.create({
         marginHorizontal: SPACING.l,
         marginBottom: SPACING.xl,
         paddingHorizontal: SPACING.m,
-        height: 48,
-        backgroundColor: COLORS.vapor,
-        borderRadius: RADIUS.m,
+        height: 52,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.08)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 2,
     },
     searchIcon: {
         marginRight: 10
     },
     input: {
         flex: 1,
-        fontSize: 15,
+        fontSize: 16,
         color: COLORS.ink,
-        fontFamily: 'Inter_400Regular',
+        fontFamily: 'PlayfairDisplay_600SemiBold',
+        fontStyle: 'italic',
     },
     gridContainer: {
         flexDirection: 'row',

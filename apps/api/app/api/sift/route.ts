@@ -362,16 +362,20 @@ export async function POST(request: Request) {
             .select()
             .single();
 
+        if (error) {
+            console.error('[SIFT] Supabase Insert Error:', error);
+            throw new Error(`Database insert failed: ${error.message}`);
+        }
+
         return NextResponse.json(
             { status: 'success', data: data },
             { headers: corsHeaders }
         );
 
-    } catch (error: unknown) {
+    } catch (error: any) {
         console.error('[SIFT] Internal Error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json(
-            { status: 'error', message: errorMessage },
+            { status: 'error', message: error.message || 'Internal Server Error' },
             { status: 500, headers: corsHeaders }
         );
     }
