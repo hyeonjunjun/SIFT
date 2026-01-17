@@ -81,7 +81,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             <View style={styles.center}>
                 <Animated.View style={logoStyle}>
                     <Image
-                        source={require('../assets/sift black.png')}
+                        source={require('../assets/sift-white.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />

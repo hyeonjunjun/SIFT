@@ -1,7 +1,8 @@
+import 'react-native-url-polyfill/auto';
 import "../global.css";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useShareIntent } from "expo-share-intent";
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Theme, COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";

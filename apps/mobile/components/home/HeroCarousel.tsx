@@ -1,8 +1,8 @@
+import React, { useRef } from 'react';
 import { View, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Typography } from '../design-system/Typography';
 import { HeroCard } from './HeroCard';
-import { useRef } from 'react';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.75; // Used for snap logic, but Card handles its own width

@@ -111,7 +111,7 @@ export default function HomeScreen() {
                     label: "Sift It",
                     onPress: () => {
                         setManualUrl(content);
-                        processSharedUrl(content);
+                        addToQueue(content);
                     }
                 }, {
                     label: "Dismiss",
@@ -130,19 +130,22 @@ export default function HomeScreen() {
         return () => subscription.remove();
     }, [checkClipboard]);
 
-    const fetchPages = useCallback(async () => {
+    const fetchPages = useCallback(async (force = false) => {
+        if (!user) return;
         try {
             // 1. Try to load from cache first for instant UI
-            const cachedData = await AsyncStorage.getItem('sift_pages_cache');
-            if (cachedData && pages.length === 0) {
-                setPages(JSON.parse(cachedData));
+            if (pages.length === 0 && !force) {
+                const cachedData = await AsyncStorage.getItem('sift_pages_cache');
+                if (cachedData) {
+                    setPages(JSON.parse(cachedData));
+                }
             }
 
             // 2. Fetch from Supabase
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
-                .eq('user_id', user?.id)
+                .eq('user_id', user.id)
                 .eq('is_archived', false)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
@@ -158,17 +161,21 @@ export default function HomeScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [user, pages.length]);
+    }, [user?.id]); // Removed pages.length to break loop
 
-    const addToQueue = (url: string) => {
-        if (!url) return;
+    const addToQueue = useCallback((url: string) => {
+        if (!url || typeof url !== 'string') return;
+        const cleanUrl = url.trim();
+        if (!cleanUrl) return;
+
         // Basic dedupe for current session
-        if (lastCheckedUrl.current === url && isProcessingQueue) return;
+        if (lastCheckedUrl.current === cleanUrl && isProcessingQueue) return;
 
-        console.log(`[QUEUE] Adding URL: ${url}`);
-        setQueue(prev => [...prev, url]);
-        lastCheckedUrl.current = url;
-    };
+        const currentUserId = user?.id;
+        console.log(`[QUEUE] Adding URL: ${cleanUrl} (User: ${currentUserId || 'GUEST'})`);
+        setQueue(prev => [...prev, cleanUrl]);
+        lastCheckedUrl.current = cleanUrl;
+    }, [isProcessingQueue]);
 
     useEffect(() => {
         if (queue.length > 0 && !isProcessingQueue) {
@@ -176,12 +183,14 @@ export default function HomeScreen() {
         }
     }, [queue, isProcessingQueue]);
 
-    const processQueue = async () => {
-        if (queue.length === 0) return;
+    const processQueue = useCallback(async () => {
+        if (queue.length === 0 || isProcessingQueue) return;
         setIsProcessingQueue(true);
 
         const urlsToProcess = [...queue];
         setQueue([]); // Clear queue as we are processing these
+
+        console.log(`[QUEUE] Starting to process ${urlsToProcess.length} items`);
 
         for (let i = 0; i < urlsToProcess.length; i++) {
             const url = urlsToProcess[i];
@@ -193,7 +202,20 @@ export default function HomeScreen() {
             showToast(progressMsg, 60000);
 
             try {
-                const result = await safeSift(url, user?.id);
+                if (!user?.id) {
+                    throw new Error("You must be logged in to sift.");
+                }
+
+                console.log(`[QUEUE] Sifting URL: ${url} for User: ${user.id}`);
+                const result = await safeSift(url, user.id);
+
+                // Detailed diagnostic logging for the user/developer
+                if (result && (result as any).debug_info) {
+                    console.log(`[QUEUE] Sift Diagnostics: ${(result as any).debug_info}`);
+                }
+
+                console.log(`[QUEUE] Sift result for ${url}:`, result ? "Success" : "Failed");
+
                 if (result) {
                     if (i === total - 1) {
                         setToastVisible(false);
@@ -203,7 +225,7 @@ export default function HomeScreen() {
                         }, 100);
                     }
                     // Refresh feed
-                    fetchPages();
+                    fetchPages(true);
                 }
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${url}:`, error);
@@ -213,13 +235,13 @@ export default function HomeScreen() {
         }
 
         setIsProcessingQueue(false);
-    };
+    }, [queue, isProcessingQueue, user?.id, fetchPages]);
 
     useEffect(() => {
-        const intent = shareIntent as any;
-        if (hasShareIntent && intent?.value) {
-            if (intent.type === 'text' || intent.type === 'weburl') {
-                addToQueue(intent.value);
+        const shareIntent = intent as any;
+        if (hasShareIntent && shareIntent?.value) {
+            if (shareIntent.type === 'text' || shareIntent.type === 'weburl') {
+                addToQueue(shareIntent.value);
                 resetShareIntent();
             }
         }
@@ -338,10 +360,10 @@ export default function HomeScreen() {
     const handleSubmitUrl = () => {
         if (manualUrl.trim()) {
             Keyboard.dismiss();
-            processSharedUrl(manualUrl.trim());
+            addToQueue(manualUrl.trim());
             setManualUrl("");
         }
-    }
+    };
 
     return (
         <ScreenWrapper edges={['top']}>

@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { View, Image, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -119,6 +120,12 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
                     {item.title}
                 </Typography>
 
+                {item.summary && (
+                    <Typography variant="caption" color={COLORS.stone} numberOfLines={2} style={styles.summaryTeaser}>
+                        {item.summary}
+                    </Typography>
+                )}
+
                 {/* 3. Minimalist Source Tag */}
                 <View style={styles.sourceRow}>
                     <Image
@@ -150,7 +157,16 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
         return pages.map((page, index) => {
             const heights = [200, 240, 180, 280];
             const height = heights[index % heights.length];
-            const domain = page.url ? new URL(page.url).hostname.replace('www.', '') : 'sift.app';
+
+            let domain = 'sift.app';
+            try {
+                if (page.url) {
+                    const urlObj = new URL(page.url.startsWith('http') ? page.url : `https://${page.url}`);
+                    domain = urlObj.hostname.replace('www.', '');
+                }
+            } catch (e) {
+                console.warn("Invalid URL in feed:", page.url);
+            }
 
             return {
                 id: page.id,
@@ -159,7 +175,8 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
                 source: domain,
                 image: page.metadata?.image_url || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
                 height: height,
-                is_pinned: page.is_pinned
+                is_pinned: page.is_pinned,
+                summary: page.summary
             };
         });
     }, [pages]);
@@ -249,7 +266,13 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 14,
         lineHeight: 18,
+        marginBottom: 4,
+    },
+    summaryTeaser: {
+        fontSize: 11,
+        lineHeight: 15,
         marginBottom: 8,
+        opacity: 0.7,
     },
     sourceRow: {
         flexDirection: 'row',
