@@ -16,7 +16,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
-      "buildNumber": "16",
+      "usesAppleSignIn": true,
+      "buildNumber": "18",
+      "entitlements": {
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
+      },
       "config": {
         "usesNonExemptEncryption": false
       },
