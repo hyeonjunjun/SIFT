@@ -142,6 +142,7 @@ export default function HomeScreen() {
             }
 
             // 2. Fetch from Supabase
+            console.log(`[Fetch] Fetching pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
@@ -150,7 +151,13 @@ export default function HomeScreen() {
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
+            if (error) {
+                console.error('[Fetch] Supabase Error:', error);
+                showToast(`Fetch Error: ${error.message}`);
+            }
+
             if (data) {
+                console.log(`[Fetch] Success. Received ${data.length} pages.`);
                 setPages(data as Page[]);
                 // 3. Update cache
                 await AsyncStorage.setItem('sift_pages_cache', JSON.stringify(data));
@@ -279,10 +286,17 @@ export default function HomeScreen() {
         const subscription = supabase
             .channel('public:pages')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pages' }, (payload) => {
-                setPages((prev) => [payload.new as Page, ...prev]);
-                showToast("New Page Received");
+                console.log('[Realtime] New page received:', payload.new.id, 'User ID:', payload.new.user_id);
+                if (payload.new.user_id === user?.id) {
+                    setPages((prev) => [payload.new as Page, ...prev]);
+                    showToast("New Page Received");
+                } else {
+                    console.log('[Realtime] Page skipped (User ID mismatch)');
+                }
             })
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`[Realtime] Subscription Status: ${status}`);
+            });
 
         return () => {
             subscription.unsubscribe();

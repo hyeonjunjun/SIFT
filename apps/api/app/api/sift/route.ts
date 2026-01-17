@@ -88,7 +88,10 @@ export async function POST(request: Request) {
         if (!user_id) {
             console.warn('[SIFT] WARNING: No user_id provided. Sift will be orphaned.');
         }
-        console.log(`[SIFT] Env Check - Apify: ${!!process.env.APIFY_API_TOKEN}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Supabase: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+
+        const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const maskedSbUrl = sbUrl ? `${sbUrl.substring(0, 15)}...` : 'MISSING';
+        console.log(`[SIFT] Env Check - Supabase URL: ${maskedSbUrl}, Apify: ${!!process.env.APIFY_API_TOKEN}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Supabase Service Key: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
 
         // 1. Scrape Content & Metadata
         let scrapedData: any = {}; // Use any for Apify data
@@ -311,6 +314,7 @@ export async function POST(request: Request) {
                 summary,
                 content: summary,
                 tags,
+                is_archived: false, // Ensure it's not archived by default
                 metadata: {
                     source: 'sift-api',
                     scraped_at: new Date().toISOString(),

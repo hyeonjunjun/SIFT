@@ -39,6 +39,11 @@ if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_A
     console.warn("Supabase environment variables are missing! The app will likely fail to fetch data.");
 }
 
+console.log(`[Supabase] Initializing with URL: ${supabaseUrl ? `${supabaseUrl.substring(0, 15)}...` : 'MISSING'}`);
+if (supabaseUrl.includes('placeholder')) {
+    console.warn("⚠️ [Supabase] Using PLACEHOLDER URL. This will likely fail.");
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         storage: ExpoSecureStoreAdapter,

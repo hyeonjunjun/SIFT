@@ -12,14 +12,17 @@ export const safeSift = async <T = any>(originalUrl: string, userId?: string): P
         const apiUrl = `${API_URL}/api/sift`;
         console.log(`[SafeSift] Requesting to sift: ${originalUrl} via ${apiUrl}`);
 
+        const body = {
+            url: originalUrl,
+            platform: 'share_sheet',
+            user_id: userId
+        };
+        console.log(`[SafeSift] Sending Request Body:`, JSON.stringify(body, null, 2));
+
         const res = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                url: originalUrl,
-                platform: 'share_sheet',
-                user_id: userId
-            })
+            body: JSON.stringify(body)
         });
 
         // Parse JSON regardless of status
