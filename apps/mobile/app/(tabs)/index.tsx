@@ -232,7 +232,7 @@ export default function HomeScreen() {
             const response = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, action: 'archive' })
+                body: JSON.stringify({ id, action: 'archive', user_id: user?.id })
             });
 
             if (!response.ok) throw new Error('Failed to archive');

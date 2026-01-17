@@ -8,7 +8,9 @@ create table public.pages (
   summary text,
   content text,
   tags text[],
-  metadata jsonb
+  metadata jsonb,
+  is_archived boolean default false,
+  is_pinned boolean default false
 );
 
 -- Enable RLS (Security)

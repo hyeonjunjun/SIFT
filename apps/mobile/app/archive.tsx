@@ -10,6 +10,7 @@ import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { API_URL } from '../lib/config';
 import * as Haptics from 'expo-haptics';
 import SiftFeed from '../components/SiftFeed';
+import { useAuth } from '../lib/auth';
 
 interface Page {
     id: string;
@@ -25,13 +26,15 @@ interface Page {
 
 export default function ArchiveScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const [pages, setPages] = useState<Page[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchArchived = useCallback(async () => {
+        if (!user?.id) return;
         try {
-            const apiUrl = `${API_URL}/api/archive`;
+            const apiUrl = `${API_URL}/api/archive?user_id=${user.id}`;
 
             const response = await fetch(apiUrl);
             const data = await response.json();
@@ -45,7 +48,7 @@ export default function ArchiveScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         fetchArchived();
@@ -63,7 +66,7 @@ export default function ArchiveScreen() {
             const response = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, action: 'restore' })
+                body: JSON.stringify({ id, action: 'restore', user_id: user?.id })
             });
 
             if (!response.ok) throw new Error('Failed');
@@ -87,7 +90,7 @@ export default function ArchiveScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            const apiUrl = `${API_URL}/api/archive?id=${id}`;
+                            const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
 
                             const response = await fetch(apiUrl, { method: 'DELETE' });
 
