@@ -10,6 +10,44 @@ import { View, ImageBackground, StyleSheet } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
+import { Typography } from "../components/design-system/Typography";
+import { TouchableOpacity, Text } from "react-native";
+
+// Basic Error Boundary
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: any, errorInfo: any) {
+        console.error("App Crash:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: COLORS.canvas }}>
+                    <Typography variant="h1" style={{ marginBottom: 10 }}>Something went wrong.</Typography>
+                    <Typography variant="body" style={{ textAlign: 'center', marginBottom: 20 }}>
+                        sift encountered an unexpected error.
+                    </Typography>
+                    <TouchableOpacity
+                        onPress={() => this.setState({ hasError: false })}
+                        style={{ backgroundColor: COLORS.ink, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}
+                    >
+                        <Typography variant="bodyMedium" color={COLORS.paper}>Try Again</Typography>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 // Fonts
 import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display';
@@ -132,8 +170,10 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
     return (
-        <AuthProvider>
-            <RootLayoutNav />
-        </AuthProvider>
+        <ErrorBoundary>
+            <AuthProvider>
+                <RootLayoutNav />
+            </AuthProvider>
+        </ErrorBoundary>
     );
 }

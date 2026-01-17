@@ -60,7 +60,7 @@ export default function WaitlistScreen() {
         <ScreenWrapper edges={['top', 'bottom']}>
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <Typography variant="h1" style={styles.logo}>Sift is in Beta</Typography>
+                    <Typography variant="h1" style={styles.logo}>sift is in beta</Typography>
                     <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
                         Join the waitlist to get early access.
                     </Typography>
@@ -113,13 +113,15 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 60,
+        marginBottom: 40,
+        marginTop: SPACING.xxl,
     },
     logo: {
-        fontSize: 32,
-        letterSpacing: -1,
+        fontSize: 36,
+        letterSpacing: -1.5,
         color: COLORS.ink,
         textAlign: 'center',
+        lineHeight: 44,
     },
     subtitle: {
         marginTop: SPACING.s,

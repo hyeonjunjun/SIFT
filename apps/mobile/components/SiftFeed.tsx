@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
 import { View, Image, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, Theme, RADIUS } from '../lib/theme';
 import { ShimmerSkeleton } from './ShimmerSkeleton';
@@ -55,10 +55,12 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
     const router = useRouter();
 
     const handlePress = () => {
+        Haptics.selectionAsync();
         router.push(`/page/${item.id}`);
     };
 
     const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const archiveLabel = mode === 'archive' ? 'Restore' : 'Archive';
         const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', archiveLabel, 'Delete Forever'];
         if (Platform.OS === 'ios') {

@@ -61,7 +61,7 @@ export default function SignUpScreen() {
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <Typography variant="h1" style={styles.logo}>Join Sift</Typography>
+                    <Typography variant="h1" style={styles.logo}>join sift</Typography>
                     <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
                         Start curating your digital diet.
                     </Typography>
@@ -127,12 +127,14 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 60,
+        marginBottom: 40,
+        marginTop: SPACING.xxl,
     },
     logo: {
-        fontSize: 42,
-        letterSpacing: -1,
+        fontSize: 48,
+        letterSpacing: -2,
         color: COLORS.ink,
+        lineHeight: 56,
     },
     subtitle: {
         marginTop: SPACING.s,

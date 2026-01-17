@@ -41,7 +41,7 @@ export default function LoginScreen() {
             <View style={styles.container}>
                 {/* Logo / Header */}
                 <View style={styles.header}>
-                    <Typography variant="h1" style={styles.logo}>Sift</Typography>
+                    <Typography variant="h1" style={styles.logo}>sift</Typography>
                     <Typography variant="body" color={COLORS.stone} style={styles.subtitle}>
                         Refine your digital intake.
                     </Typography>
@@ -127,12 +127,14 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 60,
+        marginBottom: 40,
+        marginTop: SPACING.xxl, // Extra space to prevent cutoff
     },
     logo: {
-        fontSize: 48,
-        letterSpacing: -1,
+        fontSize: 52,
+        letterSpacing: -2,
         color: COLORS.ink,
+        lineHeight: 60, // Ensure height accommodates the font
     },
     subtitle: {
         marginTop: SPACING.s,

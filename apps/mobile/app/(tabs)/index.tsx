@@ -1,4 +1,5 @@
 import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, useCallback, useRef } from "react";
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
@@ -128,6 +129,13 @@ export default function HomeScreen() {
 
     const fetchPages = useCallback(async () => {
         try {
+            // 1. Try to load from cache first for instant UI
+            const cachedData = await AsyncStorage.getItem('sift_pages_cache');
+            if (cachedData && pages.length === 0) {
+                setPages(JSON.parse(cachedData));
+            }
+
+            // 2. Fetch from Supabase
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
@@ -136,14 +144,18 @@ export default function HomeScreen() {
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
-            if (data) setPages(data as Page[]);
+            if (data) {
+                setPages(data as Page[]);
+                // 3. Update cache
+                await AsyncStorage.setItem('sift_pages_cache', JSON.stringify(data));
+            }
         } catch (e) {
             console.error('Exception fetching pages:', e);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [user?.id]);
+    }, [user, pages.length]);
 
     const [processingUrl, setProcessingUrl] = useState<string | null>(null);
 
