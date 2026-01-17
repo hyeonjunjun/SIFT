@@ -1,7 +1,5 @@
 
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -81,8 +79,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const logEntry = `[${new Date().toISOString()}] SIFT ${url} - User: ${user_id || 'Guest'}\n`;
-        fs.appendFileSync(path.join(process.cwd(), 'sift.log'), logEntry);
+
 
         console.log(`[SIFT] Processing URL: ${url} (${platform}) User: ${user_id || 'Guest'}`);
         if (!user_id) {
@@ -328,11 +325,10 @@ export async function POST(request: Request) {
 
         if (error) {
             console.error('[SIFT] Supabase Insert Error:', error.message);
-            fs.appendFileSync(path.join(process.cwd(), 'sift.log'), `[ERROR] Supabase Insert: ${error.message}\n`);
             throw new Error(`Database insert failed: ${error.message}`);
         }
 
-        fs.appendFileSync(path.join(process.cwd(), 'sift.log'), `[SUCCESS] Saved ID: ${data.id}\n`);
+        console.log(`[SUCCESS] Saved ID: ${data.id}`);
 
         return NextResponse.json(
             { status: 'success', data: data, debug_info: debugInfoSnippet },
@@ -341,7 +337,6 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error('[SIFT] Internal Error:', error.message);
-        fs.appendFileSync(path.join(process.cwd(), 'sift.log'), `[CRITICAL] ${error.message}\n`);
         return NextResponse.json(
             { status: 'error', message: error.message || 'Internal Server Error', debug_info: 'Critical Exception' },
             { status: 500, headers: corsHeaders }
