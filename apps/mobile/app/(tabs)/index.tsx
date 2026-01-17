@@ -1,4 +1,4 @@
-import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet } from "react-native";
+import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, useCallback, useRef } from "react";
 import * as Linking from 'expo-linking';
@@ -393,10 +393,22 @@ export default function HomeScreen() {
                 {/* 1. BENTO HEADER */}
                 <View style={styles.bentoContainer}>
                     <View style={styles.bentoHeader}>
-                        <View style={styles.greetingBox}>
+                        <TouchableOpacity
+                            activeOpacity={1}
+                            onLongPress={() => {
+                                Alert.alert(
+                                    "SIFT Debug",
+                                    `API: ${API_URL}\nSB: ${process.env.EXPO_PUBLIC_SUPABASE_URL?.substring(0, 20)}...\nUser: ${user?.id}\nPages: ${pages.length}`,
+                                    [{ text: "OK" }]
+                                );
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                            }}
+                            delayLongPress={2000}
+                            style={styles.greetingBox}
+                        >
                             <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>{getGreeting().toUpperCase()}</Typography>
                             <Typography variant="h1" style={styles.serifTitle}>Ryan</Typography>
-                        </View>
+                        </TouchableOpacity>
                     </View>
 
                     {/* 2. INPUT BLOCK (PAPER LOOK) */}

@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
         const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const maskedSbUrl = sbUrl ? `${sbUrl.substring(0, 15)}...` : 'MISSING';
-        console.log(`[SIFT] Env Check - Supabase URL: ${maskedSbUrl}, Apify: ${!!process.env.APIFY_API_TOKEN}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Supabase Service Key: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+        console.warn(`[SIFT] Env Check - Supabase URL: ${maskedSbUrl}, Apify: ${!!process.env.APIFY_API_TOKEN}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Supabase Service Key: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
 
         // 1. Scrape Content & Metadata
         let scrapedData: any = {}; // Use any for Apify data
