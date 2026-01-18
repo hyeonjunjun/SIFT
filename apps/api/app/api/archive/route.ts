@@ -3,9 +3,11 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: Request) {
+    console.log(`[ARCHIVE] GET Request received`);
     try {
         const { searchParams } = new URL(request.url);
         const user_id = searchParams.get('user_id');
+        console.log(`[ARCHIVE] Fetching archived for user: ${user_id}`);
 
         if (!user_id) {
             return NextResponse.json({ error: 'Missing user_id' }, { status: 400 });
@@ -26,8 +28,10 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+    console.log(`[ARCHIVE] PUT Request received`);
     try {
         const { id, action, user_id } = await request.json();
+        console.log(`[ARCHIVE] ${action} on item: ${id} for user: ${user_id}`);
 
         if (!id || !action || !user_id) {
             return NextResponse.json({ error: 'Missing id, action, or user_id' }, { status: 400 });
@@ -51,10 +55,12 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+    console.log(`[ARCHIVE] DELETE Request received`);
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         const user_id = searchParams.get('user_id');
+        console.log(`[ARCHIVE] Deleting forever item: ${id} for user: ${user_id}`);
 
         if (!id || !user_id) {
             return NextResponse.json({ error: 'Missing id or user_id' }, { status: 400 });

@@ -70,7 +70,33 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { url, platform, user_id } = body;
+        const { url, platform, user_id, mock } = body;
+
+        if (mock) {
+            console.log(`[SIFT] Mock Sift requested for user: ${user_id}`);
+            const { data, error } = await supabaseAdmin
+                .from('pages')
+                .insert({
+                    url: 'https://mock.sift.app',
+                    title: '🚀 Mock Sift Connection Test',
+                    summary: 'If you can see this, the API and Supabase are connected correctly!',
+                    user_id: user_id,
+                    metadata: {
+                        image_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
+                        debug_info: 'Mock Mode: Success'
+                    },
+                    is_archived: false,
+                    tags: ['Test']
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('[SIFT] Mock Sift failed:', error);
+                return NextResponse.json({ status: 'error', message: error.message }, { status: 500, headers: corsHeaders });
+            }
+            return NextResponse.json({ status: 'success', data }, { headers: corsHeaders });
+        }
 
         if (!url) {
             return NextResponse.json(

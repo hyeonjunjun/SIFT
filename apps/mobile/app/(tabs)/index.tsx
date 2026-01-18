@@ -320,9 +320,7 @@ export default function HomeScreen() {
 
     const deletePage = async (id: string) => {
         try {
-            const debuggerHost = Constants.expoConfig?.hostUri;
-            const localhost = debuggerHost?.split(':')[0] || 'localhost';
-            const apiUrl = `${API_URL}/api/archive`; // Use standardized config
+            const apiUrl = `${API_URL}/api/archive`;
 
             const response = await fetch(apiUrl, {
                 method: 'PUT',
@@ -341,7 +339,7 @@ export default function HomeScreen() {
 
     const deletePageForever = async (id: string) => {
         try {
-            const apiUrl = `${API_URL}/api/archive?id=${id}`;
+            const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
             const response = await fetch(apiUrl, { method: 'DELETE' });
             if (!response.ok) throw new Error('Failed to delete');
             setPages((prev) => prev.filter((p) => p.id !== id));
@@ -399,7 +397,31 @@ export default function HomeScreen() {
                                 Alert.alert(
                                     "SIFT Debug",
                                     `API: ${API_URL}\nSB: ${process.env.EXPO_PUBLIC_SUPABASE_URL?.substring(0, 20)}...\nUser: ${user?.id}\nPages: ${pages.length}`,
-                                    [{ text: "OK" }]
+                                    [
+                                        { text: "OK" },
+                                        {
+                                            text: "Run Mock Sift",
+                                            onPress: async () => {
+                                                try {
+                                                    showToast("Starting Mock Sift...");
+                                                    const res = await fetch(`${API_URL}/api/sift`, {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ mock: true, user_id: user?.id, platform: 'debug' })
+                                                    });
+                                                    const json = await res.json();
+                                                    if (res.ok) {
+                                                        showToast("Mock Sift Success! Check feed.");
+                                                        onRefresh(); // Trigger feed update
+                                                    } else {
+                                                        Alert.alert("Mock Sift Failed", json.message || "Unknown error");
+                                                    }
+                                                } catch (e: any) {
+                                                    Alert.alert("Request Exception", e.message);
+                                                }
+                                            }
+                                        }
+                                    ]
                                 );
                                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                             }}
