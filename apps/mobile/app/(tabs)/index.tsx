@@ -429,17 +429,18 @@ export default function HomeScreen() {
                             delayLongPress={2000}
                             style={styles.greetingBox}
                         >
-                            <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>{getGreeting().toUpperCase()}</Typography>
-                            <Typography variant="h1" style={styles.serifTitle}>Ryan</Typography>
+                            <Typography variant="label">{getGreeting().toUpperCase()}</Typography>
+                            <Typography variant="h1">{user?.email?.split('@')[0] || "Guest"}</Typography>
                         </TouchableOpacity>
                     </View>
 
-                    {/* 2. INPUT BLOCK (LINE STYLE) */}
+                    {/* 2. INPUT BLOCK (SPOTLIGHT STYLE) */}
                     <View style={styles.inputContainer}>
+                        <Typography variant="label" style={styles.inputLabel}>SIFT</Typography>
                         <TextInput
                             ref={inputRef}
                             style={styles.textInput}
-                            placeholder="Paste a link to sift..."
+                            placeholder="A link to sift..."
                             placeholderTextColor={COLORS.stone}
                             value={manualUrl}
                             onChangeText={setManualUrl}
@@ -453,7 +454,7 @@ export default function HomeScreen() {
                             style={styles.submitButton}
                             onPress={handleSubmitUrl}
                         >
-                            <Typography variant="label" color={manualUrl ? COLORS.ink : COLORS.stone}>SIFT</Typography>
+                            <Plus size={20} color={manualUrl ? COLORS.ink : COLORS.stone} weight="bold" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -498,7 +499,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
     bentoContainer: {
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
         marginTop: SPACING.m,
         marginBottom: SPACING.l,
     },
@@ -506,44 +507,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: SPACING.l,
+        marginBottom: 20,
     },
     greetingBox: {
         flex: 1,
-        marginBottom: 24,
-    },
-    smallCapsLabel: {
-        fontSize: 11,
-        letterSpacing: 1.5,
-        color: '#999',
-        fontFamily: 'Inter_500Medium',
-        marginBottom: 4,
-    },
-    serifTitle: {
-        fontFamily: 'PlayfairDisplay_700Bold',
-        fontSize: 32,
-        color: '#1A1A1A',
-        lineHeight: 40,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        height: 54,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.subtle,
-        paddingHorizontal: 0,
+        height: 44,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#E5E5E5',
+    },
+    inputLabel: {
+        color: COLORS.stone,
+        marginRight: 10,
     },
     textInput: {
         flex: 1,
-        fontSize: 18,
-        fontFamily: 'InstrumentSerif_400Regular',
-        fontStyle: 'italic',
+        fontSize: 17,
+        fontFamily: 'System', // Standard iOS Input
         color: COLORS.ink,
         paddingVertical: 10,
     },
     submitButton: {
-        paddingHorizontal: 12,
-        height: 54,
+        width: 44,
+        height: 44,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -117,13 +117,13 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
             delayLongPress={300}
         >
             {/* 1. Image or Fallback */}
-            <View style={[styles.imageWrapper, { height: item.height }]}>
+            <View style={styles.imageWrapper}>
                 {isFallback ? (
                     <View style={styles.fallbackContainer}>
                         {item.category.toLowerCase().includes('video') || item.source.includes('tiktok') || item.source.includes('youtube') ? (
-                            <Video size={48} color={COLORS.stone} weight="thin" />
+                            <Video size={32} color={COLORS.stone} weight="thin" />
                         ) : (
-                            <Article size={48} color={COLORS.stone} weight="thin" />
+                            <Article size={32} color={COLORS.stone} weight="thin" />
                         )}
                     </View>
                 ) : (
@@ -133,21 +133,21 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
                         resizeMode="cover"
                     />
                 )}
-
-                {/* Tag Pill at Top Right */}
-                <View style={styles.tagPill}>
-                    <Typography variant="label" style={styles.tagText}>
-                        {item.category.toUpperCase()}
-                    </Typography>
-                </View>
             </View>
 
-            {/* 2. Title Below Image */}
+            {/* 2. Meta Below Image */}
             <View style={styles.meta}>
-                <Typography variant="h3" numberOfLines={2} style={styles.title}>
+                <Typography variant="h3" numberOfLines={2}>
                     {item.title}
                 </Typography>
-                {item.is_pinned && <Typography variant="label" style={{ marginTop: 2 }}>PINNED</Typography>}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Typography style={styles.metadata}>
+                        {item.category} • {item.source}
+                    </Typography>
+                    {item.is_pinned && (
+                        <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.accent }} />
+                    )}
+                </View>
             </View>
         </Pressable>
     );
@@ -245,20 +245,23 @@ const styles = StyleSheet.create({
     masonryContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
     },
     column: {
         width: COLUMN_WIDTH,
     },
     cardContainer: {
-        marginBottom: SPACING.xl,
+        marginBottom: 24, // HIG Standard
     },
     imageWrapper: {
-        borderRadius: RADIUS.l,
+        aspectRatio: 16 / 9, // FORCE ASPECT RATIO
+        borderRadius: 8,
         overflow: 'hidden',
-        backgroundColor: '#EFEFEF', // Solid fallback
-        borderWidth: 1,
-        borderColor: COLORS.subtle,
+        backgroundColor: '#F2F2F7', // System Gray 6
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.1)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
     },
     fallbackContainer: {
         flex: 1,
@@ -269,28 +272,23 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    tagPill: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        backgroundColor: '#000000',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-    },
-    tagText: {
-        color: '#FFFFFF',
-        fontSize: 10,
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-        letterSpacing: 0.5,
-    },
     meta: {
-        paddingTop: SPACING.s,
-        paddingHorizontal: 0,
+        marginTop: 10,
+        gap: 2,
     },
     title: {
-        fontSize: 16,
+        fontSize: 17,
+        fontWeight: '600',
         color: COLORS.ink,
-        fontFamily: 'PlayfairDisplay_700Bold', // Serif for "Sift Archive" look
+        fontFamily: 'System', // Standard iOS Headline
+        lineHeight: 22,
     },
+    metadata: {
+        fontSize: 13,
+        color: '#8E8E93', // System Gray
+        fontFamily: 'System',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    }
 });
 

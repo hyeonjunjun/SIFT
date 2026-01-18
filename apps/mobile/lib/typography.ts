@@ -5,47 +5,55 @@ export const TEXT: Record<string, TextStyle> = {
     // Editorial Headers (Serif)
     h1: {
         fontFamily: 'PlayfairDisplay_700Bold',
-        fontSize: 32,
+        fontSize: 34,
         color: COLORS.ink,
-        lineHeight: 40,
+        fontWeight: '700',
     },
     h2: {
-        fontFamily: 'PlayfairDisplay_600SemiBold',
-        fontSize: 24,
+        fontFamily: 'System',
+        fontSize: 22,
+        fontWeight: '700',
         color: COLORS.ink,
-        lineHeight: 30,
     },
     h3: {
-        fontFamily: 'InstrumentSerif_400Regular',
-        fontSize: 20,
+        fontFamily: 'System',
+        fontSize: 17,
+        fontWeight: '600', // iOS Headline
         color: COLORS.ink,
     },
 
     // Technical Labels (Sans-Serif)
     label: {
-        fontFamily: 'Inter_700Bold',
-        fontSize: 11,
+        fontFamily: 'System',
+        fontSize: 12,
+        fontWeight: '600',
         color: COLORS.stone,
-        letterSpacing: 1.5,
-        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
 
     // Reading Text (Sans-Serif)
     body: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 15,
+        fontFamily: 'System',
+        fontSize: 17,
+        fontWeight: '400',
         color: COLORS.ink,
-        lineHeight: 22,
     },
     bodyMedium: {
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'System',
         fontSize: 15,
+        fontWeight: '500',
         color: COLORS.ink,
-        lineHeight: 22,
+    },
+    subhead: {
+        fontFamily: 'System',
+        fontSize: 15,
+        fontWeight: '400',
+        color: COLORS.stone, // Secondary Text
     },
     caption: {
-        fontFamily: 'Inter_400Regular',
-        fontSize: 13,
+        fontFamily: 'System',
+        fontSize: 12,
+        fontWeight: '500',
         color: COLORS.stone,
     }
 };

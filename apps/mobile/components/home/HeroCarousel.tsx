@@ -19,7 +19,7 @@ export function HeroCarousel({ pages }: HeroCarouselProps) {
 
     const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const contentOffsetX = event.nativeEvent.contentOffset.x;
-        const currentIndex = Math.round(contentOffsetX / (280 + 16));
+        const currentIndex = Math.round(contentOffsetX / (240 + 16));
 
         if (currentIndex !== lastIndex.current) {
             Haptics.selectionAsync();
@@ -28,13 +28,13 @@ export function HeroCarousel({ pages }: HeroCarouselProps) {
     };
 
     return (
-        <View className="mb-6">
-            <Typography variant="h3" className="px-5 mb-3 text-ink">Recently Sifted</Typography>
+        <View style={{ marginBottom: 24 }}>
+            <Typography variant="h3" style={{ paddingHorizontal: 20, marginBottom: 12 }}>Recently Sifted</Typography>
             <FlatList
                 data={recentPages}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                snapToInterval={280 + 16} // Card Width (280) + Margin (16)
+                snapToInterval={240 + 16} // Card Width (240) + Margin (16)
                 decelerationRate="fast"
                 contentContainerStyle={{ paddingHorizontal: 20 }}
                 onScroll={onScroll}

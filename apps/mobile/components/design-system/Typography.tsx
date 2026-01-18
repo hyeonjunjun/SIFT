@@ -4,7 +4,7 @@ import { TEXT } from '../../lib/typography';
 import { COLORS } from '../../lib/theme';
 
 interface TypographyProps extends TextProps {
-    variant?: 'h1' | 'h2' | 'h3' | 'body' | 'bodyMedium' | 'caption' | 'label';
+    variant?: 'h1' | 'h2' | 'h3' | 'body' | 'bodyMedium' | 'caption' | 'label' | 'subhead';
     color?: string;
 }
 

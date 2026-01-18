@@ -1,16 +1,15 @@
 import React, { useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl, Image, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
+import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
-import { COLORS, SPACING, Theme, RADIUS } from "../../lib/theme";
-import { TEXT } from "../../lib/typography";
-import { Gear, Shield, Bell, CaretRight, User as UserIcon, SignOut, Cube, Fingerprint, BookOpen, ClockCounterClockwise } from 'phosphor-react-native';
+import { COLORS, SPACING, BORDER } from "../../lib/theme";
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { useFocusEffect } from "expo-router";
 import { useAuth } from "../../lib/auth";
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ProfileScreen() {
     const { user, signOut } = useAuth();
@@ -34,7 +33,7 @@ export default function ProfileScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [user?.id]);
 
     useFocusEffect(
         useCallback(() => {
@@ -56,18 +55,18 @@ export default function ProfileScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
             >
-                {/* 1. USER HEADER (Dossier Look) */}
+                {/* 1. USER HEADER */}
                 <View style={styles.header}>
-                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>PRO MEMBER</Typography>
+                    <Typography variant="label" style={styles.smallCapsLabel}>PRO MEMBER</Typography>
                     <Typography variant="h1" style={styles.serifTitle}>{user?.email?.split('@')[0] || "Guest"}</Typography>
 
                     <View style={styles.profileMeta}>
-                        <Typography variant="body" color={COLORS.stone}>{user?.email || "Guest"}</Typography>
+                        <Typography variant="subhead">{user?.email || "Guest"}</Typography>
                     </View>
                 </View>
 
                 {/* 2. DOSSIER ACTIONS (2x2 GRID) */}
-                <View style={styles.dossierGrid}>
+                <View style={styles.gridContainer}>
                     <DossierTile icon={UserIcon} title="IDENTITY" />
                     <DossierTile icon={Shield} title="PRIVACY" />
                     <DossierTile icon={Bell} title="ALERTS" />
@@ -75,8 +74,8 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* 3. SAVED ITEMS SECTION */}
-                <View style={[styles.sectionHeader, { marginTop: SPACING.xl }]}>
-                    <Typography variant="label" color={COLORS.stone}>Pinned Artifacts</Typography>
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label">Pinned Artifacts</Typography>
                 </View>
 
                 <View style={styles.feedWrapper}>
@@ -90,8 +89,8 @@ export default function ProfileScreen() {
                 </View>
 
                 <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-                    <SignOut size={18} color={COLORS.terracotta} style={{ marginRight: 8 }} />
-                    <Typography variant="label" color={COLORS.terracotta}>Sign Out</Typography>
+                    <SignOut size={18} color="#C67D63" style={{ marginRight: 8 }} />
+                    <Typography variant="label" style={{ color: '#C67D63' }}>Sign Out</Typography>
                 </TouchableOpacity>
 
             </ScrollView>
@@ -99,16 +98,14 @@ export default function ProfileScreen() {
     );
 }
 
-
-
 const DossierTile = ({ icon: Icon, title }: { icon: any, title: string }) => (
     <Pressable
         style={({ pressed }) => [
             styles.tile,
-            pressed && { opacity: 0.9, backgroundColor: COLORS.subtle }
+            pressed && { backgroundColor: '#F2F2F7' }
         ]}
     >
-        <Icon size={32} color={COLORS.ink} weight="light" />
+        <Icon size={32} color={COLORS.ink} weight="regular" />
         <Typography variant="label" style={styles.tileLabel}>{title}</Typography>
     </Pressable>
 );
@@ -118,52 +115,47 @@ const styles = StyleSheet.create({
         paddingBottom: 160,
     },
     header: {
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
         marginTop: SPACING.m,
         marginBottom: 24,
     },
     smallCapsLabel: {
-        fontSize: 11,
-        letterSpacing: 1.5,
-        color: '#999',
-        fontFamily: 'Inter_500Medium',
+        color: COLORS.stone,
         marginBottom: 4,
-        textTransform: 'uppercase',
     },
     serifTitle: {
-        fontFamily: 'PlayfairDisplay_700Bold',
-        fontSize: 32,
-        color: '#1A1A1A',
-        lineHeight: 40,
+        marginBottom: 4,
     },
     profileMeta: {
-        marginTop: SPACING.xs,
+        marginTop: 2,
     },
-    dossierGrid: {
-        paddingHorizontal: SPACING.l,
+    gridContainer: {
+        paddingHorizontal: 20,
         flexDirection: 'row',
         flexWrap: 'wrap',
+        gap: 12,
         marginBottom: SPACING.xl,
     },
     tile: {
-        width: (width - SPACING.l * 2) / 2,
-        aspectRatio: 1,
-        borderWidth: 1,
-        borderColor: COLORS.subtle,
+        width: (SCREEN_WIDTH - 52) / 2, // 20px padding * 2 + 12px gap
+        aspectRatio: 1, // FORCE SQUARE
         justifyContent: 'center',
         alignItems: 'center',
-        padding: SPACING.m,
+        borderWidth: BORDER.hairline, // Apple Standard Border
+        borderColor: '#E5E5E5',
+        borderRadius: 4, // Sharp/Native look
+        padding: 16,
+        // @ts-ignore
+        cornerCurve: 'continuous',
     },
     tileLabel: {
-        position: 'absolute',
-        bottom: 8,
-        fontSize: 10,
-        letterSpacing: 1.2,
-        color: COLORS.stone,
-        textAlign: 'center',
+        marginTop: 12,
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.ink,
     },
     sectionHeader: {
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
         marginBottom: SPACING.s,
     },
     feedWrapper: {
@@ -177,7 +169,9 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 24,
         backgroundColor: 'rgba(198, 125, 99, 0.08)',
-        borderRadius: RADIUS.pill,
+        borderRadius: 20,
+        // @ts-ignore
+        cornerCurve: 'continuous',
     },
     emptyState: {
         padding: SPACING.xl,
