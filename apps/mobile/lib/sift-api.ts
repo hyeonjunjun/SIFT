@@ -7,15 +7,16 @@ export interface SiftResponse<T = any> {
     debug_info?: string;
 }
 
-export const safeSift = async <T = any>(originalUrl: string, userId?: string): Promise<T | null> => {
+export const safeSift = async <T = any>(originalUrl: string, userId?: string, pendingId?: string): Promise<T | null> => {
     try {
         const apiUrl = `${API_URL}/api/sift`;
-        console.log(`[SafeSift] Requesting to sift: ${originalUrl} via ${apiUrl}`);
+        console.log(`[SafeSift] Requesting to sift: ${originalUrl} via ${apiUrl} (Pending ID: ${pendingId})`);
 
         const body = {
             url: originalUrl,
             platform: 'share_sheet',
-            user_id: userId
+            user_id: userId,
+            id: pendingId
         };
         console.log(`[SafeSift] Sending Request Body:`, JSON.stringify(body, null, 2));
 

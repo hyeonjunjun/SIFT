@@ -187,49 +187,49 @@ export default function HomeScreen() {
         setIsProcessingQueue(true);
 
         const urlsToProcess = [...queue];
-        setQueue([]); // Clear queue as we are processing these
+        setQueue([]);
 
-        console.log(`[QUEUE] Starting to process ${urlsToProcess.length} items`);
+        console.log(`[OPTIMISTIC] Processing ${urlsToProcess.length} urls`);
 
-        for (let i = 0; i < urlsToProcess.length; i++) {
-            const url = urlsToProcess[i];
-            setCurrentStep(i + 1);
-
-            const total = urlsToProcess.length;
-            const progressMsg = total > 1 ? `Sifting (${i + 1} of ${total})...` : "Currently Sifting...";
-
-            showToast(progressMsg, 60000);
-
+        for (const url of urlsToProcess) {
             try {
-                if (!user?.id) {
-                    throw new Error("You must be logged in to sift.");
+                if (!user?.id) throw new Error("Authentication required");
+
+                // 1. OPTIMISTIC INSERT: Create placeholder so user sees it in feed immediately
+                const domain = new URL(url).hostname.replace('www.', '');
+                const { data: pendingData, error: pendingError } = await supabase
+                    .from('pages')
+                    .insert({
+                        user_id: user.id,
+                        url,
+                        title: "Sifting...",
+                        summary: "Synthesizing content...",
+                        tags: ["Lifestyle"],
+                        metadata: {
+                            status: 'pending',
+                            source: domain
+                        }
+                    })
+                    .select()
+                    .single();
+
+                if (pendingError) {
+                    console.error("[OPTIMISTIC] Initial insert failed:", pendingError.message);
+                    // Continue anyway, safeSift will do a normal insert if ID is missing
                 }
 
-                console.log(`[QUEUE] Sifting URL: ${url} for User: ${user.id}`);
-                const result = await safeSift(url, user.id);
+                const pendingId = pendingData?.id;
+                showToast("Sift added to library", 2000);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-                // Detailed diagnostic logging for the user/developer
-                if (result && (result as any).debug_info) {
-                    console.log(`[QUEUE] Sift Diagnostics: ${(result as any).debug_info}`);
-                }
+                // 2. BACKGROUND SCRAPE: Call API but don't strictly block the UI UX
+                // We await here so we don't hammer the API, but the UI is free because the item is already in the feed
+                console.log(`[OPTIMISTIC] Background Sifting: ${url} (ID: ${pendingId})`);
+                await safeSift(url, user.id, pendingId);
 
-                console.log(`[QUEUE] Sift result for ${url}:`, result ? "Success" : "Failed");
-
-                if (result) {
-                    if (i === total - 1) {
-                        setToastVisible(false);
-                        setTimeout(() => {
-                            showToast("Sifted!", 3000);
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        }, 100);
-                    }
-                    // Refresh feed
-                    fetchPages(true);
-                }
             } catch (error: any) {
-                console.error(`[QUEUE] Error sifting ${url}:`, error);
-                showToast(error.message || "Error sifting URL");
-                break; // Stop queue on error
+                console.error(`[QUEUE] Error:`, error.message);
+                showToast(error.message || "Sift failed");
             }
         }
 
@@ -285,23 +285,25 @@ export default function HomeScreen() {
         fetchPages();
         const subscription = supabase
             .channel('public:pages')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pages' }, (payload) => {
-                console.log('[Realtime] New page received:', payload.new.id, 'User ID:', payload.new.user_id);
-                if (payload.new.user_id === user?.id) {
-                    setPages((prev) => [payload.new as Page, ...prev]);
-                    showToast("New Page Received");
-                } else {
-                    console.log('[Realtime] Page skipped (User ID mismatch)');
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, (payload) => {
+                const newRecord = payload.new as any;
+                if (!newRecord || newRecord.user_id !== user?.id) return;
+
+                console.log(`[Realtime] ${payload.eventType} received:`, newRecord.id);
+
+                if (payload.eventType === 'INSERT') {
+                    setPages((prev) => [newRecord as Page, ...prev]);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                } else if (payload.eventType === 'UPDATE') {
+                    setPages((prev) => prev.map(p => p.id === newRecord.id ? newRecord as Page : p));
                 }
             })
-            .subscribe((status) => {
-                console.log(`[Realtime] Subscription Status: ${status}`);
-            });
+            .subscribe();
 
         return () => {
             subscription.unsubscribe();
         };
-    }, [fetchPages]);
+    }, [fetchPages, user?.id]);
 
     const lastScrollY = useRef(0);
     const onScroll = useCallback((event: any) => {

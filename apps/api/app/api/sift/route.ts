@@ -4,12 +4,14 @@ import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Vercel Timeout Fix: Increase max duration for long-running social media scrapes
+export const maxDuration = 60;
+
 // Initialize clients safely
 const apifyClient = new ApifyClient({
     token: process.env.APIFY_API_TOKEN || process.env.apify,
 });
 
-// Avoid crashing if key is missing
 const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.open_ai })
     : null;
@@ -46,7 +48,6 @@ const SYSTEM_PROMPT = `
     - Use headers: ## Ingredients, ## Preparation.
 `;
 
-// Helper to extract meta tags
 function extractMetaTags(html: string) {
     const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
     const titleMatch = html.match(/<title>([^<]*)<\/title>/i) || html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
@@ -56,7 +57,6 @@ function extractMetaTags(html: string) {
     };
 }
 
-// CORS Headers for Mobile
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -68,12 +68,17 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+    let debugInfoSnippet = "";
+    let urlForCapture = "";
+    let userIdForCapture = "";
+
     try {
         const body = await request.json();
-        const { url, platform, user_id, mock } = body;
+        const { url, user_id, mock } = body;
+        urlForCapture = url;
+        userIdForCapture = user_id;
 
         if (mock) {
-            console.log(`[SIFT] Mock Sift requested for user: ${user_id}`);
             const { data, error } = await supabaseAdmin
                 .from('pages')
                 .insert({
@@ -85,290 +90,233 @@ export async function POST(request: Request) {
                         image_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
                         debug_info: 'Mock Mode: Success'
                     },
-                    is_archived: false,
                     tags: ['Test']
                 })
                 .select()
                 .single();
 
-            if (error) {
-                console.error('[SIFT] Mock Sift failed:', error);
-                return NextResponse.json({ status: 'error', message: error.message }, { status: 500, headers: corsHeaders });
-            }
+            if (error) return NextResponse.json({ status: 'error', message: error.message }, { status: 500, headers: corsHeaders });
             return NextResponse.json({ status: 'success', data }, { headers: corsHeaders });
         }
 
         if (!url) {
-            return NextResponse.json(
-                { status: 'error', message: 'URL is required' },
-                { status: 400, headers: corsHeaders }
-            );
+            return NextResponse.json({ status: 'error', message: 'URL is required' }, { status: 400, headers: corsHeaders });
         }
 
+        console.log(`[SIFT] Processing URL: ${url} User: ${user_id || 'Guest'}`);
 
-
-        console.log(`[SIFT] Processing URL: ${url} (${platform}) User: ${user_id || 'Guest'}`);
-        if (!user_id) {
-            console.warn('[SIFT] WARNING: No user_id provided. Sift will be orphaned.');
-        }
-
-        const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-        const maskedSbUrl = sbUrl ? `${sbUrl.substring(0, 15)}...` : 'MISSING';
-        console.warn(`[SIFT] Env Check - Supabase URL: ${maskedSbUrl}, Apify: ${!!process.env.APIFY_API_TOKEN}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Supabase Service Key: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
-
-        // 1. Scrape Content & Metadata
-        let scrapedData: any = {}; // Use any for Apify data
+        // 1. DISPATCH ROUTER (Switchboard Strategy)
+        let scrapedData: any = {};
         let ogImage: string | null = null;
-        let debugInfoSnippet = "";
+        let actorId: string | null = null;
+        let input: any = {};
 
-        // Fetch HTML for generic OG tags (Fastest, good for articles)
-        try {
-            console.log('[SIFT] Fetching HTML for metadata...');
-            // Add better headers to avoid blocks
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-                }
-            });
-            const html = await response.text();
-            const meta = extractMetaTags(html);
-            ogImage = meta.ogImage;
-            if (meta.title) {
-                scrapedData = { ...scrapedData, title: meta.title };
-            }
-            console.log('[SIFT] Found OG Image:', ogImage);
-            debugInfoSnippet += `Meta: ${meta.title ? 'Found title' : 'No title'}. `;
-        } catch (e) {
-            console.log('[SIFT] Metadata fetch failed:', e);
-            debugInfoSnippet += `Meta Fetch Failed. `;
+        const domain = new URL(url).hostname.replace('www.', '');
+
+        // Route Selection
+        if (domain.includes('tiktok.com')) {
+            console.log('[SIFT] Switchboard -> TikTok');
+            actorId = 'clockworks/tiktok-scraper';
+            input = { "startUrls": [{ "url": url }] };
+        } else if (domain.includes('instagram.com')) {
+            console.log('[SIFT] Switchboard -> Instagram');
+            actorId = 'apify/instagram-scraper';
+            input = { "directUrls": [url], "resultsType": "details" };
+        } else if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
+            console.log('[SIFT] Switchboard -> YouTube');
+            actorId = 'apify/youtube-scraper';
+            input = { "urls": [url], "downloadSubtitles": true };
+        } else {
+            console.log('[SIFT] Switchboard -> General Web');
+            actorId = 'apify/website-content-crawler';
+            input = { "startUrls": [{ "url": url }], "maxCrawlDepth": 0 };
         }
 
+        // Execution
         if (process.env.APIFY_API_TOKEN) {
-            console.log('[SIFT] Apify Token present. Starting scrape...');
+            try {
+                const run = await apifyClient.actor(actorId!).call(input);
+                const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
+                const rawItem = items[0] as any;
 
-            let actorId: string | null = 'clockworks/tiktok-scraper'; // Default
-            let input: any = {};
-
-            // Platform Router
-            if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                console.log('[SIFT] Detected YouTube URL');
-                actorId = 'apify/youtube-scraper';
-                input = {
-                    "urls": [url],
-                    "downloadSubtitles": true,
-                    "saveSubsToKVS": false
-                };
-            } else if (url.includes('instagram.com')) {
-                console.log('[SIFT] Detected Instagram URL (Using User Config)');
-                actorId = 'shu8hvrXbJbY3Eb9W'; // User specified Actor
-                input = {
-                    "directUrls": [url],
-                    "resultsType": "posts",
-                    "resultsLimit": 1,   // We only need the one post
-                    "addParentData": false,
-                    "proxyConfiguration": { "useApifyProxy": true }
-                };
-            } else if (url.includes('tiktok.com')) {
-                // Default / TikTok (Revert to Clockworks - Previous Working Ver)
-                console.log('[SIFT] Detected TikTok URL (Reverted to Clockworks)');
-                actorId = 'clockworks/tiktok-scraper';
-                input = {
-                    "postURLs": [url],
-                    "shouldDownloadVideos": false,
-                    "shouldDownloadCovers": false,
-                    "shouldDownloadSlideshowImages": false,
-                    "proxyConfiguration": { "useApifyProxy": true }
-                };
-            } else {
-                console.log('[SIFT] Regular Website - Skipping Apify, relying on Meta + AI');
-                actorId = null;
-            }
-
-            if (actorId) {
-                try {
-                    const run = await apifyClient.actor(actorId).call(input);
-                    const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
-
-                    // Normalization Strategy: Try to get data into a common format for OpenAI
-                    if (!items || items.length === 0) {
-                        console.warn('[SIFT] Apify returned 0 items.');
-                        debugInfoSnippet += `Apify: 0 items. `;
-                        throw new Error("No items returned from scraper");
-                    }
-
-                    const rawItem: any = items[0] || {};
-                    console.log("🔍 [1] Apify Raw Input Keys:", Object.keys(rawItem));
-                    debugInfoSnippet += `Apify: Got ${Object.keys(rawItem).length} keys. `;
-
-                    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                if (rawItem) {
+                    // Standardized Output Mapping
+                    if (domain.includes('tiktok.com')) {
+                        scrapedData = {
+                            title: rawItem.text || "TikTok Video",
+                            description: rawItem.text,
+                            imageUrl: rawItem.videoMeta?.coverUrl
+                        };
+                    } else if (domain.includes('instagram.com')) {
+                        scrapedData = {
+                            title: rawItem.caption?.substring(0, 50) || "Instagram Post",
+                            description: rawItem.caption,
+                            imageUrl: rawItem.displayUrl
+                        };
+                    } else if (domain.includes('youtube.com')) {
                         scrapedData = {
                             title: rawItem.title,
                             description: rawItem.description,
-                            caption: rawItem.description, // Mapping to caption for AI
-                            author: rawItem.channelName,
-                            transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "No transcript available.",
-                            videoMeta: { coverUrl: rawItem.thumbnailUrl }
-                        };
-                    } else if (url.includes('instagram.com')) {
-                        const captionText = (typeof rawItem.caption === 'object' && rawItem.caption !== null)
-                            ? rawItem.caption.text
-                            : (rawItem.caption || rawItem.text || "No caption detected.");
-
-                        scrapedData = {
-                            caption: captionText,
-                            author: rawItem.ownerUsername || (rawItem.owner && rawItem.owner.username),
-                            imageUrl: rawItem.displayUrl || rawItem.thumbnailUrl,
-                            videoMeta: { coverUrl: rawItem.displayUrl || rawItem.thumbnailUrl }
-                        };
-                    } else if (url.includes('tiktok.com')) {
-                        scrapedData = {
-                            caption: rawItem.text || rawItem.description || "No caption.",
-                            author: rawItem.authorMeta ? rawItem.authorMeta.name : rawItem.author,
-                            imageUrl: rawItem.imageUrl || rawItem.videoMeta?.coverUrl,
-                            videoMeta: { coverUrl: rawItem.imageUrl }
+                            imageUrl: rawItem.thumbnailUrl,
+                            transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : ""
                         };
                     } else {
-                        scrapedData = rawItem;
+                        // General Web Crawler
+                        scrapedData = {
+                            title: rawItem.metadata?.title || rawItem.title,
+                            description: rawItem.metadata?.description || rawItem.text,
+                            imageUrl: rawItem.metadata?.ogImage || rawItem.ogImage
+                        };
                     }
-
-                    if (scrapedData) {
-                        const possibleImage = scrapedData.videoMeta?.coverUrl || scrapedData.imageUrl || scrapedData.thumbnailUrl;
-                        if (possibleImage) {
-                            ogImage = possibleImage;
-                        }
-                    }
-                } catch (apifyError: any) {
-                    console.error('[SIFT] Apify Error:', apifyError.message);
-                    debugInfoSnippet += `Apify Error: ${apifyError.message.substring(0, 30)}. `;
-                    // DO NOT overwrite scrapedData with error, keep title/og captured earlier
-                    scrapedData = { ...scrapedData, scraper_error: apifyError.message };
+                    ogImage = scrapedData.imageUrl;
+                    debugInfoSnippet += `Scraper: Success (${domain}). `;
+                } else {
+                    throw new Error("Empty items from Apify");
                 }
+            } catch (e: any) {
+                console.error('[SIFT] Scraper Failed:', e.message);
+                debugInfoSnippet += `Scraper Failed: ${e.message}. `;
             }
         }
 
-        // 1.5. Validate Scraped Data & Re-host Image
-        if (scrapedData && !scrapedData.error) {
-            const targetImageUrl = scrapedData.videoMeta?.coverUrl || scrapedData.imageUrl || scrapedData.thumbnailUrl;
-            if (targetImageUrl && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-                try {
-                    const imgResponse = await fetch(targetImageUrl);
-                    if (imgResponse.ok) {
-                        const imgBlob = await imgResponse.arrayBuffer();
-                        const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
-                        const ext = contentType.split('/')[1] || 'jpg';
-                        const fileName = `covers/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-
-                        const { error: uploadError } = await supabaseAdmin.storage
-                            .from('sift-assets')
-                            .upload(fileName, imgBlob, { contentType, upsert: true });
-
-                        if (!uploadError) {
-                            const { data: { publicUrl } } = supabaseAdmin.storage
-                                .from('sift-assets')
-                                .getPublicUrl(fileName);
-                            scrapedData.imageUrl = publicUrl;
-                            ogImage = publicUrl;
-                        }
-                    }
-                } catch (imgError) {
-                    console.error('[SIFT] Image Re-hosting Exception');
-                }
-            }
-        }
-
-        if (scrapedData && (scrapedData.error || scrapedData.scraper_error)) {
-            // If it's a hard error, we might want to flag it or keep going with placeholders
-        }
-
-        // 2. Synthesize with OpenAI
-        let title = "Untitled Page";
-        let summary = "Summary unavailable.";
-        let category = "Random";
-        let tags: string[] = ["Saved"];
-
-        const textToAnalyze = scrapedData?.caption || scrapedData?.description || scrapedData?.transcript || scrapedData?.title;
-        const hasContent = !!(scrapedData && textToAnalyze && textToAnalyze.length > 5);
-
-        console.log(`[SIFT] Analysis: OpenAI: ${!!openai}, HasContent: ${hasContent}, TextLen: ${textToAnalyze?.length || 0}`);
-
-        if (openai && hasContent) {
-            console.log('[SIFT] OpenAI Key present. Generating summary...');
+        // 2. PARTIAL SUCCESS / FALLBACK LOGIC
+        // If we have no title yet, try one last meta fetch
+        if (!scrapedData.title) {
             try {
-                const safeInput = JSON.stringify(scrapedData).substring(0, 20000);
+                const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                const html = await response.text();
+                const meta = extractMetaTags(html);
+                scrapedData.title = meta.title || `Saved from ${domain}`;
+                ogImage = ogImage || meta.ogImage;
+                debugInfoSnippet += "Fallback: Meta Capture. ";
+            } catch (e) {
+                scrapedData.title = `Saved from ${domain}`;
+                debugInfoSnippet += "Fallback: Domain Capture. ";
+            }
+        }
+
+        // 3. AI SYNTHESIS (Optional, do not block success)
+        let finalTitle = scrapedData.title;
+        let finalSummary = scrapedData.description || "Summary unavailable.";
+        let finalTags = ["Lifestyle"];
+        let finalCategory = "Random";
+
+        if (openai && scrapedData.description) {
+            try {
                 const completion = await openai.chat.completions.create({
                     model: "gpt-4o",
-                    "messages": [
-                        { "role": "system", "content": SYSTEM_PROMPT },
-                        { "role": "user", "content": safeInput }
+                    messages: [
+                        { role: "system", content: SYSTEM_PROMPT },
+                        { role: "user", content: JSON.stringify(scrapedData) }
                     ],
-                    "response_format": { "type": "json_object" }
-                }, { timeout: 120000 });
+                    response_format: { type: "json_object" }
+                });
 
-                const rawAiResponse = completion.choices[0].message.content || "{}";
-                const parsedData = JSON.parse(rawAiResponse);
-
-                title = parsedData.title || title;
-                summary = parsedData.summary || summary;
-                category = parsedData.category || category;
-                tags = parsedData.tags || [];
-                debugInfoSnippet += `AI: Success. `;
-            } catch (aiError: any) {
-                console.error("💥 [AI FAILURE]", aiError.message);
-                debugInfoSnippet += `AI Error: ${aiError.message.substring(0, 30)}. `;
+                const ai = JSON.parse(completion.choices[0].message.content || "{}");
+                finalTitle = ai.title || finalTitle;
+                finalSummary = ai.summary || finalSummary;
+                finalTags = ai.tags || finalTags;
+                finalCategory = ai.category || finalCategory;
+                debugInfoSnippet += "AI: Success. ";
+            } catch (e) {
+                console.error('[SIFT] AI Failed');
+                debugInfoSnippet += "AI: Failed. ";
             }
-        } else {
-            console.warn(`[SIFT] Bookmark Fallback Triggered. OpenAI: ${!!openai}, HasContent: ${hasContent}, TextLen: ${textToAnalyze?.length || 0}`);
-            const hostname = new URL(url).hostname.replace('www.', '');
-            const metaTitle = (scrapedData && scrapedData.title) ? scrapedData.title : null;
-            title = metaTitle || `Saved from ${hostname}`;
-            summary = "Content could not be scraped. Saved as bookmark.";
-            category = "Random";
-            tags = ["Bookmark"];
-            debugInfoSnippet += `Mode: Bookmark Fallback (OpenAI: ${!!openai}, Client: ${hasContent}). `;
         }
 
-        // 3. Save to Supabase
-        console.log('[SIFT] Saving to Supabase...');
-        const { data, error } = await supabaseAdmin
-            .from('pages')
-            .insert({
-                user_id: user_id || null,
-                url,
-                platform: platform || 'unknown',
-                title,
-                summary,
-                content: summary,
-                tags,
-                is_archived: false, // Ensure it's not archived by default
-                metadata: {
-                    source: 'sift-api',
-                    scraped_at: new Date().toISOString(),
-                    image_url: ogImage,
-                    category,
-                    debug_info: debugInfoSnippet
+        // 4. STORAGE (Re-host image to avoid hotlinking Protections)
+        if (ogImage && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            try {
+                const imgResponse = await fetch(ogImage);
+                if (imgResponse.ok) {
+                    const imgBlob = await imgResponse.arrayBuffer();
+                    const fileName = `covers/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+                    await supabaseAdmin.storage.from('sift-assets').upload(fileName, imgBlob, { contentType: 'image/jpeg' });
+                    const { data: { publicUrl } } = supabaseAdmin.storage.from('sift-assets').getPublicUrl(fileName);
+                    ogImage = publicUrl;
                 }
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('[SIFT] Supabase Insert Error:', error.message);
-            throw new Error(`Database insert failed: ${error.message}`);
+            } catch (e) { }
         }
 
-        console.log(`[SUCCESS] Saved ID: ${data.id}`);
+        // 5. FINAL SAVE (Insert or Update if optimistic ID provided)
+        const recordData = {
+            user_id,
+            url,
+            title: finalTitle,
+            summary: finalSummary,
+            content: finalSummary,
+            tags: finalTags,
+            metadata: {
+                image_url: ogImage,
+                category: finalCategory,
+                debug_info: debugInfoSnippet,
+                scraped_at: new Date().toISOString()
+            }
+        };
 
-        return NextResponse.json(
-            { status: 'success', data: data, debug_info: debugInfoSnippet },
-            { headers: corsHeaders }
-        );
+        let result;
+        if (body.id) {
+            console.log(`[SIFT] Updating existing record: ${body.id}`);
+            const { data, error } = await supabaseAdmin
+                .from('pages')
+                .update(recordData)
+                .eq('id', body.id)
+                .select()
+                .single();
+            if (error) throw error;
+            result = data;
+        } else {
+            console.log('[SIFT] Inserting new record');
+            const { data, error } = await supabaseAdmin
+                .from('pages')
+                .insert(recordData)
+                .select()
+                .single();
+            if (error) throw error;
+            result = data;
+        }
+
+        return NextResponse.json({ status: 'success', data: result }, { headers: corsHeaders });
 
     } catch (error: any) {
-        console.error('[SIFT] Internal Error:', error.message);
-        return NextResponse.json(
-            { status: 'error', message: error.message || 'Internal Server Error', debug_info: 'Critical Exception' },
-            { status: 500, headers: corsHeaders }
-        );
+        console.error('[SIFT] Critical Error:', error.message);
+
+        // ULTIMATE FALLBACK: Save even if everything exploded
+        try {
+            const domain = new URL(urlForCapture).hostname.replace('www.', '');
+            const fallbackData = {
+                user_id: userIdForCapture,
+                url: urlForCapture,
+                title: `Link from ${domain}`,
+                summary: "Content extraction failed, but link saved.",
+                content: "Content extraction failed, but link saved.",
+                tags: ["Link"],
+                metadata: { debug_info: "Ultimate Fallback triggered." }
+            };
+
+            let data;
+            // Handle body parsing if possible, otherwise use captures
+            const body = await request.clone().json().catch(() => ({}));
+            if (body.id) {
+                const { data: updateData } = await supabaseAdmin
+                    .from('pages')
+                    .update(fallbackData)
+                    .eq('id', body.id)
+                    .select()
+                    .single();
+                data = updateData;
+            } else {
+                const { data: insertData } = await supabaseAdmin
+                    .from('pages')
+                    .insert(fallbackData)
+                    .select()
+                    .single();
+                data = insertData;
+            }
+
+            return NextResponse.json({ status: 'success', data, debug_info: 'Fallback Success' }, { headers: corsHeaders });
+        } catch (innerError) {
+            return NextResponse.json({ status: 'error', message: 'Total System Failure' }, { status: 500, headers: corsHeaders });
+        }
     }
 }
