@@ -46,8 +46,11 @@ export default function ShareScreen() {
                     // The native intent is usually cleared, but if index checks Linking.getInitialURL it might double process.
                     // Let's just go home and let the user confirm or let the context pick it up.
 
-                    // BETTER: Redirect to index with the manual URL pre-filled if logic permits
-                    router.replace(`/(tabs)/?siftUrl=${encodeURIComponent(targetUrl)}`);
+                    if (targetUrl && typeof targetUrl === 'string') {
+                        router.replace(`/(tabs)/?siftUrl=${encodeURIComponent(targetUrl.trim())}`);
+                    } else {
+                        router.replace('/(tabs)/');
+                    }
                 }, 100);
             } else {
                 // No URL found? Just go home.

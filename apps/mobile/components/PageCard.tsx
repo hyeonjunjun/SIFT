@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Alert, Pressable, Image, Text, ActionSheetIOS, Platform } from 'react-native';
-import { FileText, Trash2, Pin } from 'lucide-react-native';
+import { Trash2, Pin } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Card } from './design-system/Card';
+import { COLORS } from '../lib/theme';
+import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
-import { Theme } from '../lib/theme';
 
 interface PageCardProps {
     id: string;
@@ -20,11 +20,12 @@ interface PageCardProps {
     onDeleteForever?: (id: string) => void;
     onPin?: (id: string) => void;
     isPinned?: boolean;
+    imageUrl?: string;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps & { imageUrl?: string }) {
+export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) {
     const router = useRouter();
     const scale = useSharedValue(1);
     const [imageError, setImageError] = React.useState(false);
@@ -34,13 +35,13 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
     }));
 
     // Fallback Title Logic
-    const displayTitle = (title && title !== 'Untitled Page') ? title : (url ? new URL(url).hostname.replace('www.', '') : 'Untitled Page');
-    const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+    const displayTitle = (title && title !== 'Untitled Page') ? title : (url ? getDomain(url) : 'Untitled Page');
+    const domain = getDomain(url);
 
     // Formatting Tags: Primary Tag • Domain
     const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
     const validTags = tags.filter(t => ALLOWED_TAGS.includes(t));
-    const primaryTag = validTags[0] || 'Lifestyle'; // Default to Lifestyle if no valid tag found
+    const primaryTag = validTags[0] || 'Lifestyle';
     const tagLine = `${primaryTag}  •  ${domain}`.toUpperCase();
 
     // Hide summary if empty or "No summary generated"
@@ -89,7 +90,6 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
                 }
             );
         } else {
-            // Android Alert
             Alert.alert(
                 "Options",
                 displayTitle,
@@ -134,8 +134,7 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
         return (
             <Pressable
                 onPress={handleDelete}
-                className="bg-red-500 justify-center items-center w-20 rounded-[16px] mb-3 ml-2"
-                style={{ height: '100%', maxHeight: 300 }}
+                style={{ height: '100%', maxHeight: 300, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: 16, marginBottom: 12, marginLeft: 8 }}
             >
                 <Trash2 size={24} color="white" />
             </Pressable>
@@ -154,56 +153,51 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 style={animatedStyle}
-                className="mb-6" // Increased spacing between cards
             >
                 <View
-                    className="bg-white rounded-[12px] overflow-hidden border border-gray-100" // Flatter: removed generic Card shadow, added border
-                    // Optional: Very subtle shadow if needed, but 'flatter' is more modern
                     style={{
+                        backgroundColor: 'white',
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        borderWidth: 1,
+                        borderColor: '#F3F4F6',
+                        marginBottom: 24,
                         shadowColor: "#000",
                         shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.03, // Ultra subtle
+                        shadowOpacity: 0.03,
                         shadowRadius: 8,
                         elevation: 2
                     }}
                 >
-                    {/* Pin Indicator */}
                     {isPinned && (
-                        <View className="absolute top-3 right-3 z-10 bg-white/90 p-1.5 rounded-full shadow-sm backdrop-blur-md">
-                            <Pin size={10} color={Theme.colors.text.primary} fill={Theme.colors.text.primary} />
+                        <View style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
+                            <Pin size={10} color={COLORS.ink} fill={COLORS.ink} />
                         </View>
                     )}
 
-                    {/* 1. Cover Image - Taller, more immersive with Fallback */}
                     {imageUrl && (
                         <Image
                             source={imageError ? require('../assets/covers/gastronomy.jpg') : { uri: imageUrl }}
-                            style={{ width: '100%', height: 180 }}
+                            style={{ width: '100%', height: 180, backgroundColor: '#F9FAFB' }}
                             resizeMode="cover"
-                            className="bg-gray-50"
                             onError={() => setImageError(true)}
                         />
                     )}
 
-                    <View className="p-4 pt-3"> {/* Reduced top padding to bring text closer to image */}
-
-                        {/* 2. Refined Eyebrow - Minimalist */}
-                        <View className="flex-row items-center mb-1.5 opacity-70">
-                            <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-[2px]">
-                                {domain || 'SIFT'}
+                    <View style={{ padding: 16, paddingTop: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, opacity: 0.7 }}>
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#9CA3AF', letterSpacing: 2 }}>
+                                {domain.toUpperCase() || 'SIFT'}
                             </Text>
                         </View>
 
-                        {/* 3. Title - Elegant Serif or Clean Sans */}
-                        {/* Using standard font but ensuring tracking/height is refined */}
-                        <Text className="text-[18px] font-medium text-gray-900 leading-[24px] tracking-tight mb-1.5">
+                        <Text style={{ fontSize: 18, fontWeight: '500', color: '#111827', lineHeight: 24, letterSpacing: -0.5, marginBottom: 6 }}>
                             {displayTitle}
                         </Text>
 
-                        {/* 4. Body - Secondary, lighter */}
                         {showSummary && (
                             <Text
-                                className="text-[14px] text-gray-500 leading-[20px]"
+                                style={{ fontSize: 14, color: '#6B7280', lineHeight: 20 }}
                                 numberOfLines={2}
                             >
                                 {gist}

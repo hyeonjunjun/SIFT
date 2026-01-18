@@ -120,7 +120,9 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
             <View style={styles.imageWrapper}>
                 {isFallback ? (
                     <View style={styles.fallbackContainer}>
-                        {item.category?.toLowerCase()?.includes('video') || item.source?.includes('tiktok') || item.source?.includes('youtube') ? (
+                        {(item.category?.toLowerCase?.()?.includes('video') ||
+                            item.source?.toLowerCase?.()?.includes('tiktok') ||
+                            item.source?.toLowerCase?.()?.includes('youtube')) ? (
                             <Video size={32} color={COLORS.stone} weight="thin" />
                         ) : (
                             <Article size={32} color={COLORS.stone} weight="thin" />
@@ -138,11 +140,11 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
             {/* 2. Meta Below Image */}
             <View style={styles.meta}>
                 <Typography variant="h3" numberOfLines={2}>
-                    {item.title}
+                    {item.title || 'Untitled'}
                 </Typography>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Typography style={styles.metadata}>
-                        {item.category} • {item.source}
+                        {(item.category || 'General').toUpperCase()} • {(item.source || 'Sift').toUpperCase()}
                     </Typography>
                     {item.is_pinned && (
                         <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.accent }} />

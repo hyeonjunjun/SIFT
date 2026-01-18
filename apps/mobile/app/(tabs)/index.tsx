@@ -73,7 +73,11 @@ export default function HomeScreen() {
         ? pages
         : pages
             .filter(p => p.tags?.some(t => t.toLowerCase() === activeFilter.toLowerCase()))
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            .sort((a, b) => {
+                const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+            });
 
     const [toastDuration, setToastDuration] = useState(3000);
 

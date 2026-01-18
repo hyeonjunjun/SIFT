@@ -7,7 +7,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from '
 import { Typography } from './design-system/Typography';
 import { Card } from './design-system/Card';
 import { Pin } from 'lucide-react-native';
-import { Theme } from '../lib/theme';
+import { COLORS } from '../lib/theme';
+import { getDomain } from '../lib/utils';
 import { PeekModal } from './PeekModal';
 
 interface GridPageCardProps {
@@ -31,7 +32,12 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
     const [peekVisible, setPeekVisible] = useState(false);
 
     // Dust Gathering Logic (30 days)
-    const isDusty = createdAt ? (new Date().getTime() - new Date(createdAt).getTime()) > (30 * 24 * 60 * 60 * 1000) : false;
+    const isDusty = (() => {
+        if (!createdAt) return false;
+        const time = new Date(createdAt).getTime();
+        if (isNaN(time)) return false;
+        return (new Date().getTime() - time) > (30 * 24 * 60 * 60 * 1000);
+    })();
     const opacity = isDusty ? 0.6 : 1;
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -40,7 +46,7 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
     }));
 
     // Domain cleaning
-    const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+    const domain = getDomain(url);
 
     const handlePressIn = () => {
         scale.value = withTiming(0.97, { duration: 150, easing: Easing.inOut(Easing.ease) });
@@ -59,15 +65,8 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
         setPeekVisible(true);
     };
 
-    // Options Menu (triggered from Peek or separate button?)
-    // For now, let's keep the ActionSheet logic inside a function we can pass to PeekModal if we wanted, 
-    // or just leave PeekModal as a visual preview that leads to the page. 
-    // The user requirement said: "Long pressing... pops up preview... Commit opens".
-    // We will stick to that. If they want to delete/archive, they can do it from inside the page 
-    // OR we can add an "Options" button to the PeekModal later.
-
     // Deterministic random height based on index to keep it stable
-    const aspectRatios = [1, 1.3, 0.8, 1.4, 1.1]; // varying heights
+    const aspectRatios = [1, 1.3, 0.8, 1.4, 1.1];
     const aspectRatio = aspectRatios[index % aspectRatios.length];
 
     return (
@@ -77,13 +76,13 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
                 onLongPress={handleLongPress}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                style={[animatedStyle, { marginBottom: 12 }]} // Spacing between items
+                style={[animatedStyle, { marginBottom: 12 }]}
             >
-                <Card className="p-0 overflow-hidden break-inside-avoid relative">
+                <Card style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                     {/* Pin Indicator */}
                     {isPinned && (
-                        <View className="absolute top-2 right-2 z-10 bg-white/90 p-1.5 rounded-full shadow-sm">
-                            <Pin size={10} color={Theme.colors.text.primary} fill={Theme.colors.text.primary} />
+                        <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
+                            <Pin size={10} color={COLORS.ink} fill={COLORS.ink} />
                         </View>
                     )}
 
@@ -95,18 +94,18 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View className="w-full h-full bg-slate-200 justify-center items-center">
-                                <Typography variant="h3" className="text-slate-300">S</Typography>
+                            <View style={{ width: '100%', height: '100%', backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' }}>
+                                <Typography variant="h3" style={{ color: '#CBD5E1' }}>S</Typography>
                             </View>
                         )}
                     </View>
 
-                    <View className="p-3">
-                        <Typography variant="body" className="text-ink font-bold leading-5 mb-1 text-[13px]">
+                    <View style={{ padding: 12 }}>
+                        <Typography variant="body" style={{ color: COLORS.ink, fontWeight: '700', lineHeight: 20, marginBottom: 4, fontSize: 13 }}>
                             {title}
                         </Typography>
                         {domain ? (
-                            <Typography variant="caption" className="text-ink-secondary text-[10px] font-medium opacity-60">
+                            <Typography variant="caption" style={{ color: COLORS.ink, opacity: 0.6, fontSize: 10, fontWeight: '500' }}>
                                 {domain}
                             </Typography>
                         ) : null}
