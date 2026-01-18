@@ -63,35 +63,45 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const archiveLabel = mode === 'archive' ? 'Restore' : 'Archive';
-        const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', archiveLabel, 'View Diagnostics', 'Delete Forever'];
+        const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', archiveLabel, 'Delete Forever'];
+        if (__DEV__) {
+            options.splice(3, 0, 'View Diagnostics');
+        }
+
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
                     options,
                     cancelButtonIndex: 0,
-                    destructiveButtonIndex: 4,
+                    destructiveButtonIndex: options.length - 1,
                     title: item.title,
                 },
                 (buttonIndex) => {
                     if (buttonIndex === 1) onPin?.(item.id);
                     if (buttonIndex === 2) onArchive?.(item.id);
-                    if (buttonIndex === 3) {
+                    if (__DEV__ && buttonIndex === 3) {
                         Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.", [{ text: "Close" }]);
                     }
-                    if (buttonIndex === 4) onDeleteForever?.(item.id);
+                    if (buttonIndex === options.length - 1) onDeleteForever?.(item.id);
                 }
             );
         } else {
+            const androidButtons: any[] = [
+                { text: 'Cancel', style: 'cancel' },
+                { text: item.is_pinned ? 'Unpin' : 'Pin', onPress: () => onPin?.(item.id) },
+                { text: archiveLabel, onPress: () => onArchive?.(item.id) },
+            ];
+
+            if (__DEV__) {
+                androidButtons.push({ text: 'View Diagnostics', onPress: () => Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.") });
+            }
+
+            androidButtons.push({ text: 'Delete Forever', style: 'destructive', onPress: () => onDeleteForever?.(item.id) });
+
             Alert.alert(
                 item.title,
                 'Manage this Sift',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: item.is_pinned ? 'Unpin' : 'Pin', onPress: () => onPin?.(item.id) },
-                    { text: archiveLabel, onPress: () => onArchive?.(item.id) },
-                    { text: 'View Diagnostics', onPress: () => Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.") },
-                    { text: 'Delete Forever', style: 'destructive', onPress: () => onDeleteForever?.(item.id) },
-                ]
+                androidButtons
             );
         }
     };

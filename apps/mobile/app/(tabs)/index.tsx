@@ -394,6 +394,7 @@ export default function HomeScreen() {
                         <TouchableOpacity
                             activeOpacity={1}
                             onLongPress={() => {
+                                if (!__DEV__) return;
                                 Alert.alert(
                                     "SIFT Debug",
                                     `API: ${API_URL}\nSB: ${process.env.EXPO_PUBLIC_SUPABASE_URL?.substring(0, 20)}...\nUser: ${user?.id}\nPages: ${pages.length}`,
