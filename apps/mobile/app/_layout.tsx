@@ -33,15 +33,15 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
         if (this.state.hasError) {
             return (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: COLORS.canvas }}>
-                    <Typography variant="h1" style={{ marginBottom: 10 }}>Something went wrong.</Typography>
-                    <Typography variant="body" style={{ textAlign: 'center', marginBottom: 20 }}>
-                        sift encountered an unexpected error.
-                    </Typography>
+                    <Text style={{ fontSize: 32, fontWeight: '700', color: COLORS.ink, marginBottom: 10 }}>Something went wrong.</Text>
+                    <Text style={{ fontSize: 16, textAlign: 'center', color: COLORS.stone, marginBottom: 20 }}>
+                        Sift encountered an unexpected error.
+                    </Text>
                     <TouchableOpacity
                         onPress={() => this.setState({ hasError: false })}
                         style={{ backgroundColor: COLORS.ink, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}
                     >
-                        <Typography variant="bodyMedium" color={COLORS.paper}>Try Again</Typography>
+                        <Text style={{ color: COLORS.paper, fontWeight: '600' }}>Try Again</Text>
                     </TouchableOpacity>
                 </View>
             );

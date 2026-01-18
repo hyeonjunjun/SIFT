@@ -10,6 +10,7 @@ import Animated, {
     runOnJS
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { COLORS } from '../lib/theme';
 
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
@@ -57,7 +58,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
     const containerStyle = useAnimatedStyle(() => ({
         opacity: containerOpacity.value,
-        backgroundColor: '#FDFCF8',
+        backgroundColor: COLORS.canvas,
     }));
 
     const logoStyle = useAnimatedStyle(() => ({
@@ -68,7 +69,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
     return (
         <Animated.View style={[StyleSheet.absoluteFill, containerStyle, { zIndex: 9999 }]}>
             {/* 1. Underlying Porcelain Canvas */}
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#FDFCF8' }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.canvas }]} />
 
             {/* 2. Tactile Grain Layer */}
             <Animated.Image

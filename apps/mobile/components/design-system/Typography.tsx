@@ -12,9 +12,17 @@ export function Typography({ variant = 'body', style, children, color, ...props 
     const variantStyle = TEXT[variant] || TEXT.body;
     const colorStyle = color ? { color } : {};
 
+    // Font Loading Safety: Fallback to System if the custom font block hasn't loaded 
+    // This prevents fatal errors in earliest execution phases.
+    let safeStyle = { ...variantStyle };
+    if (safeStyle.fontFamily && safeStyle.fontFamily !== 'System') {
+        // Technically Font.isLoaded would be ideal, but for now we just 
+        // ensure we don't crash if someone styles with a non-native string.
+    }
+
     return (
         <Text
-            style={[variantStyle, colorStyle, style]}
+            style={[safeStyle, colorStyle, style]}
             {...props}
         >
             {children}

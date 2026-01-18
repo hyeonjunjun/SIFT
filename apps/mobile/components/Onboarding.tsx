@@ -13,7 +13,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import { Typography } from './design-system/Typography';
-import { Theme } from '../lib/theme';
+import { COLORS, RADIUS } from '../lib/theme';
 import { router } from 'expo-router';
 import { Share, Filter, CheckCircle } from 'lucide-react-native';
 
@@ -108,7 +108,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         return (
                             <RNAnimated.View
                                 key={i}
-                                style={[styles.dot, { opacity, backgroundColor: Theme.colors.primary }]}
+                                style={[styles.dot, { opacity, backgroundColor: COLORS.accent }]}
                             />
                         );
                     })}
@@ -116,7 +116,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
                 {activeIndex === SLIDES.length - 1 ? (
                     <TouchableOpacity
-                        style={[styles.button, { backgroundColor: Theme.colors.primary }]}
+                        style={[styles.button, { backgroundColor: COLORS.accent }]}
                         onPress={finishOnboarding}
                     >
                         <Typography variant="h3" className="text-white font-bold">Get Started</Typography>
@@ -137,9 +137,9 @@ function ChaosVisual({ isActive }: { isActive: boolean }) {
     return (
         <View style={styles.visualInner}>
             {/* Shapes simulating noise/chaos - using Theme colors */}
-            <AnimatedShape delay={0} x={-40} y={-30} size={40} color={Theme.colors.text.tertiary} />
-            <AnimatedShape delay={200} x={40} y={20} size={60} color={Theme.colors.border} />
-            <AnimatedShape delay={400} x={-20} y={50} size={30} color={Theme.colors.primary} />
+            <AnimatedShape delay={0} x={-40} y={-30} size={40} color={COLORS.stone} />
+            <AnimatedShape delay={200} x={40} y={20} size={60} color={COLORS.subtle} />
+            <AnimatedShape delay={400} x={-20} y={50} size={30} color={COLORS.accent} />
             <AnimatedShape delay={600} x={30} y={-40} size={50} color="#34C759" />
         </View>
     );
@@ -187,9 +187,9 @@ function SiftVisual({ isActive }: { isActive: boolean }) {
 
     return (
         <View style={styles.visualInner}>
-            <Filter size={60} color={Theme.colors.text.tertiary} style={{ marginBottom: 20 }} />
+            <Filter size={60} color={COLORS.stone} style={{ marginBottom: 20 }} />
             <Animated.View style={[gemStyle, styles.gem]}>
-                <CheckCircle size={50} color={Theme.colors.surface} />
+                <CheckCircle size={50} color={COLORS.paper} />
             </Animated.View>
         </View>
     );
@@ -197,6 +197,7 @@ function SiftVisual({ isActive }: { isActive: boolean }) {
 
 function ActionVisual({ isActive }: { isActive: boolean }) {
     const tapScale = useSharedValue(1);
+    const containerOpacity = useSharedValue(1); // Added for container opacity
 
     React.useEffect(() => {
         if (isActive) {
@@ -207,6 +208,10 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
                 ),
                 -1, true
             );
+            containerOpacity.value = withTiming(1, { duration: 300 }); // Fade in container
+        } else {
+            tapScale.value = 1; // Reset scale when not active
+            containerOpacity.value = withTiming(0, { duration: 300 }); // Fade out container
         }
     }, [isActive]);
 
@@ -214,13 +219,18 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
         transform: [{ scale: tapScale.value }]
     }));
 
+    const containerStyle = useAnimatedStyle(() => ({
+        opacity: containerOpacity.value,
+        backgroundColor: COLORS.canvas, // This line was added
+    }));
+
     return (
         <View style={styles.visualInner}>
             <View style={styles.mockPhone}>
-                <Share size={30} color={Theme.colors.primary} />
+                <Share size={30} color={COLORS.accent} />
             </View>
             <Animated.View style={[tapStyle, styles.fingerTap]} />
-            <Typography variant="caption" className="mt-4 text-ink-secondary" style={{ color: Theme.colors.text.secondary }}>
+            <Typography variant="caption" className="mt-4 text-ink-secondary" style={{ color: COLORS.stone }}>
                 Tap 'Share' in any app
             </Typography>
         </View>
@@ -231,7 +241,7 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Theme.colors.background,
+        backgroundColor: COLORS.canvas,
     },
     footer: {
         flex: 1,
@@ -242,13 +252,13 @@ const styles = StyleSheet.create({
     visualContainer: {
         width: 250,
         height: 250,
-        borderRadius: Theme.borderRadius.card + 20, // More rounded for visual area
-        backgroundColor: Theme.colors.surface,
+        borderRadius: RADIUS.l + 20, // More rounded for visual area
+        backgroundColor: COLORS.paper,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 20,
         // Soft shadow
-        shadowColor: Theme.colors.text.primary,
+        shadowColor: COLORS.ink,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.05,
         shadowRadius: 20,
@@ -277,7 +287,7 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         paddingHorizontal: 40,
         borderRadius: 30,
-        shadowColor: Theme.colors.primary,
+        shadowColor: COLORS.accent,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -286,10 +296,10 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 20,
-        backgroundColor: Theme.colors.primary,
+        backgroundColor: COLORS.accent,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: Theme.colors.primary,
+        shadowColor: COLORS.accent,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.4,
         shadowRadius: 15,
@@ -297,9 +307,9 @@ const styles = StyleSheet.create({
     mockPhone: {
         width: 140,
         height: 80,
-        borderRadius: Theme.borderRadius.card,
+        borderRadius: RADIUS.l,
         borderWidth: 2,
-        borderColor: Theme.colors.border,
+        borderColor: COLORS.subtle,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 10,
