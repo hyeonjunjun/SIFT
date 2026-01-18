@@ -18,6 +18,7 @@ import ScreenWrapper from "../../components/ScreenWrapper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useShareIntent } from 'expo-share-intent';
 import { safeSift } from "../../lib/sift-api";
+import { getDomain } from "../../lib/utils";
 
 interface Page {
     id: string;
@@ -196,7 +197,7 @@ export default function HomeScreen() {
                 if (!user?.id) throw new Error("Authentication required");
 
                 // 1. OPTIMISTIC INSERT: Create placeholder so user sees it in feed immediately
-                const domain = new URL(url).hostname.replace('www.', '');
+                const domain = getDomain(url);
                 const { data: pendingData, error: pendingError } = await supabase
                     .from('pages')
                     .insert({
@@ -287,15 +288,18 @@ export default function HomeScreen() {
             .channel('public:pages')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, (payload) => {
                 const newRecord = payload.new as any;
-                if (!newRecord || newRecord.user_id !== user?.id) return;
+                if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
 
                 console.log(`[Realtime] ${payload.eventType} received:`, newRecord.id);
 
                 if (payload.eventType === 'INSERT') {
-                    setPages((prev) => [newRecord as Page, ...prev]);
+                    setPages((prev) => {
+                        if (prev.find(p => p.id === newRecord.id)) return prev;
+                        return [newRecord as Page, ...prev];
+                    });
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
-                    setPages((prev) => prev.map(p => p.id === newRecord.id ? newRecord as Page : p));
+                    setPages((prev) => prev.map(p => p.id === newRecord.id ? { ...p, ...newRecord } : p));
                 }
             })
             .subscribe();

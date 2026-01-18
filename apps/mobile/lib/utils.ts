@@ -37,3 +37,16 @@ export function groupPagesByDate(pages: any[]) {
             data: groups[key]
         }));
 }
+
+// Safely extracts the domain/hostname from a URL string without throwing errors.
+export const getDomain = (url: string | null | undefined): string => {
+    if (!url) return 'sift.app';
+
+    try {
+        const safeUrl = url.startsWith('http') ? url : `https://${url}`;
+        const urlObj = new URL(safeUrl);
+        return urlObj.hostname.replace('www.', '');
+    } catch (e) {
+        return 'sift.app';
+    }
+};

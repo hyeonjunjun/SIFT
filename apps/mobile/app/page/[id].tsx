@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase';
 import { CaretLeft, DotsThree, Export, NotePencil, Trash } from 'phosphor-react-native';
 import { Theme, COLORS, SPACING } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
+import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
 
 export default function PageDetail() {
@@ -111,11 +112,11 @@ export default function PageDetail() {
                     </Typography>
                     <View style={styles.sourceRow}>
                         <Image
-                            source={{ uri: `https://www.google.com/s2/favicons?domain=${page?.url ? new URL(page.url).hostname : 'sift.app'}` }}
+                            source={{ uri: `https://www.google.com/s2/favicons?domain=${getDomain(page?.url)}` }}
                             style={styles.favicon}
                         />
                         <Typography variant="caption">
-                            {page?.url ? new URL(page.url).hostname.replace('www.', '') : 'Unknown Source'}
+                            {getDomain(page?.url)}
                         </Typography>
                     </View>
                 </View>

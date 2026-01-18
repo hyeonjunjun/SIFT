@@ -3,6 +3,7 @@ import { View, Image, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, 
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, Theme, RADIUS } from '../lib/theme';
+import { getDomain } from '../lib/utils';
 import { ShimmerSkeleton } from './ShimmerSkeleton';
 import { Typography } from './design-system/Typography';
 import { Link as LinkIcon, FileText, Article, Video } from 'phosphor-react-native';
@@ -120,7 +121,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
             <View style={styles.imageWrapper}>
                 {isFallback ? (
                     <View style={styles.fallbackContainer}>
-                        {item.category.toLowerCase().includes('video') || item.source.includes('tiktok') || item.source.includes('youtube') ? (
+                        {item.category?.toLowerCase()?.includes('video') || item.source?.includes('tiktok') || item.source?.includes('youtube') ? (
                             <Video size={32} color={COLORS.stone} weight="thin" />
                         ) : (
                             <Article size={32} color={COLORS.stone} weight="thin" />
@@ -172,15 +173,7 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
             const heights = [200, 240, 180, 280];
             const height = heights[index % heights.length];
 
-            let domain = 'sift.app';
-            try {
-                if (page.url) {
-                    const urlObj = new URL(page.url.startsWith('http') ? page.url : `https://${page.url}`);
-                    domain = urlObj.hostname.replace('www.', '');
-                }
-            } catch (e) {
-                console.warn("Invalid URL in feed:", page.url);
-            }
+            const domain = getDomain(page.url);
 
             return {
                 id: page.id,
