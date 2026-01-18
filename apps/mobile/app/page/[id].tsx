@@ -86,11 +86,11 @@ export default function PageDetail() {
 
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.text.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />}
             >
                 {/* Card 1: Image */}
                 {page?.metadata?.image_url && (
-                    <View style={[styles.bentoCard, { padding: 0, overflow: 'hidden' }]}>
+                    <View style={styles.imageWrapper}>
                         <Image
                             source={{ uri: page.metadata.image_url }}
                             style={{ width: '100%', height: 240 }}
@@ -121,7 +121,7 @@ export default function PageDetail() {
                 </View>
 
                 {/* Card 3: Actions (2 cols) */}
-                <View style={{ flexDirection: 'row', gap: SPACING.l }}>
+                <View style={{ flexDirection: 'row', gap: 16 }}>
                     <TouchableOpacity style={[styles.bentoCard, styles.actionCard, { flex: 1 }]}>
                         <NotePencil size={24} color={COLORS.stone} weight="thin" style={{ marginBottom: 8 }} />
                         <Typography variant="label">Edit</Typography>
@@ -138,7 +138,7 @@ export default function PageDetail() {
                         <SafeContentRenderer content={content} />
                     ) : (
                         <TextInput
-                            style={{ fontSize: 16, lineHeight: 24, color: Theme.colors.text.primary }}
+                            style={{ fontSize: 16, lineHeight: 24, color: COLORS.ink }}
                             multiline
                             scrollEnabled={false}
                             value={content}
@@ -152,6 +152,7 @@ export default function PageDetail() {
     );
 }
 
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
     },
     navBar: {
         flexDirection: 'row',
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
         paddingTop: 60,
         paddingBottom: 12,
         alignItems: 'flex-start',
@@ -172,35 +173,33 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     smallCapsLabel: {
-        fontSize: 10,
-        letterSpacing: 1.5,
-        color: '#999',
-        fontFamily: 'Inter_500Medium',
+        color: COLORS.stone,
         marginBottom: 2,
-        textTransform: 'uppercase',
     },
     serifTitle: {
-        fontFamily: 'PlayfairDisplay_700Bold',
-        fontSize: 24, // Smaller for detail page header to fit long titles
-        color: '#1A1A1A',
-        lineHeight: 30,
+        fontSize: 20, // Smaller for detail page header to fit long titles
     },
     scrollContent: {
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
         paddingBottom: 140,
-        gap: SPACING.l,
+        gap: 16,
     },
     bentoCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: SPACING.l,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 2,
+        borderRadius: 8,
+        padding: 20,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.1)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
+    },
+    imageWrapper: {
+        borderRadius: 8,
+        overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.1)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
     },
     actionCard: {
         alignItems: 'center',
@@ -211,20 +210,16 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     metaLabel: {
-        fontSize: 10,
-        color: '#999',
-        letterSpacing: 1,
+        fontSize: 11,
+        color: COLORS.stone,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     sourceRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        opacity: 0.8,
         marginTop: 12,
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-        backgroundColor: COLORS.canvas,
         alignSelf: 'flex-start',
-        borderRadius: 8,
     },
     favicon: {
         width: 14,

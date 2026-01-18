@@ -192,6 +192,7 @@ const Tile = ({ cat }: { cat: any }) => {
     );
 };
 
+
 const styles = StyleSheet.create({
     loaderContainer: {
         flex: 1,
@@ -200,46 +201,33 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.canvas,
     },
     header: {
-        paddingLeft: 20,
+        paddingHorizontal: 20,
         marginTop: SPACING.m,
         marginBottom: 20,
     },
     smallCapsLabel: {
-        fontSize: 11,
-        letterSpacing: 1.5,
-        color: '#888',
-        fontFamily: 'Inter_500Medium',
+        color: COLORS.stone,
         marginBottom: 4,
-        textTransform: 'uppercase',
     },
     serifTitle: {
-        fontFamily: 'PlayfairDisplay_600SemiBold',
         fontSize: 34,
-        color: COLORS.ink,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         marginHorizontal: 20,
-        marginBottom: 20,
+        marginBottom: 24,
         paddingHorizontal: 16,
-        height: 50,
+        height: 44, // HIG Standard
         backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
-        shadowColor: 'rgba(0,0,0,0.02)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 12,
-        elevation: 1,
+        borderRadius: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.1)',
     },
     searchInput: {
         flex: 1,
         marginLeft: 10,
         fontSize: 16,
-        fontFamily: 'InstrumentSerif_400Regular',
-        fontStyle: 'italic',
         color: COLORS.ink,
     },
     gridContainer: {
@@ -254,17 +242,18 @@ const styles = StyleSheet.create({
     tile: {
         width: TILE_WIDTH,
         marginBottom: GRID_GAP,
-        borderRadius: 12,
+        borderRadius: 8,
         overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.1)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
     },
     anchorTile: {
         backgroundColor: COLORS.paper,
     },
     emptyTile: {
-        backgroundColor: '#F9F9F9',
-        borderWidth: 1,
-        borderColor: '#D1D1D1',
-        borderStyle: 'dashed',
+        backgroundColor: COLORS.paper,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -274,8 +263,8 @@ const styles = StyleSheet.create({
         left: 12,
     },
     anchorLabel: {
-        fontFamily: 'Inter_700Bold',
         fontSize: 14,
+        fontWeight: '700',
         letterSpacing: 0.5,
     },
     issueCount: {
@@ -288,19 +277,18 @@ const styles = StyleSheet.create({
     emptyLabel: {
         fontSize: 12,
         letterSpacing: 1,
-        fontFamily: 'Inter_700Bold',
+        fontWeight: '700',
     },
     startSifting: {
-        fontSize: 13,
-        fontFamily: 'InstrumentSerif_400Regular',
-        fontStyle: 'italic',
+        fontSize: 12,
+        color: COLORS.stone,
         marginTop: 4,
     },
     newTag: {
         position: 'absolute',
         top: 10,
         right: 10,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 6,
@@ -316,7 +304,7 @@ const styles = StyleSheet.create({
     },
     newTagText: {
         fontSize: 9,
-        fontFamily: 'Inter_700Bold',
+        fontWeight: '700',
     },
     emptyState: {
         width: '100%',

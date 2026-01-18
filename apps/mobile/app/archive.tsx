@@ -24,6 +24,7 @@ interface Page {
     };
 }
 
+
 export default function ArchiveScreen() {
     const router = useRouter();
     const { user } = useAuth();
@@ -35,10 +36,8 @@ export default function ArchiveScreen() {
         if (!user?.id) return;
         try {
             const apiUrl = `${API_URL}/api/archive?user_id=${user.id}`;
-
             const response = await fetch(apiUrl);
             const data = await response.json();
-
             if (Array.isArray(data)) {
                 setPages(data);
             }
@@ -62,7 +61,6 @@ export default function ArchiveScreen() {
     const handleRestore = async (id: string) => {
         try {
             const apiUrl = `${API_URL}/api/archive`;
-
             const response = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -91,11 +89,8 @@ export default function ArchiveScreen() {
                     onPress: async () => {
                         try {
                             const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
-
                             const response = await fetch(apiUrl, { method: 'DELETE' });
-
                             if (!response.ok) throw new Error('Failed');
-
                             setPages(prev => prev.filter(p => p.id !== id));
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         } catch (e) {
@@ -108,23 +103,13 @@ export default function ArchiveScreen() {
         );
     };
 
-    const lastScrollY = useRef(0);
-    const onScroll = useCallback((event: any) => {
-        const y = event.nativeEvent.contentOffset.y;
-        if (Math.abs(y - lastScrollY.current) > 100) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            lastScrollY.current = y;
-        }
-    }, []);
-
     return (
-        <SafeAreaView className="flex-1 bg-canvas">
+        <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
 
-            {/* Header (Editorial) */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <CaretLeft color={COLORS.ink} size={28} weight="regular" />
+                    <CaretLeft color={COLORS.ink} size={28} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleBox}>
                     <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR TRASH</Typography>
@@ -133,10 +118,9 @@ export default function ArchiveScreen() {
             </View>
 
             <ScrollView
-                onScroll={onScroll}
                 scrollEventThrottle={16}
-                contentContainerClassName="pt-5 pb-32"
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.text.primary} />}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />}
             >
                 {pages.length === 0 && !loading ? (
                     <View style={styles.emptyState}>
@@ -153,12 +137,17 @@ export default function ArchiveScreen() {
                     />
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
+
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.canvas,
+    },
     header: {
-        paddingHorizontal: SPACING.l,
+        paddingHorizontal: 20,
         paddingTop: 60,
         marginBottom: 24,
         flexDirection: 'row',
@@ -172,23 +161,19 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     smallCapsLabel: {
-        fontSize: 11,
-        letterSpacing: 1.5,
-        color: '#999',
-        fontFamily: 'Inter_500Medium',
+        color: COLORS.stone,
         marginBottom: 4,
-        textTransform: 'uppercase',
     },
     serifTitle: {
-        fontFamily: 'PlayfairDisplay_700Bold',
         fontSize: 32,
-        color: '#1A1A1A',
-        lineHeight: 40,
+    },
+    scrollContent: {
+        paddingTop: 20,
+        paddingBottom: 140,
     },
     emptyState: {
         paddingTop: 100,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: 0.6,
     }
 });
