@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Image, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, Platform } from 'react-native';
+import { View, Image, StyleSheet, Pressable, Dimensions, ActionSheetIOS, Alert, Platform, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, Theme, RADIUS } from '../lib/theme';
@@ -9,8 +9,7 @@ import { Typography } from './design-system/Typography';
 import { Link as LinkIcon, FileText, Article, Video } from 'phosphor-react-native';
 import Animated, { FadeIn, FadeOut, Layout, Easing } from 'react-native-reanimated';
 
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - (SPACING.l * 2) - 15) / 2;
+
 
 interface Page {
     id: string;
@@ -155,6 +154,9 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
 };
 
 export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mode = 'feed', loading = false }: SiftFeedProps) {
+    const { width } = useWindowDimensions();
+    const columnWidth = (width - (SPACING.l * 2) - 15) / 2;
+
     if (loading) {
         return (
             <View style={styles.masonryContainer}>
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     column: {
-        width: COLUMN_WIDTH,
+        width: '48%', // Use percentage or pass columnWidth to style
     },
     cardContainer: {
         marginBottom: 24, // HIG Standard

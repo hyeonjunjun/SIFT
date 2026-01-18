@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
+import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, useWindowDimensions } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise } from 'phosphor-react-native';
@@ -9,9 +9,10 @@ import ScreenWrapper from "../../components/ScreenWrapper";
 import { useFocusEffect } from "expo-router";
 import { useAuth } from "../../lib/auth";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 
 export default function ProfileScreen() {
+    const { width: SCREEN_WIDTH } = useWindowDimensions();
     const { user, signOut } = useAuth();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -58,7 +59,7 @@ export default function ProfileScreen() {
                 {/* 1. USER HEADER */}
                 <View style={styles.header}>
                     <Typography variant="label" style={styles.smallCapsLabel}>PRO MEMBER</Typography>
-                    <Typography variant="h1" style={styles.serifTitle}>{user?.email?.split('@')[0] || "Guest"}</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>{user?.email ? user.email.split('@')[0] : "Guest"}</Typography>
 
                     <View style={styles.profileMeta}>
                         <Typography variant="subhead">{user?.email || "Guest"}</Typography>
@@ -67,10 +68,10 @@ export default function ProfileScreen() {
 
                 {/* 2. DOSSIER ACTIONS (2x2 GRID) */}
                 <View style={styles.gridContainer}>
-                    <DossierTile icon={UserIcon} title="IDENTITY" />
-                    <DossierTile icon={Shield} title="PRIVACY" />
-                    <DossierTile icon={Bell} title="ALERTS" />
-                    <DossierTile icon={ClockCounterClockwise} title="HISTORY" />
+                    <DossierTile icon={UserIcon} title="IDENTITY" width={(SCREEN_WIDTH - 52) / 2} />
+                    <DossierTile icon={Shield} title="PRIVACY" width={(SCREEN_WIDTH - 52) / 2} />
+                    <DossierTile icon={Bell} title="ALERTS" width={(SCREEN_WIDTH - 52) / 2} />
+                    <DossierTile icon={ClockCounterClockwise} title="HISTORY" width={(SCREEN_WIDTH - 52) / 2} />
                 </View>
 
                 {/* 3. SAVED ITEMS SECTION */}
@@ -98,10 +99,11 @@ export default function ProfileScreen() {
     );
 }
 
-const DossierTile = ({ icon: Icon, title }: { icon: any, title: string }) => (
+const DossierTile = ({ icon: Icon, title, width }: { icon: any, title: string, width: number }) => (
     <Pressable
         style={({ pressed }) => [
             styles.tile,
+            { width },
             pressed && { backgroundColor: '#F2F2F7' }
         ]}
     >
@@ -137,7 +139,6 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.xl,
     },
     tile: {
-        width: (SCREEN_WIDTH - 52) / 2, // 20px padding * 2 + 12px gap
         aspectRatio: 1, // FORCE SQUARE
         justifyContent: 'center',
         alignItems: 'center',

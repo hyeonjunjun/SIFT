@@ -48,6 +48,7 @@ export default function HomeScreen() {
     const [toastSecondaryAction, setToastSecondaryAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
     const [manualUrl, setManualUrl] = useState("");
     const lastCheckedUrl = useRef<string | null>(null);
+    const processingUrls = useRef<Set<string>>(new Set());
     const inputRef = useRef<TextInput>(null);
     const scrollViewRef = useRef<ScrollView>(null);
 
@@ -148,14 +149,17 @@ export default function HomeScreen() {
         const cleanUrl = url.trim();
         if (!cleanUrl) return;
 
-        // Basic dedupe for current session
-        if (lastCheckedUrl.current === cleanUrl && isProcessingQueue) return;
+        // 1. Proactive check if already sifting this url in this session
+        if (processingUrls.current.has(cleanUrl)) {
+            console.log(`[QUEUE] Skipping duplicate: ${cleanUrl}`);
+            return;
+        }
 
         const currentUserId = user?.id;
         console.log(`[QUEUE] Adding URL: ${cleanUrl} (User: ${currentUserId || 'GUEST'})`);
         setQueue(prev => [...prev, cleanUrl]);
         lastCheckedUrl.current = cleanUrl;
-    }, [isProcessingQueue]);
+    }, [user?.id]);
 
     const checkClipboard = useCallback(async () => {
         try {
@@ -193,8 +197,12 @@ export default function HomeScreen() {
         console.log(`[OPTIMISTIC] Processing ${urlsToProcess.length} urls`);
 
         for (const url of urlsToProcess) {
+            if (processingUrls.current.has(url)) continue;
+
             try {
                 if (!user?.id) throw new Error("Authentication required");
+
+                processingUrls.current.add(url);
 
                 // 1. OPTIMISTIC INSERT: Create placeholder so user sees it in feed immediately
                 const domain = getDomain(url);
@@ -216,26 +224,28 @@ export default function HomeScreen() {
 
                 if (pendingError) {
                     console.error("[OPTIMISTIC] Initial insert failed:", pendingError.message);
-                    // Continue anyway, safeSift will do a normal insert if ID is missing
                 }
 
                 const pendingId = pendingData?.id;
                 showToast("Sift added to library", 2000);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-                // 2. BACKGROUND SCRAPE: Call API but don't strictly block the UI UX
-                // We await here so we don't hammer the API, but the UI is free because the item is already in the feed
+                // 2. BACKGROUND SCRAPE: Call API
                 console.log(`[OPTIMISTIC] Background Sifting: ${url} (ID: ${pendingId})`);
                 await safeSift(url, user.id, pendingId);
+
+                // Successfully processed (either success or partial)
+                processingUrls.current.delete(url);
 
             } catch (error: any) {
                 console.error(`[QUEUE] Error:`, error.message);
                 showToast(error.message || "Sift failed");
+                processingUrls.current.delete(url);
             }
         }
 
         setIsProcessingQueue(false);
-    }, [queue, isProcessingQueue, user?.id, fetchPages]);
+    }, [queue, isProcessingQueue, user?.id]);
 
     useEffect(() => {
         const shareIntent = intent as any;
@@ -288,18 +298,23 @@ export default function HomeScreen() {
             .channel('public:pages')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, (payload) => {
                 const newRecord = payload.new as any;
-                if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
+                const oldRecord = payload.old as any;
 
-                console.log(`[Realtime] ${payload.eventType} received:`, newRecord.id);
+                console.log(`[Realtime] ${payload.eventType} received:`, newRecord?.id || oldRecord?.id);
 
                 if (payload.eventType === 'INSERT') {
+                    if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
                     setPages((prev) => {
                         if (prev.find(p => p.id === newRecord.id)) return prev;
                         return [newRecord as Page, ...prev];
                     });
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
+                    if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
                     setPages((prev) => prev.map(p => p.id === newRecord.id ? { ...p, ...newRecord } : p));
+                } else if (payload.eventType === 'DELETE') {
+                    if (!oldRecord || !oldRecord.id) return;
+                    setPages((prev) => prev.filter(p => p.id !== oldRecord.id));
                 }
             })
             .subscribe();

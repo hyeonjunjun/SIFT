@@ -104,11 +104,11 @@ export default function PageDetail() {
                 <View style={styles.bentoCard}>
                     <View style={styles.tagRow}>
                         <Typography variant="label" style={styles.metaLabel}>
-                            {page?.tags?.[0] || 'SAVED'} • {new Date(page?.created_at).toLocaleDateString()}
+                            {page?.tags?.[0] || 'SAVED'} • {page?.created_at ? new Date(page.created_at).toLocaleDateString() : 'Recent'}
                         </Typography>
                     </View>
                     <Typography variant="h1" style={{ marginBottom: 12 }}>
-                        {page?.title}
+                        {page?.title || 'Sifting...'}
                     </Typography>
                     <View style={styles.sourceRow}>
                         <Image

@@ -7,10 +7,18 @@ export interface SiftResponse<T = any> {
     debug_info?: string;
 }
 
-export const safeSift = async <T = any>(originalUrl: string, userId?: string, pendingId?: string): Promise<T | null> => {
+const MAX_RETRIES = 3;
+const INITIAL_BACKOFF = 1000; // 1s
+
+export const safeSift = async <T = any>(
+    originalUrl: string,
+    userId?: string,
+    pendingId?: string,
+    retryCount = 0
+): Promise<T | null> => {
     try {
         const apiUrl = `${API_URL}/api/sift`;
-        console.log(`[SafeSift] Requesting to sift: ${originalUrl} via ${apiUrl} (Pending ID: ${pendingId})`);
+        console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl}`);
 
         const body = {
             url: originalUrl,
@@ -18,7 +26,6 @@ export const safeSift = async <T = any>(originalUrl: string, userId?: string, pe
             user_id: userId,
             id: pendingId
         };
-        console.log(`[SafeSift] Sending Request Body:`, JSON.stringify(body, null, 2));
 
         const res = await fetch(apiUrl, {
             method: 'POST',
@@ -26,28 +33,44 @@ export const safeSift = async <T = any>(originalUrl: string, userId?: string, pe
             body: JSON.stringify(body)
         });
 
-        // Parse JSON regardless of status
-        const json: SiftResponse<T> = await res.json().catch(() => ({
-            status: "error",
-            message: "Invalid JSON response from server",
-            debug_info: "Response could not be parsed"
-        }));
+        // Parse JSON safely
+        let json: SiftResponse<T>;
+        try {
+            json = await res.json();
+        } catch (e) {
+            json = {
+                status: "error",
+                message: "Invalid JSON response from server",
+                debug_info: `Response code: ${res.status}`
+            };
+        }
 
         if (!res.ok || json.status === "error") {
             const msg = json.message || "Unknown Server Error";
-            const debug = json.debug_info || `Status: ${res.status}`;
-            console.error(`[SafeSift] Failed: ${msg} (${debug})`);
 
-            // Re-throw to start handling manually if needed, or return null to fail gracefully
-            // Per requirements: "Alert the user gracefully, tell developer exactly why"
-            // We'll throw an Error with the message so the UI can toast it.
+            // Should we retry? 5xx or specific network-like errors
+            if (retryCount < MAX_RETRIES - 1 && (res.status >= 500 || res.status === 429)) {
+                const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
+                console.warn(`[SafeSift] Retrying in ${backoff}ms... (${msg})`);
+                await new Promise(resolve => setTimeout(resolve, backoff));
+                return safeSift(originalUrl, userId, pendingId, retryCount + 1);
+            }
+
             throw new Error(msg);
         }
 
         return json.data || (json as any);
 
     } catch (error: any) {
-        console.error("[SafeSift] Exception:", error);
-        throw error; // Let the UI layer show the Toast
+        // Handle fetch/network exceptions
+        if (retryCount < MAX_RETRIES - 1 && (error.message.includes('Network request failed') || error.name === 'AbortError')) {
+            const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
+            console.warn(`[SafeSift] Network error, retrying in ${backoff}ms...`, error.message);
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return safeSift(originalUrl, userId, pendingId, retryCount + 1);
+        }
+
+        console.error("[SafeSift] Terminal Exception:", error);
+        throw error;
     }
 };
