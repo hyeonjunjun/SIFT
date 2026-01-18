@@ -100,35 +100,7 @@ export default function HomeScreen() {
         return () => sub.remove();
     }, []);
 
-    const checkClipboard = useCallback(async () => {
-        try {
-            const content = await Clipboard.getStringAsync();
-            if (!content) return;
-            const isUrl = content.startsWith('http://') || content.startsWith('https://');
-            if (isUrl && content !== lastCheckedUrl.current) {
-                lastCheckedUrl.current = content;
-                showToast("Link detected from clipboard.", 5000, {
-                    label: "Sift It",
-                    onPress: () => {
-                        setManualUrl(content);
-                        addToQueue(content);
-                    }
-                }, {
-                    label: "Dismiss",
-                    onPress: () => { }
-                });
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-        } catch (e) { }
-    }, []);
 
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', nextAppState => {
-            if (nextAppState === 'active') checkClipboard();
-        });
-        checkClipboard();
-        return () => subscription.remove();
-    }, [checkClipboard]);
 
     const fetchPages = useCallback(async (force = false) => {
         if (!user) return;
@@ -183,6 +155,26 @@ export default function HomeScreen() {
         setQueue(prev => [...prev, cleanUrl]);
         lastCheckedUrl.current = cleanUrl;
     }, [isProcessingQueue]);
+
+    const checkClipboard = useCallback(async () => {
+        try {
+            const content = await Clipboard.getStringAsync();
+            if (!content) return;
+            const isUrl = content.startsWith('http://') || content.startsWith('https://');
+            if (isUrl && content !== lastCheckedUrl.current) {
+                console.log(`[Clipboard] Auto-detected URL: ${content}`);
+                lastCheckedUrl.current = content;
+
+                // UX Improvement: Fill input and start sifting automatically
+                setManualUrl(content);
+                addToQueue(content);
+
+                showToast("Processing link from clipboard...", 3000);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+        } catch (e) { }
+    }, [addToQueue]);
+
 
     useEffect(() => {
         if (queue.length > 0 && !isProcessingQueue) {
@@ -280,6 +272,14 @@ export default function HomeScreen() {
         const sub = Linking.addEventListener('url', handleDeepLink);
         return () => sub.remove();
     }, [handleDeepLink, addToQueue]);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') checkClipboard();
+        });
+        checkClipboard();
+        return () => subscription.remove();
+    }, [checkClipboard]);
 
     useEffect(() => {
         fetchPages();

@@ -262,7 +262,9 @@ export async function POST(request: Request) {
         let tags: string[] = ["Saved"];
 
         const textToAnalyze = scrapedData?.caption || scrapedData?.description || scrapedData?.transcript || scrapedData?.title;
-        const hasContent = scrapedData && textToAnalyze && textToAnalyze.length > 5;
+        const hasContent = !!(scrapedData && textToAnalyze && textToAnalyze.length > 5);
+
+        console.log(`[SIFT] Analysis: OpenAI: ${!!openai}, HasContent: ${hasContent}, TextLen: ${textToAnalyze?.length || 0}`);
 
         if (openai && hasContent) {
             console.log('[SIFT] OpenAI Key present. Generating summary...');
@@ -290,13 +292,14 @@ export async function POST(request: Request) {
                 debugInfoSnippet += `AI Error: ${aiError.message.substring(0, 30)}. `;
             }
         } else {
+            console.warn(`[SIFT] Bookmark Fallback Triggered. OpenAI: ${!!openai}, HasContent: ${hasContent}, TextLen: ${textToAnalyze?.length || 0}`);
             const hostname = new URL(url).hostname.replace('www.', '');
             const metaTitle = (scrapedData && scrapedData.title) ? scrapedData.title : null;
             title = metaTitle || `Saved from ${hostname}`;
             summary = "Content could not be scraped. Saved as bookmark.";
             category = "Random";
             tags = ["Bookmark"];
-            debugInfoSnippet += `Mode: Bookmark Fallback. `;
+            debugInfoSnippet += `Mode: Bookmark Fallback (OpenAI: ${!!openai}, Client: ${hasContent}). `;
         }
 
         // 3. Save to Supabase
