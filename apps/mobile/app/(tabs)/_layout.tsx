@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { DeviceEventEmitter, StyleSheet } from "react-native";
 import { COLORS, Theme } from "../../lib/theme";
-import { House, Books, Fingerprint, SquaresFour } from 'phosphor-react-native';
+import { House, Books, User, SquaresFour } from 'phosphor-react-native';
 import { View } from "react-native";
 
 export default function TabLayout() {
@@ -10,14 +10,14 @@ export default function TabLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: COLORS.canvas,
-                    borderTopWidth: 1,
-                    borderTopColor: COLORS.subtle,
-                    height: 85,
+                    backgroundColor: COLORS.canvas, // #FDFCF8 (Oatmeal)
+                    borderTopWidth: 0.5,
+                    borderTopColor: 'rgba(0,0,0,0.05)',
+                    height: 95,
                     paddingTop: 12,
-                    paddingBottom: 25,
+                    paddingBottom: 35,
                     elevation: 0,
-                    shadowOpacity: 0, // Anchor to the floor
+                    shadowOpacity: 0,
                 },
                 tabBarLabelStyle: {
                     fontSize: 10,
@@ -41,7 +41,7 @@ export default function TabLayout() {
                     },
                 })}
                 options={{
-                    title: "FEED",
+                    title: "DASHBOARD",
                     tabBarIcon: ({ color, focused }) => (
                         <SquaresFour
                             size={24}
@@ -54,7 +54,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="library"
                 options={{
-                    title: "ARCHIVE",
+                    title: "LIBRARY",
                     tabBarIcon: ({ color, focused }) => (
                         <Books
                             size={24}
@@ -67,9 +67,9 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="settings"
                 options={{
-                    title: "IDENTITY",
+                    title: "PROFILE",
                     tabBarIcon: ({ color, focused }) => (
-                        <Fingerprint
+                        <User
                             size={24}
                             color={color}
                             weight={focused ? "fill" : "regular"}

@@ -1,16 +1,18 @@
-import React, { useCallback, useState } from 'react';
-import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useCallback, useState, useMemo } from 'react';
+import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
-import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
-import { TEXT } from '../../lib/typography';
-import { MagnifyingGlass, Sliders, ArrowUpRight } from 'phosphor-react-native';
+import { COLORS, SPACING, Theme } from '../../lib/theme';
+import { MagnifyingGlass } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - (SPACING.l * 2) - 15) / 2;
+const GRID_PADDING = 20;
+const GRID_GAP = 15;
+const TILE_WIDTH = (width - (GRID_PADDING * 2) - GRID_GAP) / 2;
 
 interface SiftItem {
     id: string;
@@ -24,7 +26,16 @@ interface SiftItem {
     };
 }
 
-export default function SiftScreen() {
+const CATEGORIES = [
+    { name: 'FOOD', icon: 'Cooking' },
+    { name: 'SKINCARE', icon: 'Aesthetics' },
+    { name: 'AESTHETICS', icon: 'Aesthetics' },
+    { name: 'INTEL', icon: 'Intel' },
+    { name: 'BAKING', icon: 'Baking' },
+    { name: 'HEALTH', icon: 'Health' },
+];
+
+export default function LibraryScreen() {
     const { user } = useAuth();
     const [pages, setPages] = useState<SiftItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -47,7 +58,7 @@ export default function SiftScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [user?.id]);
 
     useFocusEffect(
         useCallback(() => {
@@ -60,20 +71,35 @@ export default function SiftScreen() {
         fetchPages();
     };
 
-    const filteredPages = pages.filter(p => {
+    const categoryData = useMemo(() => {
+        return CATEGORIES.map((cat, index) => {
+            const catPages = pages.filter(p =>
+                p.tags?.some(t => t.toUpperCase() === cat.name) ||
+                p.metadata?.category?.toUpperCase() === cat.name
+            );
+
+            const isTall = Math.floor(index / 2) % 2 === 0; // Row 0 and Row 2 are tall
+            const height = isTall ? 220 : 160;
+
+            return {
+                ...cat,
+                pages: catPages,
+                count: catPages.length,
+                height,
+                latestImage: catPages[0]?.metadata?.image_url
+            };
+        });
+    }, [pages]);
+
+    const filteredCategories = categoryData.filter(cat => {
         if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
-        return (
-            p.title?.toLowerCase().includes(q) ||
-            p.url?.toLowerCase().includes(q) ||
-            p.tags?.some(t => t.toLowerCase().includes(q))
-        );
+        return cat.name.toLowerCase().includes(searchQuery.toLowerCase());
     });
 
     if (loading && !refreshing) {
         return (
             <View style={styles.loaderContainer}>
-                <ActivityIndicator color={COLORS.sage} />
+                <ActivityIndicator color={COLORS.ink} />
             </View>
         );
     }
@@ -82,29 +108,24 @@ export default function SiftScreen() {
         <ScreenWrapper edges={['top']}>
             {/* 1. EDITORIAL HEADER */}
             <View style={styles.header}>
-                <View style={styles.headerTitleBox}>
-                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR COLLECTION</Typography>
-                    <Typography variant="h1" style={styles.serifTitle}>Library</Typography>
-                </View>
-                <TouchableOpacity style={styles.filterButton}>
-                    <Sliders size={20} color={COLORS.ink} />
-                </TouchableOpacity>
+                <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR COLLECTION</Typography>
+                <Typography variant="h1" style={styles.serifTitle}>Library</Typography>
             </View>
 
-            {/* 2. SEARCH BAR (PAPER LOOK) */}
+            {/* 2. SEARCH INPUT (PAPER FIELD) */}
             <View style={styles.searchContainer}>
-                <MagnifyingGlass size={18} color={COLORS.stone} style={styles.searchIcon} />
+                <MagnifyingGlass size={18} color="#999" weight="regular" />
                 <TextInput
-                    style={styles.input}
-                    placeholder="Search sifts..."
-                    placeholderTextColor="#888"
+                    style={styles.searchInput}
+                    placeholder="Search your mind..."
+                    placeholderTextColor="#999"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     autoCapitalize="none"
                 />
             </View>
 
-            {/* 3. MASONRY GRID (29CM Editorial Style) */}
+            {/* 3. BENTO GRID */}
             <ScrollView
                 contentContainerStyle={styles.gridContainer}
                 showsVerticalScrollIndicator={false}
@@ -112,41 +133,64 @@ export default function SiftScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
             >
-                <View style={styles.column}>
-                    {filteredPages.filter((_, i) => i % 2 === 0).map((item) => (
-                        <Card key={item.id} item={item} />
+                <View style={styles.bentoWrapper}>
+                    {filteredCategories.map((cat) => (
+                        <Tile key={cat.name} cat={cat} />
                     ))}
-                </View>
-                <View style={styles.column}>
-                    {filteredPages.filter((_, i) => i % 2 !== 0).map((item) => (
-                        <Card key={item.id} item={item} />
-                    ))}
-                </View>
 
-                {filteredPages.length === 0 && (
-                    <View style={styles.emptyState}>
-                        <Typography variant="body" color={COLORS.stone}>No sifts yet.</Typography>
-                    </View>
-                )}
+                    {filteredCategories.length === 0 && (
+                        <View style={styles.emptyState}>
+                            <Typography variant="body" color={COLORS.stone}>No categories match your search.</Typography>
+                        </View>
+                    )}
+                </View>
             </ScrollView>
         </ScreenWrapper>
     );
 }
 
-const Card = ({ item }: { item: SiftItem }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.9}>
-        <Image
-            source={{ uri: item.metadata?.image_url || 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?q=80&w=400' }}
-            style={styles.cardImage}
-        />
-        <View style={styles.cardInfo}>
-            <Typography variant="bodyMedium" numberOfLines={2} style={styles.cardTitle}>{item.title}</Typography>
-            <Typography variant="label" style={styles.cardTag} color={COLORS.stone}>
-                {item.tags?.[0] || item.metadata?.category || 'Sifted'}
-            </Typography>
-        </View>
-    </TouchableOpacity>
-);
+const Tile = ({ cat }: { cat: any }) => {
+    const isAnchor = cat.count > 0; // Use count to determine if we show contents
+
+    if (isAnchor) {
+        return (
+            <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.tile, styles.anchorTile, { height: cat.height }]}
+            >
+                {cat.latestImage ? (
+                    <Image source={{ uri: cat.latestImage }} style={StyleSheet.absoluteFill} />
+                ) : (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#EFEFEF' }]} />
+                )}
+                <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                    style={StyleSheet.absoluteFill}
+                />
+                <View style={styles.newTag}>
+                    <View style={styles.dot} />
+                    <Typography variant="label" color="white" style={styles.newTagText}>NEW</Typography>
+                </View>
+                <View style={styles.tileContent}>
+                    <Typography variant="label" color="white" style={styles.anchorLabel}>{cat.name}</Typography>
+                    <Typography variant="caption" color="rgba(255,255,255,0.7)" style={styles.issueCount}>{cat.count} ISSUES</Typography>
+                </View>
+            </TouchableOpacity>
+        );
+    }
+
+    return (
+        <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles.tile, styles.emptyTile, { height: cat.height }]}
+        >
+            <View style={styles.emptyContent}>
+                <Typography variant="label" color={COLORS.stone} style={styles.emptyLabel}>{cat.name}</Typography>
+                <Typography variant="body" color="#D1D1D1" style={styles.startSifting}>Start Sifting</Typography>
+            </View>
+        </TouchableOpacity>
+    );
+};
 
 const styles = StyleSheet.create({
     loaderContainer: {
@@ -156,104 +200,127 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.canvas,
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingHorizontal: SPACING.l,
+        paddingLeft: 20,
         marginTop: SPACING.m,
-        marginBottom: 24,
-    },
-    headerTitleBox: {
-        flex: 1,
+        marginBottom: 20,
     },
     smallCapsLabel: {
         fontSize: 11,
         letterSpacing: 1.5,
-        color: '#999',
+        color: '#888',
         fontFamily: 'Inter_500Medium',
         marginBottom: 4,
         textTransform: 'uppercase',
     },
     serifTitle: {
-        fontFamily: 'PlayfairDisplay_700Bold',
-        fontSize: 32,
-        color: '#1A1A1A',
-        lineHeight: 40,
-    },
-    filterButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: COLORS.paper,
-        justifyContent: 'center',
-        alignItems: 'center',
-        ...Theme.shadows.soft,
+        fontFamily: 'PlayfairDisplay_600SemiBold',
+        fontSize: 34,
+        color: COLORS.ink,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: SPACING.l,
-        marginBottom: SPACING.xl,
-        paddingHorizontal: SPACING.m,
-        height: 52,
+        marginHorizontal: 20,
+        marginBottom: 20,
+        paddingHorizontal: 16,
+        height: 50,
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.08)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 2,
+        shadowColor: 'rgba(0,0,0,0.02)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 12,
+        elevation: 1,
     },
-    searchIcon: {
-        marginRight: 10
-    },
-    input: {
+    searchInput: {
         flex: 1,
+        marginLeft: 10,
         fontSize: 16,
-        color: COLORS.ink,
-        fontFamily: 'PlayfairDisplay_600SemiBold',
+        fontFamily: 'InstrumentSerif_400Regular',
         fontStyle: 'italic',
+        color: COLORS.ink,
     },
     gridContainer: {
+        paddingHorizontal: 20,
+        paddingBottom: 160,
+    },
+    bentoWrapper: {
         flexDirection: 'row',
-        paddingHorizontal: SPACING.l,
-        paddingBottom: 160
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
     },
-    column: {
-        width: COLUMN_WIDTH,
-        gap: 15
-    },
-    card: {
-        borderRadius: RADIUS.l,
-        backgroundColor: COLORS.paper,
+    tile: {
+        width: TILE_WIDTH,
+        marginBottom: GRID_GAP,
+        borderRadius: 12,
         overflow: 'hidden',
-        marginBottom: 15,
-        ...Theme.shadows.soft,
-        shadowOpacity: 0.04,
-        shadowRadius: 20,
     },
-    cardImage: {
-        width: '100%',
-        height: 180,
-        resizeMode: 'cover'
+    anchorTile: {
+        backgroundColor: COLORS.paper,
     },
-    cardInfo: {
-        padding: SPACING.m,
+    emptyTile: {
+        backgroundColor: '#F9F9F9',
+        borderWidth: 1,
+        borderColor: '#D1D1D1',
+        borderStyle: 'dashed',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    cardTitle: {
+    tileContent: {
+        position: 'absolute',
+        bottom: 12,
+        left: 12,
+    },
+    anchorLabel: {
+        fontFamily: 'Inter_700Bold',
         fontSize: 14,
-        lineHeight: 18,
-        marginBottom: 6,
+        letterSpacing: 0.5,
     },
-    cardTag: {
+    issueCount: {
+        fontSize: 10,
+        marginTop: 2,
+    },
+    emptyContent: {
+        alignItems: 'center',
+    },
+    emptyLabel: {
+        fontSize: 12,
+        letterSpacing: 1,
+        fontFamily: 'Inter_700Bold',
+    },
+    startSifting: {
+        fontSize: 13,
+        fontFamily: 'InstrumentSerif_400Regular',
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    newTag: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 4,
+    },
+    dot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#FF453A',
+        marginRight: 4,
+    },
+    newTagText: {
         fontSize: 9,
-        letterSpacing: 1.5,
+        fontFamily: 'Inter_700Bold',
     },
     emptyState: {
-        width: width - (SPACING.l * 2),
-        padding: 40,
+        width: '100%',
+        paddingVertical: 40,
         alignItems: 'center',
     }
 });
