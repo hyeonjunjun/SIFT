@@ -63,19 +63,22 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const archiveLabel = mode === 'archive' ? 'Restore' : 'Archive';
-        const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', archiveLabel, 'Delete Forever'];
+        const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', archiveLabel, 'View Diagnostics', 'Delete Forever'];
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
                     options,
                     cancelButtonIndex: 0,
-                    destructiveButtonIndex: 3,
+                    destructiveButtonIndex: 4,
                     title: item.title,
                 },
                 (buttonIndex) => {
                     if (buttonIndex === 1) onPin?.(item.id);
                     if (buttonIndex === 2) onArchive?.(item.id);
-                    if (buttonIndex === 3) onDeleteForever?.(item.id);
+                    if (buttonIndex === 3) {
+                        Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.", [{ text: "Close" }]);
+                    }
+                    if (buttonIndex === 4) onDeleteForever?.(item.id);
                 }
             );
         } else {
@@ -86,6 +89,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
                     { text: 'Cancel', style: 'cancel' },
                     { text: item.is_pinned ? 'Unpin' : 'Pin', onPress: () => onPin?.(item.id) },
                     { text: archiveLabel, onPress: () => onArchive?.(item.id) },
+                    { text: 'View Diagnostics', onPress: () => Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.") },
                     { text: 'Delete Forever', style: 'destructive', onPress: () => onDeleteForever?.(item.id) },
                 ]
             );
@@ -176,7 +180,8 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
                 image: page.metadata?.image_url || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
                 height: height,
                 is_pinned: page.is_pinned,
-                summary: page.summary
+                summary: page.summary,
+                debug_info: (page.metadata as any)?.debug_info
             };
         });
     }, [pages]);
