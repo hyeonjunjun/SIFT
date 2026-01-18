@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, SPACING, Theme, RADIUS } from '../lib/theme';
 import { ShimmerSkeleton } from './ShimmerSkeleton';
 import { Typography } from './design-system/Typography';
+import { Link as LinkIcon, FileText, Article, Video } from 'phosphor-react-native';
 import Animated, { FadeIn, FadeOut, Layout, Easing } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
@@ -106,6 +107,8 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
         }
     };
 
+    const isFallback = !item.image;
+
     return (
         <Pressable
             style={styles.cardContainer}
@@ -113,41 +116,38 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
             onLongPress={handleLongPress}
             delayLongPress={300}
         >
-            {/* 1. Bezel-less Image with Organic Corners */}
-            <View style={styles.imageWrapper}>
-                <Image
-                    source={{ uri: item.image }}
-                    style={[styles.image, { height: item.height }]}
-                    resizeMode="cover"
-                />
-            </View>
-
-            {/* 2. Editorial Metadata */}
-            <View style={styles.meta}>
-                <View style={styles.eyebrowRow}>
-                    <Typography variant="label" color={COLORS.stone} style={styles.eyebrow}>
-                        {item.category.toUpperCase()}
-                    </Typography>
-                    {item.is_pinned && <Typography variant="label">📌</Typography>}
-                </View>
-                <Typography variant="bodyMedium" numberOfLines={2} style={styles.title}>
-                    {item.title}
-                </Typography>
-
-                {item.summary && (
-                    <Typography variant="caption" color={COLORS.stone} numberOfLines={2} style={styles.summaryTeaser}>
-                        {item.summary}
-                    </Typography>
+            {/* 1. Image or Fallback */}
+            <View style={[styles.imageWrapper, { height: item.height }]}>
+                {isFallback ? (
+                    <View style={styles.fallbackContainer}>
+                        {item.category.toLowerCase().includes('video') || item.source.includes('tiktok') || item.source.includes('youtube') ? (
+                            <Video size={48} color={COLORS.stone} weight="thin" />
+                        ) : (
+                            <Article size={48} color={COLORS.stone} weight="thin" />
+                        )}
+                    </View>
+                ) : (
+                    <Image
+                        source={{ uri: item.image }}
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
                 )}
 
-                {/* 3. Minimalist Source Tag */}
-                <View style={styles.sourceRow}>
-                    <Image
-                        source={{ uri: `https://www.google.com/s2/favicons?domain=${item.source}&sz=32` }}
-                        style={styles.favicon}
-                    />
-                    <Typography variant="label" color={COLORS.stone}>{item.source}</Typography>
+                {/* Tag Pill at Top Right */}
+                <View style={styles.tagPill}>
+                    <Typography variant="label" style={styles.tagText}>
+                        {item.category.toUpperCase()}
+                    </Typography>
                 </View>
+            </View>
+
+            {/* 2. Title Below Image */}
+            <View style={styles.meta}>
+                <Typography variant="h3" numberOfLines={2} style={styles.title}>
+                    {item.title}
+                </Typography>
+                {item.is_pinned && <Typography variant="label" style={{ marginTop: 2 }}>PINNED</Typography>}
             </View>
         </Pressable>
     );
@@ -187,7 +187,7 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
                 title: page.title || 'Untitled',
                 category: page.tags?.[0] || 'Saved',
                 source: domain,
-                image: page.metadata?.image_url || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80',
+                image: page.metadata?.image_url, // No fallback URL here, handle in Card
                 height: height,
                 is_pinned: page.is_pinned,
                 summary: page.summary,
@@ -256,49 +256,41 @@ const styles = StyleSheet.create({
     imageWrapper: {
         borderRadius: RADIUS.l,
         overflow: 'hidden',
-        backgroundColor: COLORS.paper,
-        ...Theme.shadows.soft,
-        shadowOpacity: 0.04,
-        shadowRadius: 20,
+        backgroundColor: '#EFEFEF', // Solid fallback
+        borderWidth: 1,
+        borderColor: COLORS.subtle,
+    },
+    fallbackContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     image: {
         width: '100%',
+        height: '100%',
+    },
+    tagPill: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: '#000000',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    tagText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        letterSpacing: 0.5,
     },
     meta: {
-        paddingTop: SPACING.m,
-        paddingHorizontal: 4,
-    },
-    eyebrowRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 4,
-    },
-    eyebrow: {
-        fontSize: 9,
-        letterSpacing: 1.5,
+        paddingTop: SPACING.s,
+        paddingHorizontal: 0,
     },
     title: {
-        fontSize: 14,
-        lineHeight: 18,
-        marginBottom: 4,
-    },
-    summaryTeaser: {
-        fontSize: 11,
-        lineHeight: 15,
-        marginBottom: 8,
-        opacity: 0.7,
-    },
-    sourceRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        opacity: 0.8,
-    },
-    favicon: {
-        width: 12,
-        height: 12,
-        marginRight: 6,
-        borderRadius: 2,
+        fontSize: 16,
+        color: COLORS.ink,
+        fontFamily: 'PlayfairDisplay_700Bold', // Serif for "Sift Archive" look
     },
 });
 

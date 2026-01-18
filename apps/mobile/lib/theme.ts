@@ -10,7 +10,7 @@ export const COLORS = {
     // The Ink
     ink: '#1A1A1A',         // Soft Charcoal (Primary Text)
     stone: '#999999',       // Muted Gray (Secondary Text)
-    subtle: 'rgba(0,0,0,0.06)', // Subtle borders
+    subtle: '#E5E5E5',      // Light Gray (Strict borders)
 
     // The Accents
     sage: '#7A8B7D',        // Dried Sage (Primary Brand Color)
@@ -30,11 +30,12 @@ export const SPACING = {
 };
 
 export const RADIUS = {
-    s: 8,
-    m: 16,  // Standard interior elements
-    l: 24,  // Standard card corners
-    pill: 100,
-    dock: 32,
+    xs: 2,
+    s: 4,
+    m: 8,   // Tight corners
+    l: 0,   // Sharp corners (strictly reduced)
+    pill: 0, // Even buttons are sharp now
+    dock: 0,
 };
 
 export const Theme = {

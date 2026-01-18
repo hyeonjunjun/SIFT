@@ -434,13 +434,13 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* 2. INPUT BLOCK (PAPER LOOK) */}
+                    {/* 2. INPUT BLOCK (LINE STYLE) */}
                     <View style={styles.inputContainer}>
                         <TextInput
                             ref={inputRef}
                             style={styles.textInput}
-                            placeholder="Sift a new URL..."
-                            placeholderTextColor="#888"
+                            placeholder="Paste a link to sift..."
+                            placeholderTextColor={COLORS.stone}
                             value={manualUrl}
                             onChangeText={setManualUrl}
                             autoCapitalize="none"
@@ -453,7 +453,7 @@ export default function HomeScreen() {
                             style={styles.submitButton}
                             onPress={handleSubmitUrl}
                         >
-                            <Plus size={20} color={COLORS.paper} weight="bold" />
+                            <Typography variant="label" color={manualUrl ? COLORS.ink : COLORS.stone}>SIFT</Typography>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -529,29 +529,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         height: 54,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        paddingHorizontal: SPACING.m,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 2,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.subtle,
+        paddingHorizontal: 0,
     },
     textInput: {
         flex: 1,
-        fontSize: 17,
-        fontFamily: 'PlayfairDisplay_600SemiBold', // Serif for "Paper" look
+        fontSize: 18,
+        fontFamily: 'InstrumentSerif_400Regular',
         fontStyle: 'italic',
         color: COLORS.ink,
+        paddingVertical: 10,
     },
     submitButton: {
-        backgroundColor: COLORS.ink,
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        paddingHorizontal: 12,
+        height: 54,
         alignItems: 'center',
         justifyContent: 'center',
     },

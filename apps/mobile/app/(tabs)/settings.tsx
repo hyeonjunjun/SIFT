@@ -59,25 +59,19 @@ export default function ProfileScreen() {
                 {/* 1. USER HEADER (Dossier Look) */}
                 <View style={styles.header}>
                     <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>PRO MEMBER</Typography>
-                    <Typography variant="h1" style={styles.serifTitle}>Rykjun</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>{user?.email?.split('@')[0] || "Guest"}</Typography>
 
                     <View style={styles.profileMeta}>
                         <Typography variant="body" color={COLORS.stone}>{user?.email || "Guest"}</Typography>
                     </View>
                 </View>
 
-                {/* 2. DOSSIER ACTIONS (MASONRY GRID) */}
+                {/* 2. DOSSIER ACTIONS (2x2 GRID) */}
                 <View style={styles.dossierGrid}>
-                    <View style={styles.dossierColumn}>
-                        <DossierTile icon={UserIcon} title="IDENTITY" />
-                        <DossierTile icon={Bell} title="ALERTS" />
-                        <DossierTile icon={BookOpen} title="GUIDES" />
-                    </View>
-                    <View style={styles.dossierColumn}>
-                        <DossierTile icon={Shield} title="PRIVACY" />
-                        <DossierTile icon={Gear} title="SETTINGS" />
-                        <DossierTile icon={ClockCounterClockwise} title="HISTORY" />
-                    </View>
+                    <DossierTile icon={UserIcon} title="IDENTITY" />
+                    <DossierTile icon={Shield} title="PRIVACY" />
+                    <DossierTile icon={Bell} title="ALERTS" />
+                    <DossierTile icon={ClockCounterClockwise} title="HISTORY" />
                 </View>
 
                 {/* 3. SAVED ITEMS SECTION */}
@@ -97,7 +91,7 @@ export default function ProfileScreen() {
 
                 <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
                     <SignOut size={18} color={COLORS.terracotta} style={{ marginRight: 8 }} />
-                    <Typography variant="bodyMedium" color={COLORS.terracotta}>Sign Out</Typography>
+                    <Typography variant="label" color={COLORS.terracotta}>Sign Out</Typography>
                 </TouchableOpacity>
 
             </ScrollView>
@@ -111,10 +105,10 @@ const DossierTile = ({ icon: Icon, title }: { icon: any, title: string }) => (
     <Pressable
         style={({ pressed }) => [
             styles.tile,
-            pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+            pressed && { opacity: 0.9, backgroundColor: COLORS.subtle }
         ]}
     >
-        <Icon size={32} color={COLORS.ink} weight="thin" />
+        <Icon size={32} color={COLORS.ink} weight="light" />
         <Typography variant="label" style={styles.tileLabel}>{title}</Typography>
     </Pressable>
 );
@@ -148,31 +142,25 @@ const styles = StyleSheet.create({
     dossierGrid: {
         paddingHorizontal: SPACING.l,
         flexDirection: 'row',
-        gap: 12,
+        flexWrap: 'wrap',
         marginBottom: SPACING.xl,
     },
-    dossierColumn: {
-        flex: 1,
-        gap: 12,
-    },
     tile: {
-        backgroundColor: '#FFFFFF',
+        width: (width - SPACING.l * 2) / 2,
         aspectRatio: 1,
-        borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
+        borderColor: COLORS.subtle,
         justifyContent: 'center',
         alignItems: 'center',
         padding: SPACING.m,
-        ...Theme.shadows.soft,
-        shadowOpacity: 0.02,
     },
     tileLabel: {
         position: 'absolute',
-        bottom: 12,
-        fontSize: 9,
-        letterSpacing: 1,
+        bottom: 8,
+        fontSize: 10,
+        letterSpacing: 1.2,
         color: COLORS.stone,
+        textAlign: 'center',
     },
     sectionHeader: {
         paddingHorizontal: SPACING.l,

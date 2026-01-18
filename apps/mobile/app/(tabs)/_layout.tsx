@@ -11,13 +11,13 @@ export default function TabLayout() {
                 headerShown: false,
                 tabBarStyle: {
                     backgroundColor: COLORS.canvas,
-                    borderTopWidth: 0.5,
-                    borderTopColor: 'rgba(0,0,0,0.05)',
+                    borderTopWidth: 1,
+                    borderTopColor: COLORS.subtle,
                     height: 85,
                     paddingTop: 12,
                     paddingBottom: 25,
                     elevation: 0,
-                    shadowOpacity: 0, // Remove shadow for flat anchor look
+                    shadowOpacity: 0, // Anchor to the floor
                 },
                 tabBarLabelStyle: {
                     fontSize: 10,
