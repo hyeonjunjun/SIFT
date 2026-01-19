@@ -18,6 +18,7 @@ export const safeSift = async <T = any>(
 ): Promise<T | null> => {
     try {
         const apiUrl = `${API_URL}/api/sift`;
+        console.log(`[SafeSift] Sending to: ${apiUrl}`);
         console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl}`);
 
         const body = {
