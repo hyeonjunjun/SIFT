@@ -72,7 +72,7 @@ export default function HomeScreen() {
     const filteredPages = activeFilter === 'All'
         ? pages
         : pages
-            .filter(p => p.tags?.some(t => t.toLowerCase() === activeFilter.toLowerCase()))
+            .filter(p => p.tags?.some(t => t && t.toLowerCase() === activeFilter.toLowerCase()))
             .sort((a, b) => {
                 const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
                 const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;

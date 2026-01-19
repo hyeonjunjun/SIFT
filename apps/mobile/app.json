@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sift",
     "slug": "sift",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/sift-white.png",
     "scheme": "sift",
@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "37",
+      "buildNumber": "41",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"

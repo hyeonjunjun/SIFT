@@ -35,8 +35,8 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
                 contentContainerStyle={styles.scrollContent}
             >
                 {safeFilters.map((item, index) => {
-                    // CRITICAL CRASH FIX: Guard against undefined items
-                    if (!item) return null;
+                    // CRITICAL CRASH FIX: Guard against undefined items or missing text
+                    if (!item || !item.text) return null;
 
                     const isActive = item.id === activeFilter;
 

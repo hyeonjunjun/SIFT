@@ -62,7 +62,7 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
         >
             <View className="flex-row items-center flex-1">
                 <View className="mr-3">
-                    <Check size={16} color="#FFFFFF" strokeWidth={3} />
+                    <Check size={16} color="#FFFFFF" weight="bold" />
                 </View>
                 <Text className="text-white font-sans text-sm font-medium flex-1">
                     {message}
