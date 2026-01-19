@@ -159,20 +159,8 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
     const { width } = useWindowDimensions();
     const columnWidth = (width - (SPACING.l * 2) - 15) / 2;
 
-    if (loading) {
-        return (
-            <View style={styles.masonryContainer}>
-                <View style={styles.column}>
-                    {[1, 2, 3].map(i => <SkeletonCard key={`skel-left-${i}`} />)}
-                </View>
-                <View style={styles.column}>
-                    {[1, 2, 3].map(i => <SkeletonCard key={`skel-right-${i}`} />)}
-                </View>
-            </View>
-        );
-    }
-
     const transformedData = useMemo(() => {
+        if (!pages) return [];
         return pages.map((page, index) => {
             const heights = [200, 240, 180, 280];
             const height = heights[index % heights.length];
@@ -192,6 +180,19 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
             };
         });
     }, [pages]);
+
+    if (loading) {
+        return (
+            <View style={styles.masonryContainer}>
+                <View style={styles.column}>
+                    {[1, 2, 3].map(i => <SkeletonCard key={`skel-left-${i}`} />)}
+                </View>
+                <View style={styles.column}>
+                    {[1, 2, 3].map(i => <SkeletonCard key={`skel-right-${i}`} />)}
+                </View>
+            </View>
+        );
+    }
 
     const leftColumn = transformedData.filter((_, i) => i % 2 === 0);
     const rightColumn = transformedData.filter((_, i) => i % 2 !== 0);

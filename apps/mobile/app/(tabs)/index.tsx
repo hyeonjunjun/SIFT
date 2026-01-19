@@ -489,7 +489,10 @@ export default function HomeScreen() {
 
                 {/* 4. FILTER BAR */}
                 <FilterBar
-                    filters={allTags}
+                    filters={[
+                        { id: 'All', text: 'All' },
+                        ...allTags.map(tag => ({ id: tag, text: tag }))
+                    ]}
                     activeFilter={activeFilter}
                     onSelect={setActiveFilter}
                 />

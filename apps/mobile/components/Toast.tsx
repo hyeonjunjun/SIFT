@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Check } from 'lucide-react-native';
+import { Check } from 'phosphor-react-native';
 
 interface ToastProps {
     message: string;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Alert, Pressable, Image, Text, ActionSheetIOS, Platform } from 'react-native';
-import { Trash2, Pin } from 'lucide-react-native';
+import { Trash, PushPin as Pin } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -136,7 +136,7 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
                 onPress={handleDelete}
                 style={{ height: '100%', maxHeight: 300, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: 16, marginBottom: 12, marginLeft: 8 }}
             >
-                <Trash2 size={24} color="white" />
+                <Trash size={24} color="white" />
             </Pressable>
         );
     };
@@ -171,7 +171,7 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
                 >
                     {isPinned && (
                         <View style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
-                            <Pin size={10} color={COLORS.ink} fill={COLORS.ink} />
+                            <Pin size={10} color={COLORS.ink} weight="fill" />
                         </View>
                     )}
 

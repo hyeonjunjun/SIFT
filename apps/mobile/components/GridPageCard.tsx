@@ -6,10 +6,9 @@ import * as Clipboard from 'expo-clipboard';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { Typography } from './design-system/Typography';
 import { Card } from './design-system/Card';
-import { Pin } from 'lucide-react-native';
+import { PushPin as Pin } from 'phosphor-react-native';
 import { COLORS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
-import { PeekModal } from './PeekModal';
 
 interface GridPageCardProps {
     id: string;
@@ -29,7 +28,6 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDeleteForever, onPin, isPinned, createdAt }: GridPageCardProps) {
     const router = useRouter();
     const scale = useSharedValue(1);
-    const [peekVisible, setPeekVisible] = useState(false);
 
     // Dust Gathering Logic (30 days)
     const isDusty = (() => {
@@ -62,7 +60,7 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
 
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setPeekVisible(true);
+        // PeekModal removed. Could add context menu here if needed.
     };
 
     // Deterministic random height based on index to keep it stable
@@ -82,7 +80,7 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
                     {/* Pin Indicator */}
                     {isPinned && (
                         <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
-                            <Pin size={10} color={COLORS.ink} fill={COLORS.ink} />
+                            <Pin size={10} color={COLORS.ink} weight="fill" />
                         </View>
                     )}
 
@@ -112,13 +110,6 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
                     </View>
                 </Card>
             </AnimatedPressable>
-
-            <PeekModal
-                visible={peekVisible}
-                onClose={() => setPeekVisible(false)}
-                onOpen={handlePress}
-                item={{ title, url: url || '', imageUrl }}
-            />
         </>
     );
 }
