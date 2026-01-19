@@ -353,12 +353,18 @@ export default function HomeScreen() {
                 body: JSON.stringify({ id, action: 'archive', user_id: user?.id })
             });
 
-            if (!response.ok) throw new Error('Failed to archive');
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('[Archive] Failed:', response.status, text);
+                throw new Error(text || 'Failed to archive');
+            }
+
             setPages((prev) => prev.filter((p) => p.id !== id));
             showToast("Moved to Archive");
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (error) {
-            showToast("Archive failed");
+        } catch (error: any) {
+            console.error('[Archive] Exception:', error);
+            showToast(`Archive failed: ${error.message}`);
         }
     };
 
@@ -366,12 +372,19 @@ export default function HomeScreen() {
         try {
             const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
             const response = await fetch(apiUrl, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete');
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('[Delete] Failed:', response.status, text);
+                throw new Error(text || 'Failed to delete');
+            }
+
             setPages((prev) => prev.filter((p) => p.id !== id));
             showToast("Permanently Deleted");
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (error) {
-            showToast("Delete failed");
+        } catch (error: any) {
+            console.error('[Delete] Exception:', error);
+            showToast(`Delete failed: ${error.message}`);
         }
     };
 

@@ -55,11 +55,13 @@ export async function PUT(request: Request) {
             .update({ is_archived })
             .eq('id', id)
             .eq('user_id', user_id)
-            .select()
-            .single();
+            .select();
 
         if (error) throw error;
-        return NextResponse.json(data, { headers: corsHeaders });
+        if (!data || data.length === 0) {
+            return NextResponse.json({ error: 'Item not found or access denied' }, { status: 404, headers: corsHeaders });
+        }
+        return NextResponse.json(data[0], { headers: corsHeaders });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500, headers: corsHeaders });
     }
