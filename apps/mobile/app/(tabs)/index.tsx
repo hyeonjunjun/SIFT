@@ -344,19 +344,25 @@ export default function HomeScreen() {
     }, [fetchPages]);
 
     const deletePage = async (id: string) => {
+        if (!user?.id) {
+            showToast("Error: Identity not verified");
+            return;
+        }
+
         try {
             const apiUrl = `${API_URL}/api/archive`;
+            console.log(`[Archive] PUT to ${apiUrl} for item ${id}`);
 
             const response = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, action: 'archive', user_id: user?.id })
+                body: JSON.stringify({ id, action: 'archive', user_id: user.id })
             });
 
             if (!response.ok) {
                 const text = await response.text();
                 console.error('[Archive] Failed:', response.status, text);
-                throw new Error(text || 'Failed to archive');
+                throw new Error(`Server returned ${response.status}: ${text || 'Unknown archive error'}`);
             }
 
             setPages((prev) => prev.filter((p) => p.id !== id));
@@ -364,19 +370,25 @@ export default function HomeScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Archive] Exception:', error);
-            showToast(`Archive failed: ${error.message}`);
+            showToast(error.message.includes('JSON') ? "Invalid Server Response" : `Archive failed: ${error.message}`);
         }
     };
 
     const deletePageForever = async (id: string) => {
+        if (!user?.id) {
+            showToast("Error: Identity not verified");
+            return;
+        }
+
         try {
-            const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
+            const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user.id}`;
+            console.log(`[Delete] DELETE to ${apiUrl}`);
             const response = await fetch(apiUrl, { method: 'DELETE' });
 
             if (!response.ok) {
                 const text = await response.text();
                 console.error('[Delete] Failed:', response.status, text);
-                throw new Error(text || 'Failed to delete');
+                throw new Error(`Server returned ${response.status}: ${text || 'Unknown delete error'}`);
             }
 
             setPages((prev) => prev.filter((p) => p.id !== id));
@@ -384,7 +396,7 @@ export default function HomeScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Delete] Exception:', error);
-            showToast(`Delete failed: ${error.message}`);
+            showToast(error.message.includes('JSON') ? "Invalid Server Response" : `Delete failed: ${error.message}`);
         }
     };
 

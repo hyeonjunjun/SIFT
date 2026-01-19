@@ -13,7 +13,7 @@ const getApiUrl = () => {
     }
 
     // 3. Fallback (should not happen in prod)
-    return 'https://sift-8azyad04z-ryan-juns-projects.vercel.app';
+    return 'https://sift-rho.vercel.app';
 };
 
 export const API_URL = getApiUrl();
