@@ -133,7 +133,8 @@ export async function POST(request: Request) {
         }
 
         // Execution
-        if (process.env.APIFY_API_TOKEN) {
+        const hasApifyToken = process.env.APIFY_API_TOKEN || process.env.apify;
+        if (hasApifyToken) {
             try {
                 const run = await apifyClient.actor(actorId!).call(input);
                 const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
@@ -291,7 +292,7 @@ export async function POST(request: Request) {
                 summary: "Content extraction failed, but link saved.",
                 content: "Content extraction failed, but link saved.",
                 tags: ["Link"],
-                metadata: { debug_info: "Ultimate Fallback triggered." }
+                metadata: { debug_info: `Ultimate Fallback: ${error.message}` }
             };
 
             let data;
