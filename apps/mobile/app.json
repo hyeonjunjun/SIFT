@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "42",
+      "buildNumber": "43",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -34,7 +34,8 @@
             ]
           }
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Sift needs access to your photos to save covers and synthesized images."
       }
     },
     "android": {

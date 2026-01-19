@@ -4,6 +4,8 @@ import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Force Redeploy: 2026-01-19 18:40
+
 // Vercel Timeout Fix: Increase max duration for long-running social media scrapes
 export const maxDuration = 60;
 
