@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { LucideIcon } from 'lucide-react-native';
+import { IconProps } from 'phosphor-react-native';
 
 interface PropertyRowProps {
-    icon?: LucideIcon;
+    icon?: React.ComponentType<IconProps>;
     label: string;
     value: string | React.ReactNode;
 }
@@ -16,7 +16,11 @@ export const PropertyRow: React.FC<PropertyRowProps> = ({ icon: Icon, label, val
     return (
         <View className="flex-row items-center py-1.5 border-b border-border/10">
             <View className="flex-row items-center w-32 mr-2">
-                {Icon && <Icon size={14} color="#9B9A97" className="mr-2" strokeWidth={2} />}
+                {Icon && (
+                    <View className="mr-2">
+                        <Icon size={14} color="#9B9A97" weight="bold" />
+                    </View>
+                )}
                 <Text className="text-ink-subtle text-sm font-sans truncate">{label}</Text>
             </View>
 

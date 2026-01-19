@@ -132,7 +132,9 @@ function RootLayoutNav() {
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 
-    if (!splashDismissed) {
+    // CRITICAL: Block rendering of potentially themed components until fonts are loaded 
+    // to prevent "font family not found" crashes on launch.
+    if (!fontsLoaded || !splashDismissed) {
         return (
             <SplashScreen
                 onFinish={() => setSplashAnimationFinished(true)}

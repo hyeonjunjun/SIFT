@@ -5,7 +5,7 @@ import { Block } from '../components/design-system/Block';
 import { Callout } from '../components/design-system/Callout';
 import { PropertyRow } from '../components/design-system/PropertyRow';
 import { NotionToast } from '../components/design-system/NotionToast';
-import { Clock, Tag, User } from 'lucide-react-native';
+import { Clock, Tag, User } from 'phosphor-react-native';
 
 export default function DesignPreview() {
     return (

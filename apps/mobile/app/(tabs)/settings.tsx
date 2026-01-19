@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, useWindowDimensions } from "react-native";
+import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise } from 'phosphor-react-native';
@@ -12,7 +12,7 @@ import { useAuth } from "../../lib/auth";
 
 
 export default function ProfileScreen() {
-    const { width: SCREEN_WIDTH } = useWindowDimensions();
+    const { width: SCREEN_WIDTH } = Dimensions.get('window');
     const { user, signOut } = useAuth();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);

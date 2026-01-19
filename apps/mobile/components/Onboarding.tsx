@@ -15,7 +15,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Typography } from './design-system/Typography';
 import { COLORS, RADIUS } from '../lib/theme';
 import { router } from 'expo-router';
-import { Share, Filter, CheckCircle } from 'lucide-react-native';
+import { ShareNetwork, Funnel, CheckCircle } from 'phosphor-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -187,7 +187,7 @@ function SiftVisual({ isActive }: { isActive: boolean }) {
 
     return (
         <View style={styles.visualInner}>
-            <Filter size={60} color={COLORS.stone} style={{ marginBottom: 20 }} />
+            <Funnel size={60} color={COLORS.stone} style={{ marginBottom: 20 }} />
             <Animated.View style={[gemStyle, styles.gem]}>
                 <CheckCircle size={50} color={COLORS.paper} />
             </Animated.View>
@@ -227,7 +227,7 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
     return (
         <View style={styles.visualInner}>
             <View style={styles.mockPhone}>
-                <Share size={30} color={COLORS.accent} />
+                <ShareNetwork size={30} color={COLORS.accent} />
             </View>
             <Animated.View style={[tapStyle, styles.fingerTap]} />
             <Typography variant="caption" className="mt-4 text-ink-secondary" style={{ color: COLORS.stone }}>

@@ -7,7 +7,7 @@ export function Card({ className, style, children, ...props }: ViewProps) {
         <View
             className={`bg-canvas-card rounded-[16px] p-5 ${className || ''}`}
             style={[
-                Theme.shadows.card,
+                Theme.shadows.soft,
                 style
             ]}
             {...props}
