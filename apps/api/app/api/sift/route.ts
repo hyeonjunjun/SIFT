@@ -69,6 +69,21 @@ export async function OPTIONS() {
     return NextResponse.json({}, { headers: corsHeaders });
 }
 
+export async function GET() {
+    const apifyToken = process.env.APIFY_API_TOKEN || process.env.apify;
+    const openaiKey = process.env.OPENAI_API_KEY || process.env.open_ai;
+
+    return NextResponse.json({
+        status: 'alive',
+        env: {
+            apify_present: !!apifyToken,
+            apify_prefix: apifyToken ? apifyToken.substring(0, 5) + '...' : 'N/A',
+            openai_present: !!openaiKey,
+            supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing'
+        }
+    }, { headers: corsHeaders });
+}
+
 export async function POST(request: Request) {
     let debugInfoSnippet = "";
     let urlForCapture = "";
@@ -79,6 +94,11 @@ export async function POST(request: Request) {
         const { url, user_id, mock } = body;
         urlForCapture = url;
         userIdForCapture = user_id;
+
+        // DEBUG: Verify Keys (Masked)
+        console.log(`[SIFT] Start. URL: ${url}`);
+        console.log(`[SIFT] Apify Token Present: ${!!(process.env.APIFY_API_TOKEN || process.env.apify)}`);
+        console.log(`[SIFT] OpenAI Key Present: ${!!(process.env.OPENAI_API_KEY || process.env.open_ai)}`);
 
         if (mock) {
             const { data, error } = await supabaseAdmin
@@ -178,7 +198,8 @@ export async function POST(request: Request) {
                 }
             } catch (e: any) {
                 console.error('[SIFT] Scraper Failed:', e.message);
-                debugInfoSnippet += `Scraper Failed: ${e.message}. `;
+                // DETAILED ERROR CAPTURE
+                debugInfoSnippet += `Scraper Failed: ${e.message} (Stack: ${e.stack ? e.stack.substring(0, 100) : 'N/A'}). `;
             }
         }
 
@@ -186,7 +207,10 @@ export async function POST(request: Request) {
         // If we have no title yet, try one last meta fetch
         if (!scrapedData.title) {
             try {
-                const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                // ROBUST USER AGENT
+                const response = await fetch(url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+                });
                 const html = await response.text();
                 const meta = extractMetaTags(html);
                 scrapedData.title = meta.title || `Saved from ${domain}`;
