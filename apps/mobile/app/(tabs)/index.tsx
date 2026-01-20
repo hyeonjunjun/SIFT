@@ -574,7 +574,8 @@ export default function HomeScreen() {
 
                 {filteredPages.length === 0 && (
                     <View style={styles.emptyState}>
-                        <Typography variant="body" color={COLORS.stone}>No pages found</Typography>
+                        <Typography variant="h3" color={COLORS.ink} style={{ marginBottom: 4 }}>Time to Sift</Typography>
+                        <Typography variant="body" color={COLORS.stone}>Paste a link above to start.</Typography>
                     </View>
                 )}
             </ScrollView>

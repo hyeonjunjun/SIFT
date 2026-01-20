@@ -20,27 +20,7 @@ export default function SignUpScreen() {
 
         setLoading(true);
 
-        // 1. Check Waitlist Status
-        const { data: waitlistData, error: waitlistError } = await supabase
-            .from('waitlist')
-            .select('status')
-            .eq('email', email.toLowerCase().trim())
-            .single();
-
-        if (waitlistError || !waitlistData || waitlistData.status !== 'approved') {
-            setLoading(false);
-            Alert.alert(
-                'Beta Access Required',
-                'Your email is not yet approved for beta access. Would you like to join the waitlist?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Join Waitlist', onPress: () => router.push('/auth/waitlist') }
-                ]
-            );
-            return;
-        }
-
-        // 2. Proceed with Auth
+        // Direct Auth (Open Beta)
         const { error } = await supabase.auth.signUp({
             email,
             password,
