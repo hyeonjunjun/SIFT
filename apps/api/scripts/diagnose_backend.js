@@ -5,7 +5,7 @@ const path = require('path');
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const API_URL = 'https://sift-8azyad04z-ryan-juns-projects.vercel.app';
+const API_URL = 'https://sift-rho.vercel.app';
 const TEST_USER_ID = '3cb3c34';
 
 async function runDiagnostics() {
