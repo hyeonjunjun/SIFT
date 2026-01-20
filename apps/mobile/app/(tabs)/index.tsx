@@ -148,40 +148,64 @@ export default function HomeScreen() {
         }
     }, [user?.id]); // Removed pages.length to break loop
 
-    const addToQueue = useCallback((url: string) => {
-        if (!url || typeof url !== 'string') return;
-        const cleanUrl = url.trim();
-        if (!cleanUrl) return;
+    const addToQueue = useCallback((urlOrText: string) => {
+        if (!urlOrText || typeof urlOrText !== 'string') return;
 
-        // 1. Proactive check if already sifting this url in this session
-        if (processingUrls.current.has(cleanUrl)) {
-            console.log(`[QUEUE] Skipping duplicate: ${cleanUrl}`);
-            return;
+        // Handle potential multi-line paste
+        const lines = urlOrText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+
+        for (const url of lines) {
+            const cleanUrl = url.trim();
+            // 1. Proactive check if already sifting this url in this session
+            if (processingUrls.current.has(cleanUrl)) {
+                console.log(`[QUEUE] Skipping duplicate: ${cleanUrl}`);
+                continue;
+            }
+
+            const currentUserId = user?.id;
+            console.log(`[QUEUE] Adding URL: ${cleanUrl} (User: ${currentUserId || 'GUEST'})`);
+            setQueue(prev => [...prev, cleanUrl]);
+            lastCheckedUrl.current = cleanUrl;
         }
-
-        const currentUserId = user?.id;
-        console.log(`[QUEUE] Adding URL: ${cleanUrl} (User: ${currentUserId || 'GUEST'})`);
-        setQueue(prev => [...prev, cleanUrl]);
-        lastCheckedUrl.current = cleanUrl;
     }, [user?.id]);
 
     const checkClipboard = useCallback(async () => {
         try {
+            // ONLY check clipboard when explicitly focused or fresh launch
+            // We rely on AppState change for this.
+
+            // Check if we have permission first (implied by just calling it, but we handle error)
             const content = await Clipboard.getStringAsync();
             if (!content) return;
+
             const isUrl = content.startsWith('http://') || content.startsWith('https://');
-            if (isUrl && content !== lastCheckedUrl.current) {
+
+            // STRICT DUPLICATE CHECK: 
+            // 1. Must be a URL
+            // 2. Must not be the same as the last one we automatically grabbed
+            // 3. Must not be currently processing
+            if (isUrl && content !== lastCheckedUrl.current && !processingUrls.current.has(content)) {
                 console.log(`[Clipboard] Auto-detected URL: ${content}`);
                 lastCheckedUrl.current = content;
 
-                // UX Improvement: Fill input and start sifting automatically
+                // UX FIX: Simply fill the input, do NOT auto-submit immediately to avoid "double popup" fatigue
+                // unless it is a deep link. 
+                // Wait, user asked to simplify "pasting process". 
+                // Let's Auto-Sift but silently, without the extra toast if possible, 
+                // OR just pre-fill it.
+
+                // User said: "simplify the pasting process so the user is not dealing with 2 popups"
+                // The iOS "Allow Paste" popup is unavoidable if we access clipboard automatically.
+                // The second popup is our "Processing..." toast.
+                // Solution: We will keep auto-sift but remove our Toast since the UI updates optimistically anyway.
+
                 setManualUrl(content);
                 addToQueue(content);
-
-                showToast("Processing link from clipboard...", 3000);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
-        } catch (e) { }
+        } catch (e) {
+            // Silently fail if clipboard permission denied
+        }
     }, [addToQueue]);
 
 
@@ -198,53 +222,65 @@ export default function HomeScreen() {
         const urlsToProcess = [...queue];
         setQueue([]);
 
-        console.log(`[OPTIMISTIC] Processing ${urlsToProcess.length} urls`);
+        const count = urlsToProcess.length;
+        if (count > 1) {
+            showToast(`Queueing ${count} links...`, 2000);
+        } else {
+            showToast("Sifting...", 1500);
+        }
 
-        for (const url of urlsToProcess) {
-            if (processingUrls.current.has(url)) continue;
+        console.log(`[OPTIMISTIC] Processing ${count} urls`);
+
+        // PHASE 1: Batch Optimistic Inserts (Parallel)
+        // Show all items in the UI immediately
+        const tasks: { url: string; pendingId?: string }[] = [];
+
+        await Promise.all(urlsToProcess.map(async (url) => {
+            if (processingUrls.current.has(url)) return;
+            processingUrls.current.add(url);
 
             try {
-                if (!user?.id) throw new Error("Authentication required");
-
-                processingUrls.current.add(url);
-
-                // 1. OPTIMISTIC INSERT: Create placeholder so user sees it in feed immediately
                 const domain = getDomain(url);
-                const { data: pendingData, error: pendingError } = await supabase
+                const { data: pendingData } = await supabase
                     .from('pages')
                     .insert({
-                        user_id: user.id,
+                        user_id: user?.id,
                         url,
                         title: "Sifting...",
                         summary: "Synthesizing content...",
                         tags: ["Lifestyle"],
-                        metadata: {
-                            status: 'pending',
-                            source: domain
-                        }
+                        metadata: { status: 'pending', source: domain }
                     })
                     .select()
                     .single();
 
-                if (pendingError) {
-                    console.error("[OPTIMISTIC] Initial insert failed:", pendingError.message);
+                if (pendingData?.id) {
+                    tasks.push({ url, pendingId: pendingData.id });
+                } else {
+                    // If insert failed, remove from processing logic
+                    processingUrls.current.delete(url);
                 }
-
-                const pendingId = pendingData?.id;
-                showToast("Sift added to library", 2000);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-                // 2. BACKGROUND SCRAPE: Call API
-                console.log(`[OPTIMISTIC] Background Sifting: ${url} (ID: ${pendingId})`);
-                await safeSift(url, user.id, pendingId);
-
-                // Successfully processed (either success or partial)
+            } catch (e) {
                 processingUrls.current.delete(url);
+            }
+        }));
 
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // PHASE 2: Sequential Processing (Series)
+        // Process one by one to respect backend/rate limits
+        for (const task of tasks) {
+            if (!task.pendingId) continue;
+            try {
+                console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
+                await safeSift(task.url, user!.id, task.pendingId);
             } catch (error: any) {
-                console.error(`[QUEUE] Error:`, error.message);
-                showToast(error.message || "Sift failed");
-                processingUrls.current.delete(url);
+                console.error(`[QUEUE] Error sifting ${task.url}:`, error);
+                // The optimistic item remains as "Pending" or standard fallback unless verified otherwise
+                // We've already handled the error toast generally, but maybe specific alerts aren't needed 
+                // to avoid spamming the user if 5 links fail.
+            } finally {
+                processingUrls.current.delete(task.url);
             }
         }
 
@@ -421,8 +457,14 @@ export default function HomeScreen() {
 
     const handleSubmitUrl = () => {
         if (manualUrl.trim()) {
+            const url = manualUrl.trim();
+            // Prevent double-submit if it was just auto-detected
+            if (url === lastCheckedUrl.current || processingUrls.current.has(url)) {
+                setManualUrl("");
+                return;
+            }
             Keyboard.dismiss();
-            addToQueue(manualUrl.trim());
+            addToQueue(url);
             setManualUrl("");
         }
     };
