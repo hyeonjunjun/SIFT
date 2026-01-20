@@ -199,9 +199,14 @@ export default function HomeScreen() {
                 // The second popup is our "Processing..." toast.
                 // Solution: We will keep auto-sift but remove our Toast since the UI updates optimistically anyway.
 
+                // UX FIX: Simply fill the input, do NOT auto-submit.
+                // User explicitly requested: "only when i press the sift button"
+
                 setManualUrl(content);
-                addToQueue(content);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                // addToQueue(content); <-- REMOVED
+
+                // Optional: distinct feedback that we found a link but didn't sift it yet?
+                // Haptics.selectionAsync(); 
             }
         } catch (e) {
             // Silently fail if clipboard permission denied
@@ -232,7 +237,6 @@ export default function HomeScreen() {
         console.log(`[OPTIMISTIC] Processing ${count} urls`);
 
         // PHASE 1: Batch Optimistic Inserts (Parallel)
-        // Show all items in the UI immediately
         const tasks: { url: string; pendingId?: string }[] = [];
 
         await Promise.all(urlsToProcess.map(async (url) => {
@@ -257,7 +261,6 @@ export default function HomeScreen() {
                 if (pendingData?.id) {
                     tasks.push({ url, pendingId: pendingData.id });
                 } else {
-                    // If insert failed, remove from processing logic
                     processingUrls.current.delete(url);
                 }
             } catch (e) {
@@ -268,7 +271,6 @@ export default function HomeScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         // PHASE 2: Sequential Processing (Series)
-        // Process one by one to respect backend/rate limits
         for (const task of tasks) {
             if (!task.pendingId) continue;
             try {
@@ -276,9 +278,6 @@ export default function HomeScreen() {
                 await safeSift(task.url, user!.id, task.pendingId);
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
-                // The optimistic item remains as "Pending" or standard fallback unless verified otherwise
-                // We've already handled the error toast generally, but maybe specific alerts aren't needed 
-                // to avoid spamming the user if 5 links fail.
             } finally {
                 processingUrls.current.delete(task.url);
             }
@@ -458,11 +457,10 @@ export default function HomeScreen() {
     const handleSubmitUrl = () => {
         if (manualUrl.trim()) {
             const url = manualUrl.trim();
-            // Prevent double-submit if it was just auto-detected
-            if (url === lastCheckedUrl.current || processingUrls.current.has(url)) {
-                setManualUrl("");
-                return;
-            }
+
+            // We removed auto-sift, so we MUST allow manual submission of the pre-filled link.
+            // Duplicate check is now handled by processingUrls set inside addToQueue.
+
             Keyboard.dismiss();
             addToQueue(url);
             setManualUrl("");
