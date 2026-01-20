@@ -75,6 +75,7 @@ export async function GET() {
 
     return NextResponse.json({
         status: 'alive',
+        version: 'v2-debug-robust',
         env: {
             apify_present: !!apifyToken,
             apify_prefix: apifyToken ? apifyToken.substring(0, 5) + '...' : 'N/A',

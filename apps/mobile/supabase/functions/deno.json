@@ -1,0 +1,7 @@
+{
+    "functions": {
+        "ai-tagger": {
+            "verify_jwt": false
+        }
+    }
+}

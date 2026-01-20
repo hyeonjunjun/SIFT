@@ -149,7 +149,16 @@ export default function LibraryScreen() {
     );
 }
 
-const Tile = ({ cat }: { cat: any }) => {
+interface CategoryData {
+    name: string;
+    icon: string;
+    pages: SiftItem[];
+    count: number;
+    height: number;
+    latestImage?: string;
+}
+
+const Tile = ({ cat }: { cat: CategoryData }) => {
     const isAnchor = cat.count > 0; // Use count to determine if we show contents
 
     if (isAnchor) {

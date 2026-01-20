@@ -1,0 +1,7 @@
+{
+    "deno.enablePaths": [
+        "apps/mobile/supabase/functions"
+    ],
+    "deno.unstable": true,
+    "deno.lint": true
+}
