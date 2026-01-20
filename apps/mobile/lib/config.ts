@@ -17,4 +17,3 @@ const getApiUrl = () => {
 };
 
 export const API_URL = getApiUrl();
-console.log(`[Config] API URL: ${API_URL}`);

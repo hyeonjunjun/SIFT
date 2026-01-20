@@ -148,7 +148,7 @@ export async function POST(request: Request) {
                         scrapedData = {
                             title: rawItem.text || "TikTok Video",
                             description: rawItem.text,
-                            imageUrl: rawItem.videoMeta?.coverUrl
+                            imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl
                         };
                     } else if (domain.includes('instagram.com')) {
                         scrapedData = {
