@@ -119,7 +119,7 @@ export async function POST(request: Request) {
         if (domain.includes('tiktok.com')) {
             console.log('[SIFT] Switchboard -> TikTok');
             actorId = 'clockworks/tiktok-scraper';
-            input = { "startUrls": [{ "url": url }] };
+            input = { "postURLs": [url] };
         } else if (domain.includes('instagram.com')) {
             console.log('[SIFT] Switchboard -> Instagram');
             actorId = 'apify/instagram-scraper';
