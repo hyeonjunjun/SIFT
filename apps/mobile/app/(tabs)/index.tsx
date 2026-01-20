@@ -290,11 +290,14 @@ export default function HomeScreen() {
         const shareIntent = intent as any;
         if (hasShareIntent && shareIntent?.value) {
             if (shareIntent.type === 'text' || shareIntent.type === 'weburl') {
-                addToQueue(shareIntent.value);
+                // ACTION: Paste into input (User requested "paste url into text box")
+                // This avoids Auth race conditions on cold start.
+                setManualUrl(shareIntent.value);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 resetShareIntent();
             }
         }
-    }, [hasShareIntent, intent, resetShareIntent, addToQueue]);
+    }, [hasShareIntent, intent, resetShareIntent]);
 
     const handleDeepLink = useCallback((event: { url: string }) => {
         try {
