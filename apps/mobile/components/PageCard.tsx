@@ -6,7 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { COLORS } from '../lib/theme';
+import { COLORS, RADIUS, Theme } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 
@@ -156,17 +156,15 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
             >
                 <View
                     style={{
-                        backgroundColor: 'white',
-                        borderRadius: 12,
+                        backgroundColor: COLORS.paper,      // Pure White on Oatmeal
+                        borderRadius: RADIUS.l,             // Pebble Shape (24)
                         overflow: 'hidden',
-                        borderWidth: 1,
-                        borderColor: '#F3F4F6',
                         marginBottom: 24,
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.03,
-                        shadowRadius: 8,
-                        elevation: 2
+
+                        // Ambient Occlusion Shadow (Soft Cloud)
+                        ...Theme.shadows.soft,
+
+                        // No Border (Clean look)
                     }}
                 >
                     {isPinned && (

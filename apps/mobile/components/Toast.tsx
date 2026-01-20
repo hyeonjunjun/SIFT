@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, StyleSheet, Dimensions } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Check } from 'phosphor-react-native';
+import { COLORS, BORDER, RADIUS } from '../lib/theme';
 
 interface ToastProps {
     message: string;
@@ -44,8 +45,6 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
                 }, time);
                 return () => clearTimeout(timer);
             } else {
-                // Persistent: stay at 0 or 100? Let's say 0 but maybe a slow pulse?
-                // Just keep it visible.
                 progress.value = 0;
             }
         }
@@ -55,29 +54,28 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
 
     return (
         <Animated.View
-            entering={FadeInDown.duration(300).easing(Easing.inOut(Easing.ease))}
-            exiting={FadeOutDown}
-            className="absolute bottom-32 self-center bg-ink px-4 py-3 rounded-md flex-row items-center shadow-lg justify-between overflow-hidden"
-            style={{ maxWidth: '90%', minWidth: action ? 300 : undefined, elevation: 999, zIndex: 99999 }}
+            entering={FadeInDown.duration(400).easing(Easing.out(Easing.cubic))}
+            exiting={FadeOutDown.duration(300)}
+            style={[styles.container, styles.shadow]}
         >
-            <View className="flex-row items-center flex-1">
-                <View className="mr-3">
-                    <Check size={16} color="#FFFFFF" weight="bold" />
+            <View style={styles.content}>
+                <View style={styles.iconContainer}>
+                    <Check size={16} color={COLORS.ink} weight="regular" />
                 </View>
-                <Text className="text-white font-sans text-sm font-medium flex-1">
+                <Text style={styles.message}>
                     {message}
                 </Text>
             </View>
 
             {(action || secondaryAction) && (
-                <View className="ml-4 pl-4 border-l border-white/20 flex-row items-center gap-4">
+                <View style={styles.actions}>
                     {secondaryAction && (
                         <Text
                             onPress={() => {
                                 secondaryAction.onPress();
                                 onHide();
                             }}
-                            className="text-white/70 font-bold text-sm"
+                            style={styles.secondaryAction}
                         >
                             {secondaryAction.label}
                         </Text>
@@ -88,7 +86,7 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
                                 action.onPress();
                                 onHide();
                             }}
-                            className="text-white font-bold text-sm"
+                            style={styles.primaryAction}
                         >
                             {action.label}
                         </Text>
@@ -96,12 +94,92 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
                 </View>
             )}
 
-            {/* Timer Line using absolute positioning */}
-            <View className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 rounded-b-md overflow-hidden">
-                <Animated.View
-                    style={[{ height: '100%', backgroundColor: 'white' }, animatedStyle]}
-                />
-            </View>
+            {/* Timer Line - Subtle at bottom */}
+            {duration > 0 && (
+                <View style={styles.progressContainer}>
+                    <Animated.View
+                        style={[styles.progressBar, animatedStyle]}
+                    />
+                </View>
+            )}
         </Animated.View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        position: 'absolute',
+        bottom: 100, // Elevated position
+        alignSelf: 'center',
+        backgroundColor: COLORS.canvas, // Oatmeal #FDFCF8
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8, // Tight corners
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: '#E5E5E5',
+        marginHorizontal: 20,
+        maxWidth: 400, // Prevent full width on tablet
+        minWidth: 300,
+        zIndex: 99999,
+    },
+    shadow: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 5,
+    },
+    content: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    iconContainer: {
+        marginRight: 10,
+    },
+    message: {
+        color: COLORS.ink, // #1C1C1E
+        fontFamily: 'PlayfairDisplay', // Serif
+        fontSize: 14,
+        flex: 1,
+        includeFontPadding: false,
+    },
+    actions: {
+        marginLeft: 16,
+        paddingLeft: 16,
+        borderLeftWidth: 1,
+        borderLeftColor: '#E5E5E5',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    secondaryAction: {
+        color: COLORS.stone,
+        fontWeight: '600',
+        fontSize: 13,
+        fontFamily: 'System',
+    },
+    primaryAction: {
+        color: COLORS.ink,
+        fontWeight: '700',
+        fontSize: 13,
+        fontFamily: 'System',
+    },
+    progressContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+    },
+    progressBar: {
+        height: '100%',
+        backgroundColor: COLORS.ink, // Dark progress bar
+        opacity: 0.8,
+    }
+});

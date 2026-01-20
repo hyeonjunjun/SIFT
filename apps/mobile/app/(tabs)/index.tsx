@@ -91,9 +91,9 @@ export default function HomeScreen() {
 
     const getGreeting = () => {
         const hour = new Date().getHours();
-        if (hour < 12) return "Good Morning";
-        if (hour < 18) return "Good Afternoon";
-        return "Good Evening";
+        if (hour < 12) return "good morning";
+        if (hour < 18) return "good afternoon";
+        return "good evening";
     };
 
     useEffect(() => {
@@ -520,8 +520,8 @@ export default function HomeScreen() {
                             delayLongPress={2000}
                             style={styles.greetingBox}
                         >
-                            <Typography variant="label">{getGreeting().toUpperCase()}</Typography>
-                            <Typography variant="h1">{user?.email?.split('@')[0] || "Guest"}</Typography>
+                            <Typography variant="label" style={{ fontFamily: 'System', fontWeight: '500', color: COLORS.stone }}>{getGreeting()},</Typography>
+                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
                         </TouchableOpacity>
                     </View>
 

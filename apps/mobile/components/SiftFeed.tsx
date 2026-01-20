@@ -253,18 +253,22 @@ const styles = StyleSheet.create({
     },
     imageWrapper: {
         aspectRatio: 16 / 9, // FORCE ASPECT RATIO
-        borderRadius: 8,
+        borderRadius: RADIUS.l, // Pebble Shape (20+)
         overflow: 'hidden',
-        backgroundColor: '#F2F2F7', // System Gray 6
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(0,0,0,0.1)',
-        // @ts-ignore
-        cornerCurve: 'continuous',
+        backgroundColor: COLORS.subtle, // Soft Highlight
+
+        // Soft Shadow for Image
+        shadowColor: "#5A5A50",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 3,
     },
     fallbackContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: COLORS.paper, // White Fallback
     },
     image: {
         width: '100%',

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
-import { COLORS, SPACING, BORDER } from "../../lib/theme";
+import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
@@ -142,22 +142,24 @@ const styles = StyleSheet.create({
         aspectRatio: 1, // FORCE SQUARE
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: BORDER.hairline, // Apple Standard Border
-        borderColor: '#E5E5E5',
-        borderRadius: 4, // Sharp/Native look
+        backgroundColor: COLORS.paper, // White on Oatmeal
+        borderRadius: RADIUS.l, // Pebble Shape (24)
         padding: 16,
-        // @ts-ignore
-        cornerCurve: 'continuous',
+        // Soft Shadow (Ambient)
+        ...Theme.shadows.soft,
+        // No Border for Cozy look (or extremely subtle if needed)
     },
     tileLabel: {
         marginTop: 12,
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 13,
+        fontWeight: '500', // Reduced weight
         color: COLORS.ink,
+        fontFamily: 'System', // Keep clean sans
     },
     sectionHeader: {
         paddingHorizontal: 20,
         marginBottom: SPACING.s,
+        marginTop: SPACING.m,
     },
     feedWrapper: {
         marginTop: SPACING.s,
@@ -167,12 +169,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         alignSelf: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        backgroundColor: 'rgba(198, 125, 99, 0.08)',
-        borderRadius: 20,
-        // @ts-ignore
-        cornerCurve: 'continuous',
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+        backgroundColor: COLORS.paper, // White Pills
+        borderRadius: RADIUS.pill, // Full Pill
+        ...Theme.shadows.soft,
     },
     emptyState: {
         padding: SPACING.xl,
