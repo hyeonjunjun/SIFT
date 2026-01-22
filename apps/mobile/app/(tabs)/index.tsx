@@ -280,6 +280,15 @@ export default function HomeScreen() {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
             } finally {
                 processingUrls.current.delete(task.url);
+                // Ensure the database knows we are no longer processing if we didn't get success
+                try {
+                    const { data: checkData } = await supabase.from('pages').select('metadata').eq('id', task.pendingId).single();
+                    if (checkData?.metadata?.status === 'pending') {
+                        await supabase.from('pages').update({
+                            metadata: { ...checkData.metadata, status: 'failed' }
+                        }).eq('id', task.pendingId);
+                    }
+                } catch (e) { }
             }
         }
 

@@ -8,6 +8,7 @@ import { ShimmerSkeleton } from './ShimmerSkeleton';
 import { Typography } from './design-system/Typography';
 import { Link as LinkIcon, FileText, Article, Video } from 'phosphor-react-native';
 import Animated, { FadeIn, FadeOut, Layout, Easing } from 'react-native-reanimated';
+import { SiftCardSkeleton } from './SiftCardSkeleton';
 
 
 
@@ -109,6 +110,10 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, mode = 'feed' }: {
 
     const isFallback = !item.image;
 
+    if (item.status === 'pending') {
+        return <SiftCardSkeleton />;
+    }
+
     return (
         <Pressable
             style={styles.cardContainer}
@@ -176,6 +181,7 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, mod
                 height: height,
                 is_pinned: page.is_pinned,
                 summary: page.summary,
+                status: (page.metadata as any)?.status || 'completed',
                 debug_info: (page.metadata as any)?.debug_info
             };
         });

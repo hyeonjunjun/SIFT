@@ -90,8 +90,10 @@ export async function POST(request: Request) {
     let urlForCapture = "";
     let userIdForCapture = "";
 
+    let body: any = {};
+
     try {
-        const body = await request.json();
+        body = await request.json();
         const { url, user_id, mock } = body;
         urlForCapture = url;
         userIdForCapture = user_id;
@@ -275,10 +277,12 @@ export async function POST(request: Request) {
             content: finalSummary,
             tags: finalTags,
             metadata: {
+                ...body.metadata,
                 image_url: ogImage,
                 category: finalCategory,
                 debug_info: debugInfoSnippet,
-                scraped_at: new Date().toISOString()
+                scraped_at: new Date().toISOString(),
+                status: 'completed'
             }
         };
 
@@ -319,12 +323,18 @@ export async function POST(request: Request) {
                 summary: "Content extraction failed, but link saved.",
                 content: "Content extraction failed, but link saved.",
                 tags: ["Link"],
-                metadata: { debug_info: `Ultimate Fallback: ${error.message}` }
+                metadata: {
+                    ...body.metadata,
+                    debug_info: `Ultimate Fallback: ${error.message}`,
+                    status: 'failed'
+                }
             };
 
             let data;
             // Handle body parsing if possible, otherwise use captures
-            const body = await request.clone().json().catch(() => ({}));
+            if (!body.id) {
+                body = await request.clone().json().catch(() => ({}));
+            }
             if (body.id) {
                 const { data: updateData } = await supabaseAdmin
                     .from('pages')
