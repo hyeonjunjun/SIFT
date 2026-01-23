@@ -44,7 +44,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
-      "versionCode": 6,
+      "versionCode": 7,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",

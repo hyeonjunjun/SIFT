@@ -58,6 +58,34 @@ export default function PageDetail() {
         }
     };
 
+    useEffect(() => {
+        if (!id) return;
+
+        const subscription = supabase
+            .channel(`page_detail_${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'pages',
+                    filter: `id=eq.${id}`,
+                },
+                (payload) => {
+                    console.log('[Realtime] Page updated:', payload.new.id);
+                    const newRecord = payload.new as any;
+                    setPage(newRecord);
+                    const fullDoc = newRecord.content || `# ${newRecord.title}\n\n> ${newRecord.summary}`;
+                    setContent(fullDoc);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [id]);
+
     const onRefresh = () => {
         setRefreshing(true);
         fetchPage();
