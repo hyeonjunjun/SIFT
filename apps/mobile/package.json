@@ -7,7 +7,12 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "ship": "eas build --platform ios --profile production --auto-submit",
+    "ship": "eas build --platform all --profile production --auto-submit",
+    "ship:ios": "eas build --platform ios --profile production --auto-submit",
+    "ship:android": "eas build --platform android --profile production --auto-submit",
+    "build": "eas build --platform all --profile production",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:android": "eas build --platform android --profile production",
     "postinstall": "patch-package"
   },
   "dependencies": {
