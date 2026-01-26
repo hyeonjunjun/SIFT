@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+
+// Initialize Google Sign-In globally at module level
+GoogleSignin.configure({
+    iosClientId: '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
+    webClientId: '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
+    offlineAccess: true,
+});
 
 type AuthContextType = {
     user: User | null;

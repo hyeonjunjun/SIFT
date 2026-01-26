@@ -64,3 +64,4 @@ local.properties
 podfile.lock
 DerivedData/
 apps/mobile/Sift.app
+google-service-account.json

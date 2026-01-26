@@ -13,12 +13,6 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Configure Native Google Sign-In
-GoogleSignin.configure({
-    webClientId: '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
-    iosClientId: '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
-});
-
 const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
