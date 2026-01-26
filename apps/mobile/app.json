@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "56",
+      "buildNumber": "57",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -30,7 +30,8 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "sift"
+              "sift",
+              "com.googleusercontent.apps.240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2"
             ]
           }
         ],
@@ -44,7 +45,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
-      "versionCode": 11,
+      "versionCode": 12,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
@@ -97,7 +98,8 @@
         }
       ],
       "expo-apple-authentication",
-      "./plugins/withShareExtensionExclusions.js"
+      "./plugins/withShareExtensionExclusions.js",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "router": {},

@@ -9,10 +9,15 @@ import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 WebBrowser.maybeCompleteAuthSession();
+
+// Configure Native Google Sign-In
+GoogleSignin.configure({
+    webClientId: '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
+    iosClientId: '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
+});
 
 const { width } = Dimensions.get('window');
 
@@ -38,39 +43,41 @@ export default function LoginScreen() {
         if (error) {
             Alert.alert('Login Failed', error.message);
             setLoading(false);
-        } else {
-            // Redirection handled by _layout
         }
-    };
-
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
-        androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
-    });
-
-    React.useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token } = response.params;
-            handleGoogleSignInWithToken(id_token);
-        }
-    }, [response]);
-
-    const handleGoogleSignInWithToken = async (idToken: string) => {
-        setLoading(true);
-        const { error } = await supabase.auth.signInWithIdToken({
-            provider: 'google',
-            token: idToken,
-        });
-        if (error) Alert.alert('Google Auth Failed', error.message);
-        setLoading(false);
     };
 
     const handleGoogleSignIn = async () => {
-        if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS && !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID) {
-            Alert.alert('Configuration Missing', 'Google Client IDs are not configured in the environment.');
-            return;
+        setLoading(true);
+        try {
+            await GoogleSignin.hasPlayServices();
+            const response = await GoogleSignin.signIn();
+
+            // Native library structure differs slightly by version
+            const idToken = response.data?.idToken || (response as any).idToken;
+
+            if (idToken) {
+                const { error } = await supabase.auth.signInWithIdToken({
+                    provider: 'google',
+                    token: idToken,
+                });
+                if (error) throw error;
+            } else {
+                throw new Error('No ID token received from Google');
+            }
+        } catch (error: any) {
+            setLoading(false);
+            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+                // user cancelled the login flow
+            } else if (error.code === statusCodes.IN_PROGRESS) {
+                // operation (e.g. sign in) is in progress already
+            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                Alert.alert('Google Play Services', 'Play services not available or outdated');
+            } else {
+                Alert.alert('Google Auth Failed', error.message);
+            }
+        } finally {
+            setLoading(false);
         }
-        promptAsync();
     };
 
     const handleAppleSignIn = async () => {
