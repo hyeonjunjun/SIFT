@@ -29,7 +29,7 @@ export default function SupportPage() {
                     <div>
                         <h3 className="font-medium text-gray-900">How do I save a link?</h3>
                         <p className="text-gray-600 mt-1">
-                            You can save a link by tapping "Share" in any app and selecting "Sift" from the share sheet, or by copying a URL and opening the Sift app.
+                            You can save a link by tapping &quot;Share&quot; in any app and selecting &quot;Sift&quot; from the share sheet, or by copying a URL and opening the Sift app.
                         </p>
                     </div>
 
@@ -43,7 +43,7 @@ export default function SupportPage() {
                     <div>
                         <h3 className="font-medium text-gray-900">How do I delete my account?</h3>
                         <p className="text-gray-600 mt-1">
-                            Please email us at the address above with the subject "Account Deletion" and we will process your request immediately.
+                            Please email us at the address above with the subject &quot;Account Deletion&quot; and we will process your request immediately.
                         </p>
                     </div>
                 </div>

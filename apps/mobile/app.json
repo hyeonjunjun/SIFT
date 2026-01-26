@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "54",
+      "buildNumber": "55",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -44,7 +44,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
-      "versionCode": 9,
+      "versionCode": 11,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
@@ -93,7 +93,7 @@
           "android": {
             "disableCreateTask": false
           },
-          "appleTeamId": "PT39848THT"
+          "appleTeamId": "8DA3BAGA32"
         }
       ],
       "expo-apple-authentication",

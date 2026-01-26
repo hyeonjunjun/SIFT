@@ -18,7 +18,7 @@ export default function PrivacyPolicy() {
                             <strong>Authentication Data:</strong> We use Supabase for secure login. This includes your email address and a unique user identifier.
                         </li>
                         <li>
-                            <strong>Curated Content:</strong> When you "Sift" a link, our system processes the URL to extract structured data (like recipes or routines). This content is stored in your private database.
+                            <strong>Curated Content:</strong> When you &quot;Sift&quot; a link, our system processes the URL to extract structured data (like recipes or routines). This content is stored in your private database.
                         </li>
                         <li>
                             <strong>Service Providers:</strong> We utilize OpenAI to analyze and structure your content and Apify for web scraping. These providers do not use your data for their own purposes beyond providing the requested service to Sift.

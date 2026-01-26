@@ -145,7 +145,7 @@ function ChaosVisual({ isActive }: { isActive: boolean }) {
     );
 }
 
-function AnimatedShape({ delay, x, y, size, color }: any) {
+function AnimatedShape({ delay, x, y, size, color }: { delay: number; x: number; y: number; size: number; color: string }) {
     const sv = useSharedValue(0);
     React.useEffect(() => {
         sv.value = withDelay(delay, withRepeat(
@@ -160,12 +160,12 @@ function AnimatedShape({ delay, x, y, size, color }: any) {
         transform: [
             { translateX: x },
             { translateY: y },
-            { scale: sv.value } // Pulsing chaos
-        ],
+            { scale: sv.value }
+        ] as any,
         opacity: sv.value
     }));
 
-    return <Animated.View style={[style as any, { position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }]} />;
+    return <Animated.View style={[style, { position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }]} />;
 }
 
 function SiftVisual({ isActive }: { isActive: boolean }) {
@@ -197,7 +197,6 @@ function SiftVisual({ isActive }: { isActive: boolean }) {
 
 function ActionVisual({ isActive }: { isActive: boolean }) {
     const tapScale = useSharedValue(1);
-    const containerOpacity = useSharedValue(1); // Added for container opacity
 
     React.useEffect(() => {
         if (isActive) {
@@ -208,20 +207,13 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
                 ),
                 -1, true
             );
-            containerOpacity.value = withTiming(1, { duration: 300 }); // Fade in container
         } else {
-            tapScale.value = 1; // Reset scale when not active
-            containerOpacity.value = withTiming(0, { duration: 300 }); // Fade out container
+            tapScale.value = 1;
         }
     }, [isActive]);
 
     const tapStyle = useAnimatedStyle(() => ({
         transform: [{ scale: tapScale.value }]
-    }));
-
-    const containerStyle = useAnimatedStyle(() => ({
-        opacity: containerOpacity.value,
-        backgroundColor: COLORS.canvas, // This line was added
     }));
 
     return (
@@ -230,7 +222,7 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
                 <ShareNetwork size={30} color={COLORS.accent} />
             </View>
             <Animated.View style={[tapStyle, styles.fingerTap]} />
-            <Typography variant="caption" className="mt-4 text-ink-secondary" style={{ color: COLORS.stone }}>
+            <Typography variant="caption" style={{ color: COLORS.stone, marginTop: 16 }}>
                 Tap 'Share' in any app
             </Typography>
         </View>

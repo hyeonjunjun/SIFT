@@ -15,14 +15,14 @@ import { Typography } from "../components/design-system/Typography";
 import { TouchableOpacity, Text } from "react-native";
 
 // Basic Error Boundary
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
     constructor(props: any) {
         super(props);
-        this.state = { hasError: false };
+        this.state = { hasError: false, error: null };
     }
 
-    static getDerivedStateFromError() {
-        return { hasError: true };
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
     }
 
     componentDidCatch(error: any, errorInfo: any) {
@@ -34,11 +34,16 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
             return (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: COLORS.canvas }}>
                     <Text style={{ fontSize: 32, fontWeight: '700', color: COLORS.ink, marginBottom: 10 }}>Something went wrong.</Text>
-                    <Text style={{ fontSize: 16, textAlign: 'center', color: COLORS.stone, marginBottom: 20 }}>
+                    <Text style={{ fontSize: 16, textAlign: 'center', color: COLORS.stone, marginBottom: 10 }}>
                         Sift encountered an unexpected error.
                     </Text>
+                    {this.state.error && (
+                        <Text style={{ fontSize: 12, color: '#EF4444', fontFamily: 'System', marginBottom: 20, textAlign: 'center' }}>
+                            {this.state.error.message}
+                        </Text>
+                    )}
                     <TouchableOpacity
-                        onPress={() => this.setState({ hasError: false })}
+                        onPress={() => this.setState({ hasError: false, error: null })}
                         style={{ backgroundColor: COLORS.ink, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}
                     >
                         <Text style={{ color: COLORS.paper, fontWeight: '600' }}>Try Again</Text>
@@ -142,17 +147,6 @@ function RootLayoutNav() {
         );
     }
 
-    if (showOnboarding) {
-        return (
-            <Onboarding
-                onComplete={() => {
-                    setShowOnboarding(false);
-                    SecureStore.setItemAsync('has_launched', 'true');
-                }}
-            />
-        );
-    }
-
     return (
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.canvas }}>
             <ImageBackground
@@ -161,11 +155,20 @@ function RootLayoutNav() {
                 imageStyle={{ opacity: 0.04 }}
                 resizeMode="repeat"
             >
-                <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
-                    <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-                </Stack>
+                {showOnboarding ? (
+                    <Onboarding
+                        onComplete={() => {
+                            setShowOnboarding(false);
+                            SecureStore.setItemAsync('has_launched', 'true');
+                        }}
+                    />
+                ) : (
+                    <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                        <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
+                        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+                    </Stack>
+                )}
             </ImageBackground>
         </GestureHandlerRootView>
     );

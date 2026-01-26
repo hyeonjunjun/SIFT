@@ -7,7 +7,6 @@ export const TEXT: Record<string, TextStyle> = {
         fontFamily: 'PlayfairDisplay_700Bold',
         fontSize: 34,
         color: COLORS.ink,
-        fontWeight: '700',
     },
     h2: {
         fontFamily: 'System',
