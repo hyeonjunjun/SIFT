@@ -19,6 +19,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useShareIntent } from 'expo-share-intent';
 import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
+import { useImageSifter } from "../../hooks/useImageSifter";
+import { ActionSheetIOS, Platform } from "react-native";
 
 interface Page {
     id: string;
@@ -59,6 +61,11 @@ export default function HomeScreen() {
     const [currentStep, setCurrentStep] = useState(0);
     const router = useRouter();
     const params = useLocalSearchParams();
+
+    // Visual Sifter Hook
+    const { pickAndSift, loading: isSiftingImage } = useImageSifter(() => {
+        onRefresh(); // Refresh feed after successful upload
+    });
 
     // Local Settings Cache
     const [hapticsEnabled, setHapticsEnabled] = useState(true);
@@ -493,16 +500,45 @@ export default function HomeScreen() {
         }
     };
 
+
     const handleSubmitUrl = () => {
         if (manualUrl.trim()) {
             const url = manualUrl.trim();
-
-            // We removed auto-sift, so we MUST allow manual submission of the pre-filled link.
-            // Duplicate check is now handled by processingUrls set inside addToQueue.
-
             Keyboard.dismiss();
             addToQueue(url);
             setManualUrl("");
+        } else {
+            // If empty, show options for adding content
+            showAddMenu();
+        }
+    };
+
+    const showAddMenu = () => {
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: ['Cancel', 'Scan from Gallery', 'Paste Link'],
+                    cancelButtonIndex: 0,
+                    tintColor: COLORS.ink,
+                },
+                (buttonIndex) => {
+                    if (buttonIndex === 1) {
+                        pickAndSift();
+                    } else if (buttonIndex === 2) {
+                        inputRef.current?.focus();
+                    }
+                }
+            );
+        } else {
+            Alert.alert(
+                "Add to Sift",
+                "How would you like to add content?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Scan from Gallery", onPress: pickAndSift },
+                    { text: "Paste Link", onPress: () => inputRef.current?.focus() }
+                ]
+            );
         }
     };
 
@@ -583,8 +619,13 @@ export default function HomeScreen() {
                         <TouchableOpacity
                             style={styles.submitButton}
                             onPress={handleSubmitUrl}
+                            disabled={isSiftingImage}
                         >
-                            <Plus size={20} color={manualUrl ? COLORS.ink : COLORS.stone} weight="bold" />
+                            {isSiftingImage ? (
+                                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: COLORS.ink, borderTopColor: 'transparent' }} />
+                            ) : (
+                                <Plus size={20} color={COLORS.ink} weight="bold" />
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>

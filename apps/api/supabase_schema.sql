@@ -16,9 +16,29 @@ create table public.pages (
 -- Enable RLS (Security)
 alter table public.pages enable row level security;
 
--- Update policy: Only owner can see their own sifts
-create policy "Users can see their own sifts"
+-- RLS Policies for pages
+-- 1. Select: Allow any authenticated user (so shared links work)
+create policy "Authenticated users can read sifts"
   on public.pages for select
+  to authenticated
+  using (true);
+
+-- 2. Insert: Allow authenticated users to create their own sifts
+create policy "Authenticated users can create sifts"
+  on public.pages for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+-- 3. Update: Only the owner can edit
+create policy "Users can update their own sifts"
+  on public.pages for update
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- 4. Delete: Only the owner can delete
+create policy "Users can delete their own sifts"
+  on public.pages for delete
+  to authenticated
   using (auth.uid() = user_id);
 
 -- Create waitlist table

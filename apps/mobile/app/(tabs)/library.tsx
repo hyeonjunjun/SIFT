@@ -1,13 +1,15 @@
-import React, { useCallback, useState, useMemo } from 'react';
+import * as React from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, Theme } from '../../lib/theme';
-import { MagnifyingGlass } from 'phosphor-react-native';
+import { MagnifyingGlass, CaretLeft } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
+import SiftFeed from '../../components/SiftFeed';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -27,20 +29,22 @@ interface SiftItem {
 }
 
 const CATEGORIES = [
-    { name: 'FOOD', icon: 'Cooking' },
-    { name: 'SKINCARE', icon: 'Aesthetics' },
-    { name: 'AESTHETICS', icon: 'Aesthetics' },
-    { name: 'INTEL', icon: 'Intel' },
+    { name: 'COOKING', icon: 'Cooking' },
     { name: 'BAKING', icon: 'Baking' },
+    { name: 'TECH', icon: 'Tech' },
     { name: 'HEALTH', icon: 'Health' },
+    { name: 'LIFESTYLE', icon: 'Lifestyle' },
+    { name: 'PROFESSIONAL', icon: 'Professional' },
 ];
 
 export default function LibraryScreen() {
     const { user } = useAuth();
+    const router = useRouter();
     const [pages, setPages] = useState<SiftItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
     const fetchPages = useCallback(async () => {
         try {
@@ -91,6 +95,14 @@ export default function LibraryScreen() {
         });
     }, [pages]);
 
+    const activeCategoryPages = useMemo(() => {
+        if (!activeCategory) return [];
+        return pages.filter(p =>
+            p.tags?.some(t => t.toUpperCase() === activeCategory) ||
+            p.metadata?.category?.toUpperCase() === activeCategory
+        );
+    }, [pages, activeCategory]);
+
     const filteredCategories = categoryData.filter(cat => {
         if (!searchQuery.trim()) return true;
         return cat.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -108,42 +120,72 @@ export default function LibraryScreen() {
         <ScreenWrapper edges={['top']}>
             {/* 1. EDITORIAL HEADER */}
             <View style={styles.header}>
-                <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR COLLECTION</Typography>
-                <Typography variant="h1" style={styles.serifTitle}>Library</Typography>
+                {activeCategory ? (
+                    <TouchableOpacity
+                        onPress={() => setActiveCategory(null)}
+                        style={styles.backButton}
+                    >
+                        <CaretLeft size={28} color={COLORS.ink} />
+                    </TouchableOpacity>
+                ) : null}
+                <View style={activeCategory ? { marginLeft: 12 } : {}}>
+                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>
+                        {activeCategory ? `CATEGORY / ${activeCategory}` : 'YOUR COLLECTION'}
+                    </Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>
+                        {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
+                    </Typography>
+                </View>
             </View>
 
-            {/* 2. SEARCH INPUT (PAPER FIELD) */}
-            <View style={styles.searchContainer}>
-                <MagnifyingGlass size={18} color={COLORS.stone} weight="regular" />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search your mind..."
-                    placeholderTextColor={COLORS.stone}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    autoCapitalize="none"
-                />
-            </View>
+            {/* 2. SEARCH INPUT (Only in main view) */}
+            {!activeCategory && (
+                <View style={styles.searchContainer}>
+                    <MagnifyingGlass size={18} color={COLORS.stone} weight="regular" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search your mind..."
+                        placeholderTextColor={COLORS.stone}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        autoCapitalize="none"
+                    />
+                </View>
+            )}
 
-            {/* 3. BENTO GRID */}
+            {/* 3. BENTO GRID or SIFT FEED */}
             <ScrollView
-                contentContainerStyle={styles.gridContainer}
+                contentContainerStyle={activeCategory ? styles.feedContainer : styles.gridContainer}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
             >
-                <View style={styles.bentoWrapper}>
-                    {filteredCategories.map((cat) => (
-                        <Tile key={cat.name} cat={cat} />
-                    ))}
+                {activeCategory ? (
+                    <View style={styles.feedWrapper}>
+                        <SiftFeed
+                            pages={activeCategoryPages as any}
+                            loading={loading}
+                        />
+                        {activeCategoryPages.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
+                            </View>
+                        )}
+                    </View>
+                ) : (
+                    <View style={styles.bentoWrapper}>
+                        {filteredCategories.map((cat) => (
+                            <Tile key={cat.name} cat={cat} onPress={() => setActiveCategory(cat.name)} />
+                        ))}
 
-                    {filteredCategories.length === 0 && (
-                        <View style={styles.emptyState}>
-                            <Typography variant="body" color={COLORS.stone}>No categories match your search.</Typography>
-                        </View>
-                    )}
-                </View>
+                        {filteredCategories.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <Typography variant="body" color={COLORS.stone}>No categories match your search.</Typography>
+                            </View>
+                        )}
+                    </View>
+                )}
             </ScrollView>
         </ScreenWrapper>
     );
@@ -158,13 +200,14 @@ interface CategoryData {
     latestImage?: string;
 }
 
-const Tile = ({ cat }: { cat: CategoryData }) => {
+const Tile = ({ cat, onPress }: { cat: CategoryData, onPress: () => void }) => {
     const isAnchor = cat.count > 0; // Use count to determine if we show contents
 
     if (isAnchor) {
         return (
             <TouchableOpacity
                 activeOpacity={0.9}
+                onPress={onPress}
                 style={[styles.tile, styles.anchorTile, { height: cat.height }]}
             >
                 {cat.latestImage ? (
@@ -191,6 +234,7 @@ const Tile = ({ cat }: { cat: CategoryData }) => {
     return (
         <TouchableOpacity
             activeOpacity={0.7}
+            onPress={onPress}
             style={[styles.tile, styles.emptyTile, { height: cat.height }]}
         >
             <View style={styles.emptyContent}>
@@ -210,9 +254,14 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.canvas,
     },
     header: {
+        flexDirection: 'row',
         paddingHorizontal: 20,
         marginTop: SPACING.m,
         marginBottom: 20,
+        alignItems: 'center',
+    },
+    backButton: {
+        padding: 4,
     },
     smallCapsLabel: {
         color: COLORS.stone,
@@ -242,6 +291,12 @@ const styles = StyleSheet.create({
     gridContainer: {
         paddingHorizontal: 20,
         paddingBottom: 160,
+    },
+    feedContainer: {
+        paddingBottom: 160,
+    },
+    feedWrapper: {
+        flex: 1,
     },
     bentoWrapper: {
         flexDirection: 'row',

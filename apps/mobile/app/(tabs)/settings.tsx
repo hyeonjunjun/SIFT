@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
+import * as React from 'react';
+import { useState, useCallback } from "react";
+import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash } from 'phosphor-react-native';
@@ -100,12 +101,32 @@ export default function ProfileScreen() {
                 }
             >
                 {/* 1. USER HEADER */}
-                <View style={styles.header}>
-                    <Typography variant="label" style={styles.smallCapsLabel}>PRO MEMBER</Typography>
-                    <Typography variant="h1" style={styles.serifTitle}>{user?.email ? user.email.split('@')[0] : "Guest"}</Typography>
-
-                    <View style={styles.profileMeta}>
-                        <Typography variant="subhead">{user?.email || "Guest"}</Typography>
+                <View style={styles.profileHeader}>
+                    <View style={styles.avatarContainer}>
+                        {user?.user_metadata?.avatar_url ? (
+                            <Image
+                                source={{ uri: user.user_metadata.avatar_url }}
+                                style={styles.avatarImage}
+                            />
+                        ) : (
+                            <Typography variant="h1" color={COLORS.stone}>
+                                {(user?.user_metadata?.display_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+                            </Typography>
+                        )}
+                    </View>
+                    <View style={styles.profileInfo}>
+                        <Typography variant="label" style={styles.smallCapsLabel}>PRO MEMBER</Typography>
+                        <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
+                            {user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User'}
+                        </Typography>
+                        <Typography variant="body" color={COLORS.stone} numberOfLines={2} style={styles.userBio}>
+                            {user?.user_metadata?.bio || 'No bio yet.'}
+                        </Typography>
+                        {user?.user_metadata?.username && (
+                            <Typography variant="label" color={COLORS.stone} style={styles.handle}>
+                                @{user.user_metadata.username.toLowerCase()}
+                            </Typography>
+                        )}
                     </View>
                 </View>
 
@@ -115,25 +136,25 @@ export default function ProfileScreen() {
                         icon={UserIcon}
                         title="IDENTITY"
                         width={(SCREEN_WIDTH - 52) / 2}
-                        onPress={() => { }} // Could show user email/details
+                        onPress={() => router.push('/settings/identity')}
                     />
                     <DossierTile
                         icon={Shield}
                         title="PRIVACY"
                         width={(SCREEN_WIDTH - 52) / 2}
-                        onPress={() => Linking.openURL('https://sift-rho.vercel.app/privacy')}
+                        onPress={() => router.push('/settings/privacy')}
                     />
                     <DossierTile
                         icon={Bell}
                         title="ALERTS"
                         width={(SCREEN_WIDTH - 52) / 2}
-                        onPress={() => Linking.openSettings()}
+                        onPress={() => router.push('/settings/alerts')}
                     />
                     <DossierTile
                         icon={ClockCounterClockwise}
                         title="HISTORY"
                         width={(SCREEN_WIDTH - 52) / 2}
-                        onPress={() => router.push('/archive')}
+                        onPress={() => router.push('/settings/history')}
                     />
                 </View>
 
@@ -210,20 +231,48 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: 160,
     },
-    header: {
+    profileHeader: {
+        flexDirection: 'row',
         paddingHorizontal: 20,
         marginTop: SPACING.m,
         marginBottom: 24,
+        alignItems: 'center',
+    },
+    avatarContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: COLORS.paper,
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: COLORS.separator,
+        ...Theme.shadows.soft,
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+    },
+    profileInfo: {
+        flex: 1,
+        marginLeft: 16,
     },
     smallCapsLabel: {
         color: COLORS.stone,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     serifTitle: {
+        fontSize: 24,
         marginBottom: 4,
     },
-    profileMeta: {
+    userBio: {
+        fontSize: 14,
         marginTop: 2,
+    },
+    handle: {
+        marginTop: 4,
+        letterSpacing: 0.5,
     },
     gridContainer: {
         paddingHorizontal: 20,
