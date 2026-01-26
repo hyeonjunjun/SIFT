@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
-import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash } from 'phosphor-react-native';
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -130,43 +130,33 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* 2. DOSSIER ACTIONS (2x2 GRID) */}
-                <View style={styles.gridContainer}>
-                    <DossierTile
-                        icon={UserIcon}
-                        title="IDENTITY"
-                        width={(SCREEN_WIDTH - 52) / 2}
+                {/* 2. ACCOUNT SECTION */}
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label">Account</Typography>
+                </View>
+                <View style={styles.settingsBox}>
+                    <SettingsRow
+                        label="Identity"
+                        description="Profile, Avatar, and Bio"
                         onPress={() => router.push('/settings/identity')}
+                        icon={<UserIcon size={20} color={COLORS.ink} />}
                     />
-                    <DossierTile
-                        icon={Shield}
-                        title="PRIVACY"
-                        width={(SCREEN_WIDTH - 52) / 2}
-                        onPress={() => router.push('/settings/privacy')}
-                    />
-                    <DossierTile
-                        icon={Bell}
-                        title="ALERTS"
-                        width={(SCREEN_WIDTH - 52) / 2}
-                        onPress={() => router.push('/settings/alerts')}
-                    />
-                    <DossierTile
-                        icon={ClockCounterClockwise}
-                        title="HISTORY"
-                        width={(SCREEN_WIDTH - 52) / 2}
+                    <SettingsRow
+                        label="History"
+                        description="Activity log and recent actions"
                         onPress={() => router.push('/settings/history')}
+                        icon={<ClockCounterClockwise size={20} color={COLORS.ink} />}
                     />
                 </View>
 
-                {/* 3. SETTINGS ROWS */}
+                {/* 3. PREFERENCES SECTION */}
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Preferences</Typography>
                 </View>
-
                 <View style={styles.settingsBox}>
                     <SettingsRow
                         label="Haptic Feedback"
-                        description="Physical response to actions"
+                        description="Tactile response to actions"
                         type="toggle"
                         value={hapticsEnabled}
                         onValueChange={toggleHaptics}
@@ -185,6 +175,23 @@ export default function ProfileScreen() {
                         description="Purge local storage and refresh"
                         onPress={clearCache}
                         icon={<Trash size={20} color={COLORS.ink} />}
+                    />
+                </View>
+
+                {/* 4. LEGAL & SUPPORT SECTION */}
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label">Legal & Support</Typography>
+                </View>
+                <View style={styles.settingsBox}>
+                    <SettingsRow
+                        label="Privacy Policy"
+                        onPress={() => router.push('/settings/privacy')}
+                        icon={<Shield size={20} color={COLORS.ink} />}
+                    />
+                    <SettingsRow
+                        label="Terms of Service"
+                        onPress={() => Linking.openURL('https://sift-rho.vercel.app/terms')}
+                        icon={<FileText size={20} color={COLORS.ink} />}
                     />
                 </View>
 
@@ -213,19 +220,6 @@ export default function ProfileScreen() {
     );
 }
 
-const DossierTile = ({ icon: Icon, title, width, onPress }: { icon: any, title: string, width: number, onPress?: () => void }) => (
-    <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
-            styles.tile,
-            { width },
-            pressed && { backgroundColor: '#F2F2F7', transform: [{ scale: 0.98 }] }
-        ]}
-    >
-        <Icon size={32} color={COLORS.ink} weight="regular" />
-        <Typography variant="label" style={styles.tileLabel}>{title}</Typography>
-    </Pressable>
-);
 
 const styles = StyleSheet.create({
     scrollContent: {
@@ -316,15 +310,18 @@ const styles = StyleSheet.create({
         marginTop: SPACING.s,
     },
     logoutButton: {
-        marginTop: 60,
+        marginTop: 40,
+        marginBottom: 20,
         flexDirection: 'row',
         alignItems: 'center',
         alignSelf: 'center',
-        paddingVertical: 16,
+        paddingVertical: 14,
         paddingHorizontal: 32,
-        backgroundColor: COLORS.paper, // White Pills
-        borderRadius: RADIUS.pill, // Full Pill
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.pill,
         ...Theme.shadows.soft,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
     },
     emptyState: {
         padding: SPACING.xl,

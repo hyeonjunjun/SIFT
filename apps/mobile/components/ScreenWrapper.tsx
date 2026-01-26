@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../lib/theme';
+import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 
 interface Props {
     children: React.ReactNode;
@@ -12,6 +14,14 @@ interface Props {
 
 export default function ScreenWrapper({ children, style, contentStyle, edges = ['top'] }: Props) {
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation();
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        });
+        return unsubscribe;
+    }, [navigation]);
 
     const safeStyle = {
         paddingTop: edges.includes('top') ? insets.top : 0,

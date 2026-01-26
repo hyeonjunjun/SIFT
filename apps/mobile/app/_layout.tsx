@@ -7,12 +7,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Theme, COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
-import { View, ImageBackground, StyleSheet } from "react-native";
+import { View, ImageBackground, StyleSheet, TouchableOpacity, Text } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
-import { TouchableOpacity, Text } from "react-native";
 
 // Basic Error Boundary
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {

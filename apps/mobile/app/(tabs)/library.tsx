@@ -1,15 +1,16 @@
 import * as React from 'react';
 import { useCallback, useState, useMemo } from 'react';
-import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
+import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, Theme } from '../../lib/theme';
-import { MagnifyingGlass, CaretLeft } from 'phosphor-react-native';
+import { MagnifyingGlass, CaretLeft, DotsThree } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import SiftFeed from '../../components/SiftFeed';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -40,11 +41,25 @@ const CATEGORIES = [
 export default function LibraryScreen() {
     const { user } = useAuth();
     const router = useRouter();
+    const navigation = useNavigation();
     const [pages, setPages] = useState<SiftItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+    // Tab Bar Reset Logic
+    React.useEffect(() => {
+        const unsubscribe = navigation.addListener('tabPress' as any, (e: any) => {
+            if (activeCategory) {
+                // If in a category, reset to main catalog
+                setActiveCategory(null);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, activeCategory]);
 
     const fetchPages = useCallback(async () => {
         try {
@@ -128,7 +143,7 @@ export default function LibraryScreen() {
                         <CaretLeft size={28} color={COLORS.ink} />
                     </TouchableOpacity>
                 ) : null}
-                <View style={activeCategory ? { marginLeft: 12 } : {}}>
+                <View style={[styles.titleGroup, activeCategory ? { marginLeft: 12 } : {}]}>
                     <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>
                         {activeCategory ? `CATEGORY / ${activeCategory}` : 'YOUR COLLECTION'}
                     </Typography>
@@ -136,6 +151,14 @@ export default function LibraryScreen() {
                         {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
                     </Typography>
                 </View>
+                {activeCategory && (
+                    <TouchableOpacity
+                        style={styles.manageButton}
+                        onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
+                    >
+                        <DotsThree size={28} color={COLORS.ink} />
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* 2. SEARCH INPUT (Only in main view) */}
@@ -269,6 +292,12 @@ const styles = StyleSheet.create({
     },
     serifTitle: {
         fontSize: 34,
+    },
+    titleGroup: {
+        flex: 1,
+    },
+    manageButton: {
+        padding: 4,
     },
     searchContainer: {
         flexDirection: 'row',

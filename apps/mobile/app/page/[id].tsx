@@ -16,6 +16,7 @@ import {
     Platform,
     Share
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { CaretLeft, DotsThree, Export, NotePencil, Trash } from 'phosphor-react-native';
@@ -234,7 +235,13 @@ export default function PageDetail() {
 
             {/* Standardized Header */}
             <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
+                <TouchableOpacity
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.back();
+                    }}
+                    style={styles.navButton}
+                >
                     <CaretLeft size={28} color={COLORS.ink} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleBox}>
