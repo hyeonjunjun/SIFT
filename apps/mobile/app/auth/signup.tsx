@@ -80,7 +80,7 @@ export default function SignUpScreen() {
                         {loading ? (
                             <ActivityIndicator color={COLORS.paper} />
                         ) : (
-                            <Typography variant="body" color={COLORS.paper}>Create Account</Typography>
+                            <Typography variant="label" style={{ color: COLORS.paper, fontWeight: '600' }}>CREATE ACCOUNT</Typography>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -91,7 +91,7 @@ export default function SignUpScreen() {
                     style={styles.footer}
                 >
                     <Typography variant="body" color={COLORS.stone}>
-                        Already have an account? <Typography variant="label" color={COLORS.ink}>Sign In</Typography>
+                        Already have an account? <Typography variant="body" color={COLORS.ink} style={{ fontWeight: '600' }}>Sign In</Typography>
                     </Typography>
                 </TouchableOpacity>
             </View>
@@ -102,7 +102,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: 40,
+        paddingHorizontal: 32,
         justifyContent: 'center',
         backgroundColor: COLORS.canvas,
     },
@@ -111,46 +111,46 @@ const styles = StyleSheet.create({
         marginBottom: 60,
     },
     logoText: {
-        fontSize: 64,
-        fontFamily: 'PlayfairDisplay_700Bold',
+        fontSize: 72,
+        fontFamily: 'PlayfairDisplay',
+        fontWeight: '400',
         letterSpacing: -3,
         color: COLORS.ink,
-        lineHeight: 72,
+        lineHeight: 80,
     },
     smallCapsLabel: {
         fontSize: 10,
-        letterSpacing: 2,
-        marginTop: -5,
+        letterSpacing: 2.5,
+        marginTop: -10,
+        fontFamily: 'System',
+        fontWeight: '500',
     },
     form: {
         width: '100%',
-        gap: 12,
+        gap: 16,
     },
     inputContainer: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 2,
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
+        ...Theme.shadows.soft,
     },
     input: {
-        padding: 16,
+        paddingVertical: 16,
+        paddingHorizontal: 20,
         fontSize: 17,
         color: COLORS.ink,
-        fontFamily: 'PlayfairDisplay_600SemiBold',
-        fontStyle: 'italic',
+        fontFamily: 'System',
     },
     signUpButton: {
         backgroundColor: COLORS.ink,
-        height: 54,
-        borderRadius: 12,
+        height: 56,
+        borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 8,
+        ...Theme.shadows.soft,
     },
     buttonDisabled: {
         opacity: 0.7,

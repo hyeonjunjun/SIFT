@@ -60,6 +60,31 @@ export default function HomeScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
+    // Local Settings Cache
+    const [hapticsEnabled, setHapticsEnabled] = useState(true);
+    const [autoClipboardEnabled, setAutoClipboardEnabled] = useState(true);
+
+    const loadSettings = useCallback(async () => {
+        try {
+            const h = await AsyncStorage.getItem('settings_haptics');
+            const c = await AsyncStorage.getItem('settings_clipboard');
+            if (h !== null) setHapticsEnabled(h === 'true');
+            if (c !== null) setAutoClipboardEnabled(c === 'true');
+        } catch (e) { }
+    }, []);
+
+    useEffect(() => {
+        loadSettings();
+    }, [loadSettings]);
+
+    // Haptic Helper
+    const triggerHaptic = useCallback((type: 'selection' | 'impact' | 'notification', style?: Haptics.ImpactFeedbackStyle | Haptics.NotificationFeedbackType) => {
+        if (!hapticsEnabled) return;
+        if (type === 'selection') Haptics.selectionAsync();
+        else if (type === 'impact') Haptics.impactAsync(style as Haptics.ImpactFeedbackStyle || Haptics.ImpactFeedbackStyle.Light);
+        else if (type === 'notification') Haptics.notificationAsync(style as Haptics.NotificationFeedbackType || Haptics.NotificationFeedbackType.Success);
+    }, [hapticsEnabled]);
+
     useEffect(() => {
         if (params.siftUrl) {
             const url = decodeURIComponent(params.siftUrl as string);
@@ -100,7 +125,7 @@ export default function HomeScreen() {
         const sub = DeviceEventEmitter.addListener('scrollToTopDashboard', () => {
             if (scrollViewRef.current) {
                 scrollViewRef.current.scrollTo({ y: 0, animated: true });
-                Haptics.selectionAsync();
+                triggerHaptic('selection');
             }
         });
         return () => sub.remove();
@@ -170,6 +195,8 @@ export default function HomeScreen() {
     }, [user?.id]);
 
     const checkClipboard = useCallback(async () => {
+        if (!autoClipboardEnabled) return; // RESPECT SETTING
+
         try {
             // ONLY check clipboard when explicitly focused or fresh launch
             // We rely on AppState change for this.
@@ -268,7 +295,7 @@ export default function HomeScreen() {
             }
         }));
 
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
 
         // PHASE 2: Sequential Processing (Series)
         for (const task of tasks) {
@@ -302,7 +329,7 @@ export default function HomeScreen() {
                 // ACTION: Paste into input (User requested "paste url into text box")
                 // This avoids Auth race conditions on cold start.
                 setManualUrl(shareIntent.value);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 resetShareIntent();
             }
         }
@@ -359,7 +386,7 @@ export default function HomeScreen() {
                         if (prev.find(p => p.id === newRecord.id)) return prev;
                         return [newRecord as Page, ...prev];
                     });
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
                     setPages((prev) => prev.map(p => p.id === newRecord.id ? { ...p, ...newRecord } : p));
@@ -379,16 +406,16 @@ export default function HomeScreen() {
     const onScroll = useCallback((event: any) => {
         const y = event.nativeEvent.contentOffset.y;
         if (Math.abs(y - lastScrollY.current) > 100) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Light);
             lastScrollY.current = y;
         }
-    }, []);
+    }, [triggerHaptic]);
 
     const onRefresh = useCallback(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
         setRefreshing(true);
         fetchPages();
-    }, [fetchPages]);
+    }, [fetchPages, triggerHaptic]);
 
     const deletePage = async (id: string) => {
         if (!user?.id) {
@@ -414,7 +441,7 @@ export default function HomeScreen() {
 
             setPages((prev) => prev.filter((p) => p.id !== id));
             showToast("Moved to Archive");
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Archive] Exception:', error);
             showToast(error.message.includes('JSON') ? "Invalid Server Response" : `Archive failed: ${error.message}`);
@@ -440,7 +467,7 @@ export default function HomeScreen() {
 
             setPages((prev) => prev.filter((p) => p.id !== id));
             showToast("Permanently Deleted");
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Delete] Exception:', error);
             showToast(error.message.includes('JSON') ? "Invalid Server Response" : `Delete failed: ${error.message}`);
@@ -460,7 +487,7 @@ export default function HomeScreen() {
             if (!page) return;
             const { error } = await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
             if (error) throw error;
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error) {
             showToast("Action failed");
         }
@@ -527,7 +554,7 @@ export default function HomeScreen() {
                                         }
                                     ]
                                 );
-                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                triggerHaptic('notification', Haptics.NotificationFeedbackType.Warning);
                             }}
                             delayLongPress={2000}
                             style={styles.greetingBox}

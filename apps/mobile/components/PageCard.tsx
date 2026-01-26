@@ -134,7 +134,7 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
         return (
             <Pressable
                 onPress={handleDelete}
-                style={{ height: '100%', maxHeight: 300, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: 16, marginBottom: 12, marginLeft: 8 }}
+                style={{ height: '100%', maxHeight: 300, backgroundColor: COLORS.danger, justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: RADIUS.m, marginBottom: 12, marginLeft: 8 }}
             >
                 <Trash size={24} color="white" />
             </Pressable>
@@ -176,30 +176,30 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
                     {imageUrl && (
                         <Image
                             source={imageError ? require('../assets/covers/gastronomy.jpg') : { uri: imageUrl }}
-                            style={{ width: '100%', height: 180, backgroundColor: '#F9FAFB' }}
+                            style={{ width: '100%', height: 180, backgroundColor: COLORS.subtle }}
                             resizeMode="cover"
                             onError={() => setImageError(true)}
                         />
                     )}
 
                     <View style={{ padding: 16, paddingTop: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, opacity: 0.7 }}>
-                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#9CA3AF', letterSpacing: 2 }}>
-                                {domain.toUpperCase() || 'SIFT'}
-                            </Text>
-                        </View>
+                        <Typography variant="label" color="stone" style={{ marginBottom: 4, letterSpacing: 1 }}>
+                            {domain.toUpperCase() || 'SIFT'}
+                        </Typography>
 
-                        <Text style={{ fontSize: 18, fontWeight: '500', color: '#111827', lineHeight: 24, letterSpacing: -0.5, marginBottom: 6 }}>
+                        <Typography variant="h3" color="ink" style={{ marginBottom: 6 }}>
                             {displayTitle}
-                        </Text>
+                        </Typography>
 
                         {showSummary && (
-                            <Text
-                                style={{ fontSize: 14, color: '#6B7280', lineHeight: 20 }}
+                            <Typography
+                                variant="body"
+                                color="stone"
                                 numberOfLines={2}
+                                style={{ opacity: 0.9 }}
                             >
                                 {gist}
-                            </Text>
+                            </Typography>
                         )}
                     </View>
                 </View>

@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     serifTitle: {
-        fontSize: 32,
+        fontSize: 34, // Matches h1 definition but within local styles context if needed
     },
     scrollContent: {
         paddingTop: 20,

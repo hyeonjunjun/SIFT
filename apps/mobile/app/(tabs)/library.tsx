@@ -114,11 +114,11 @@ export default function LibraryScreen() {
 
             {/* 2. SEARCH INPUT (PAPER FIELD) */}
             <View style={styles.searchContainer}>
-                <MagnifyingGlass size={18} color="#999" weight="regular" />
+                <MagnifyingGlass size={18} color={COLORS.stone} weight="regular" />
                 <TextInput
                     style={styles.searchInput}
                     placeholder="Search your mind..."
-                    placeholderTextColor="#999"
+                    placeholderTextColor={COLORS.stone}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     autoCapitalize="none"
@@ -170,7 +170,7 @@ const Tile = ({ cat }: { cat: CategoryData }) => {
                 {cat.latestImage ? (
                     <Image source={{ uri: cat.latestImage }} style={StyleSheet.absoluteFill} />
                 ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#EFEFEF' }]} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.subtle }]} />
                 )}
                 <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -195,7 +195,7 @@ const Tile = ({ cat }: { cat: CategoryData }) => {
         >
             <View style={styles.emptyContent}>
                 <Typography variant="label" color={COLORS.stone} style={styles.emptyLabel}>{cat.name}</Typography>
-                <Typography variant="body" color="#D1D1D1" style={styles.startSifting}>Start Sifting</Typography>
+                <Typography variant="body" color={COLORS.stone} style={[styles.startSifting, { opacity: 0.5 }]}>Start Sifting</Typography>
             </View>
         </TouchableOpacity>
     );
@@ -227,11 +227,11 @@ const styles = StyleSheet.create({
         marginHorizontal: 20,
         marginBottom: 24,
         paddingHorizontal: 16,
-        height: 44, // HIG Standard
-        backgroundColor: '#FFFFFF',
-        borderRadius: 8,
+        height: 48, // Slightly taller
+        backgroundColor: COLORS.paper,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(0,0,0,0.1)',
+        borderColor: COLORS.separator,
     },
     searchInput: {
         flex: 1,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: '#FF453A',
+        backgroundColor: COLORS.danger,
         marginRight: 4,
     },
     newTagText: {

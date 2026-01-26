@@ -2,21 +2,30 @@ import React, { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
-import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise } from 'phosphor-react-native';
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth } from "../../lib/auth";
+import { SettingsRow } from "../../components/design-system/SettingsRow";
+import * as Linking from 'expo-linking';
+import * as Haptics from 'expo-haptics';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
     const { user, signOut } = useAuth();
+    const router = useRouter();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Settings State
+    const [hapticsEnabled, setHapticsEnabled] = useState(true);
+    const [autoClipboard, setAutoClipboard] = useState(true);
 
     const fetchSavedPages = useCallback(async () => {
         try {
@@ -36,16 +45,50 @@ export default function ProfileScreen() {
         }
     }, [user?.id]);
 
+    const loadSettings = useCallback(async () => {
+        try {
+            const h = await AsyncStorage.getItem('settings_haptics');
+            const c = await AsyncStorage.getItem('settings_clipboard');
+            if (h !== null) setHapticsEnabled(h === 'true');
+            if (c !== null) setAutoClipboard(c === 'true');
+        } catch (e) {
+            console.error(e);
+        }
+    }, []);
+
     useFocusEffect(
         useCallback(() => {
             fetchSavedPages();
-        }, [fetchSavedPages])
+            loadSettings();
+        }, [fetchSavedPages, loadSettings])
     );
 
     const onRefresh = () => {
         setRefreshing(true);
         fetchSavedPages();
     }
+
+    const toggleHaptics = async (value: boolean) => {
+        setHapticsEnabled(value);
+        await AsyncStorage.setItem('settings_haptics', String(value));
+        if (value) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
+
+    const toggleClipboard = async (value: boolean) => {
+        setAutoClipboard(value);
+        await AsyncStorage.setItem('settings_clipboard', String(value));
+        if (hapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
+
+    const clearCache = async () => {
+        try {
+            await AsyncStorage.removeItem('sift_pages_cache');
+            if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // Optional: Alert user
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     return (
         <ScreenWrapper edges={['top']}>
@@ -68,13 +111,63 @@ export default function ProfileScreen() {
 
                 {/* 2. DOSSIER ACTIONS (2x2 GRID) */}
                 <View style={styles.gridContainer}>
-                    <DossierTile icon={UserIcon} title="IDENTITY" width={(SCREEN_WIDTH - 52) / 2} />
-                    <DossierTile icon={Shield} title="PRIVACY" width={(SCREEN_WIDTH - 52) / 2} />
-                    <DossierTile icon={Bell} title="ALERTS" width={(SCREEN_WIDTH - 52) / 2} />
-                    <DossierTile icon={ClockCounterClockwise} title="HISTORY" width={(SCREEN_WIDTH - 52) / 2} />
+                    <DossierTile
+                        icon={UserIcon}
+                        title="IDENTITY"
+                        width={(SCREEN_WIDTH - 52) / 2}
+                        onPress={() => { }} // Could show user email/details
+                    />
+                    <DossierTile
+                        icon={Shield}
+                        title="PRIVACY"
+                        width={(SCREEN_WIDTH - 52) / 2}
+                        onPress={() => Linking.openURL('https://sift-rho.vercel.app/privacy')}
+                    />
+                    <DossierTile
+                        icon={Bell}
+                        title="ALERTS"
+                        width={(SCREEN_WIDTH - 52) / 2}
+                        onPress={() => Linking.openSettings()}
+                    />
+                    <DossierTile
+                        icon={ClockCounterClockwise}
+                        title="HISTORY"
+                        width={(SCREEN_WIDTH - 52) / 2}
+                        onPress={() => router.push('/archive')}
+                    />
                 </View>
 
-                {/* 3. SAVED ITEMS SECTION */}
+                {/* 3. SETTINGS ROWS */}
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label">Preferences</Typography>
+                </View>
+
+                <View style={styles.settingsBox}>
+                    <SettingsRow
+                        label="Haptic Feedback"
+                        description="Physical response to actions"
+                        type="toggle"
+                        value={hapticsEnabled}
+                        onValueChange={toggleHaptics}
+                        icon={<Vibrate size={20} color={COLORS.ink} />}
+                    />
+                    <SettingsRow
+                        label="Auto-grab Clipboard"
+                        description="Scan for links on app launch"
+                        type="toggle"
+                        value={autoClipboard}
+                        onValueChange={toggleClipboard}
+                        icon={<ClipboardText size={20} color={COLORS.ink} />}
+                    />
+                    <SettingsRow
+                        label="Clear Cache"
+                        description="Purge local storage and refresh"
+                        onPress={clearCache}
+                        icon={<Trash size={20} color={COLORS.ink} />}
+                    />
+                </View>
+
+                {/* 4. SAVED ITEMS SECTION */}
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Pinned Artifacts</Typography>
                 </View>
@@ -99,12 +192,13 @@ export default function ProfileScreen() {
     );
 }
 
-const DossierTile = ({ icon: Icon, title, width }: { icon: any, title: string, width: number }) => (
+const DossierTile = ({ icon: Icon, title, width, onPress }: { icon: any, title: string, width: number, onPress?: () => void }) => (
     <Pressable
+        onPress={onPress}
         style={({ pressed }) => [
             styles.tile,
             { width },
-            pressed && { backgroundColor: '#F2F2F7' }
+            pressed && { backgroundColor: '#F2F2F7', transform: [{ scale: 0.98 }] }
         ]}
     >
         <Icon size={32} color={COLORS.ink} weight="regular" />
@@ -155,6 +249,14 @@ const styles = StyleSheet.create({
         fontWeight: '500', // Reduced weight
         color: COLORS.ink,
         fontFamily: 'System', // Keep clean sans
+    },
+    settingsBox: {
+        marginHorizontal: 20,
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.m,
+        overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
     },
     sectionHeader: {
         paddingHorizontal: 20,

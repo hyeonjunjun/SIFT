@@ -8,6 +8,11 @@ import ScreenWrapper from '../../components/ScreenWrapper';
 import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 
@@ -38,7 +43,38 @@ export default function LoginScreen() {
         }
     };
 
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+        androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+    });
+
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { id_token } = response.params;
+            handleGoogleSignInWithToken(id_token);
+        }
+    }, [response]);
+
+    const handleGoogleSignInWithToken = async (idToken: string) => {
+        setLoading(true);
+        const { error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: idToken,
+        });
+        if (error) Alert.alert('Google Auth Failed', error.message);
+        setLoading(false);
+    };
+
+    const handleGoogleSignIn = async () => {
+        if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS && !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID) {
+            Alert.alert('Configuration Missing', 'Google Client IDs are not configured in the environment.');
+            return;
+        }
+        promptAsync();
+    };
+
     const handleAppleSignIn = async () => {
+        if (loading) return;
         try {
             const rawNonce = Math.random().toString(36).substring(2, 11);
             const hashedNonce = await Crypto.digestStringAsync(
@@ -55,6 +91,7 @@ export default function LoginScreen() {
             });
 
             if (credential.identityToken) {
+                setLoading(true);
                 const { error } = await supabase.auth.signInWithIdToken({
                     provider: 'apple',
                     token: credential.identityToken,
@@ -64,10 +101,12 @@ export default function LoginScreen() {
                 if (error) {
                     Alert.alert('Apple Auth Failed', error.message);
                 }
+                setLoading(false);
             } else {
                 throw new Error('No identity token received.');
             }
         } catch (e: any) {
+            setLoading(false);
             if (e.code === 'ERR_CANCELED') {
                 // handle cancel
             } else {
@@ -120,7 +159,7 @@ export default function LoginScreen() {
                         {loading ? (
                             <ActivityIndicator color={COLORS.paper} />
                         ) : (
-                            <Typography variant="bodyMedium" color={COLORS.paper}>Sign In</Typography>
+                            <Typography variant="label" style={{ color: COLORS.paper, fontWeight: '600' }}>SIGN IN</Typography>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -138,13 +177,17 @@ export default function LoginScreen() {
                         style={styles.socialButtonApple}
                         onPress={handleAppleSignIn}
                     >
-                        <AppleLogo size={22} color={COLORS.paper} weight="fill" />
-                        <Typography variant="label" color={COLORS.paper} style={styles.socialText}>Continue with Apple</Typography>
+                        <AppleLogo size={20} color={COLORS.paper} weight="fill" />
+                        <Typography variant="label" style={{ color: COLORS.paper, marginLeft: 10 }}>CONTINUE WITH APPLE</Typography>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.socialButtonGoogle}>
-                        <GoogleLogo size={22} color={COLORS.ink} weight="bold" />
-                        <Typography variant="label" color={COLORS.ink} style={styles.socialText}>Continue with Google</Typography>
+                    <TouchableOpacity
+                        style={styles.socialButtonGoogle}
+                        onPress={handleGoogleSignIn}
+                        disabled={loading}
+                    >
+                        <GoogleLogo size={20} color={COLORS.ink} weight="bold" />
+                        <Typography variant="label" style={{ color: COLORS.ink, marginLeft: 10 }}>CONTINUE WITH GOOGLE</Typography>
                     </TouchableOpacity>
                 </View>
 
@@ -154,7 +197,7 @@ export default function LoginScreen() {
                     style={styles.footer}
                 >
                     <Typography variant="body" color={COLORS.stone}>
-                        New here? <Typography variant="bodyMedium" color={COLORS.ink}>Create an account</Typography>
+                        New here? <Typography variant="body" color={COLORS.ink} style={{ fontWeight: '600' }}>Create an account</Typography>
                     </Typography>
                 </TouchableOpacity>
             </View>
@@ -165,7 +208,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: 40,
+        paddingHorizontal: 32,
         justifyContent: 'center',
         backgroundColor: COLORS.canvas,
     },
@@ -174,46 +217,46 @@ const styles = StyleSheet.create({
         marginBottom: 60,
     },
     logoText: {
-        fontSize: 72,
-        fontFamily: 'PlayfairDisplay_700Bold',
-        letterSpacing: -3,
+        fontSize: 84,
+        fontFamily: 'PlayfairDisplay', // Consistent with Home
+        fontWeight: '400',
+        letterSpacing: -4,
         color: COLORS.ink,
-        lineHeight: 80,
+        lineHeight: 90,
     },
     smallCapsLabel: {
         fontSize: 10,
-        letterSpacing: 2,
-        marginTop: -5,
+        letterSpacing: 3,
+        marginTop: -10,
+        fontFamily: 'System',
+        fontWeight: '500',
     },
     form: {
         width: '100%',
-        gap: 12,
+        gap: 16,
     },
     inputContainer: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 2,
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
+        ...Theme.shadows.soft,
     },
     input: {
-        padding: 16,
+        paddingVertical: 16,
+        paddingHorizontal: 20,
         fontSize: 17,
         color: COLORS.ink,
-        fontFamily: 'PlayfairDisplay_600SemiBold',
-        fontStyle: 'italic',
+        fontFamily: 'System',
     },
     loginButton: {
         backgroundColor: COLORS.ink,
-        height: 54,
-        borderRadius: 12,
+        height: 56,
+        borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 8,
+        ...Theme.shadows.soft,
     },
     buttonDisabled: {
         opacity: 0.7,
@@ -225,14 +268,15 @@ const styles = StyleSheet.create({
     },
     divider: {
         flex: 1,
-        height: 1,
-        backgroundColor: 'rgba(0,0,0,0.05)',
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: COLORS.separator,
     },
     dividerText: {
         paddingHorizontal: SPACING.m,
-        letterSpacing: 1,
+        letterSpacing: 2,
         fontSize: 10,
-        color: '#999',
+        fontFamily: 'System',
+        fontWeight: '600',
     },
     socialContainer: {
         gap: 12,
@@ -241,22 +285,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#000000',
         height: 52,
-        borderRadius: 26,
+        borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
+        ...Theme.shadows.soft,
     },
     socialButtonGoogle: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.paper,
         height: 52,
-        borderRadius: 26,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
+        borderRadius: RADIUS.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    socialText: {
-        marginLeft: 10,
+        ...Theme.shadows.soft,
     },
     footer: {
         marginTop: 60,
