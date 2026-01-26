@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Dimensions } from 'react-native';
+import { View, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Dimensions, NativeModules } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
-import * as WebBrowser from 'expo-web-browser';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+// Native modules handled conditionally below
+let statusCodes: any = {};
+if (NativeModules.RNGoogleSignin) {
+    try {
+        statusCodes = require('@react-native-google-signin/google-signin').statusCodes;
+    } catch (e) { }
+}
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -43,8 +48,17 @@ export default function LoginScreen() {
     const handleGoogleSignIn = async () => {
         setLoading(true);
         try {
-            await GoogleSignin.hasPlayServices();
+            const isAvailable = !!NativeModules.RNGoogleSignin;
+            if (!isAvailable) {
+                Alert.alert('Google Auth', 'Google Sign-In is not supported in this environment (e.g. Expo Go). Please use a development build.');
+                setLoading(false);
+                return;
+            }
+
+            const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
             const response = await GoogleSignin.signIn();
+            // ... (rest of the code)
 
             // Native library structure differs slightly by version
             const idToken = response.data?.idToken || (response as any).idToken;
@@ -82,6 +96,13 @@ export default function LoginScreen() {
                 Crypto.CryptoDigestAlgorithm.SHA256,
                 rawNonce
             );
+
+            const AppleAuthentication = require('expo-apple-authentication');
+            const isAvailable = await AppleAuthentication.isAvailableAsync().catch(() => false);
+            if (!isAvailable) {
+                Alert.alert('Apple Auth', 'Apple Sign-In is not supported in this environment. Please use a physical device or development build.');
+                return;
+            }
 
             const credential = await AppleAuthentication.signInAsync({
                 requestedScopes: [

@@ -1,14 +1,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { NativeModules, Platform } from 'react-native';
 
-// Initialize Google Sign-In globally at module level
-GoogleSignin.configure({
-    iosClientId: '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
-    webClientId: '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
-    offlineAccess: true,
-});
+// Initialize Google Sign-In safely
+let GoogleSignin: any;
+const isGoogleSigninAvailable = !!NativeModules.RNGoogleSignin;
+
+if (isGoogleSigninAvailable) {
+    try {
+        GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+        GoogleSignin.configure({
+            iosClientId: '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
+            webClientId: '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
+            offlineAccess: true,
+        });
+    } catch (e) {
+        console.warn('Google Sign-In initialization failed:', e);
+    }
+} else {
+    console.log('Google Sign-In is not available in this environment');
+}
 
 type AuthContextType = {
     user: User | null;
