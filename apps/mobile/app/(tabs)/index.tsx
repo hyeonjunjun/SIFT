@@ -1,11 +1,11 @@
-import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert } from "react-native";
+import { ActionSheetIOS, Platform, View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Books, Fingerprint } from 'phosphor-react-native';
+import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Books, Fingerprint, ImageSquare, XCircle } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
@@ -15,12 +15,15 @@ import { HeroCarousel } from "../../components/home/HeroCarousel";
 import { FilterBar } from "../../components/home/FilterBar";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
+import { QuickTagEditor } from "../../components/QuickTagEditor";
+import { EmptyState } from "../../components/design-system/EmptyState";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useShareIntent } from 'expo-share-intent';
 import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
-import { ActionSheetIOS, Platform } from "react-native";
+import Fuse from "fuse.js";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Page {
     id: string;
@@ -41,9 +44,36 @@ import { useAuth } from "../../lib/auth";
 
 export default function HomeScreen() {
     const { user } = useAuth(); // Get authenticated user
-    const [pages, setPages] = useState<Page[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const { data: pages = [], isLoading: loading, refetch } = useQuery({
+        queryKey: ['pages', user?.id],
+        queryFn: async () => {
+            if (!user) return [];
+            console.log(`[Fetch] Fetching pages for user: ${user.id}`);
+            const { data, error } = await supabase
+                .from('pages')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('is_archived', false)
+                .order('is_pinned', { ascending: false })
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('[Fetch] Supabase Error:', error);
+                throw error;
+            }
+            return data as Page[];
+        },
+        enabled: !!user,
+    });
+
+    // Quick Tag Modal State
+    const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
+    const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
+    const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
     const [toastMessage, setToastMessage] = useState("");
     const [toastVisible, setToastVisible] = useState(false);
     const [toastAction, setToastAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
@@ -58,7 +88,6 @@ export default function HomeScreen() {
     const [activeFilter, setActiveFilter] = useState("All");
     const [queue, setQueue] = useState<string[]>([]);
     const [isProcessingQueue, setIsProcessingQueue] = useState(false);
-    const [currentStep, setCurrentStep] = useState(0);
     const router = useRouter();
     const params = useLocalSearchParams();
 
@@ -100,16 +129,37 @@ export default function HomeScreen() {
         }
     }, [params.siftUrl]);
 
-    const allTags = ALLOWED_TAGS;
-    const filteredPages = activeFilter === 'All'
-        ? pages
-        : pages
-            .filter(p => p.tags?.some(t => t && t.toLowerCase() === activeFilter.toLowerCase()))
-            .sort((a, b) => {
-                const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
-            });
+    // Fuse.js Fuzzy Search Setup
+    const fuse = useMemo(() => {
+        return new Fuse(pages, {
+            keys: ['title', 'summary', 'tags', 'url'],
+            threshold: 0.35,
+            ignoreLocation: true
+        });
+    }, [pages]);
+
+    const filteredPages = useMemo(() => {
+        let results = pages;
+
+        // 1. Apply Search Filter
+        if (searchQuery.trim()) {
+            results = fuse.search(searchQuery).map(r => r.item);
+        }
+
+        // 2. Apply Category Filter
+        if (activeFilter !== 'All') {
+            results = results.filter(p => p.tags?.some(t => t && t.toLowerCase() === activeFilter.toLowerCase()));
+        }
+
+        // 3. Sort (Pinned first, then date)
+        return results.sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return timeB - timeA;
+        });
+    }, [pages, searchQuery, activeFilter, fuse]);
 
     const [toastDuration, setToastDuration] = useState(3000);
 
@@ -140,45 +190,7 @@ export default function HomeScreen() {
 
 
 
-    const fetchPages = useCallback(async (force = false) => {
-        if (!user) return;
-        try {
-            // 1. Try to load from cache first for instant UI
-            if (pages.length === 0 && !force) {
-                const cachedData = await AsyncStorage.getItem('sift_pages_cache');
-                if (cachedData) {
-                    setPages(JSON.parse(cachedData));
-                }
-            }
 
-            // 2. Fetch from Supabase
-            console.log(`[Fetch] Fetching pages for user: ${user.id}`);
-            const { data, error } = await supabase
-                .from('pages')
-                .select('*')
-                .eq('user_id', user.id)
-                .eq('is_archived', false)
-                .order('is_pinned', { ascending: false })
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('[Fetch] Supabase Error:', error);
-                showToast(`Fetch Error: ${error.message}`);
-            }
-
-            if (data) {
-                console.log(`[Fetch] Success. Received ${data.length} pages.`);
-                setPages(data as Page[]);
-                // 3. Update cache
-                await AsyncStorage.setItem('sift_pages_cache', JSON.stringify(data));
-            }
-        } catch (e) {
-            console.error('Exception fetching pages:', e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [user?.id]); // Removed pages.length to break loop
 
     const addToQueue = useCallback((urlOrText: string) => {
         if (!urlOrText || typeof urlOrText !== 'string') return;
@@ -378,7 +390,6 @@ export default function HomeScreen() {
     }, [checkClipboard]);
 
     useEffect(() => {
-        fetchPages();
         const subscription = supabase
             .channel('public:pages')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, (payload) => {
@@ -389,17 +400,14 @@ export default function HomeScreen() {
 
                 if (payload.eventType === 'INSERT') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
-                    setPages((prev) => {
-                        if (prev.find(p => p.id === newRecord.id)) return prev;
-                        return [newRecord as Page, ...prev];
-                    });
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
-                    setPages((prev) => prev.map(p => p.id === newRecord.id ? { ...p, ...newRecord } : p));
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
                 } else if (payload.eventType === 'DELETE') {
                     if (!oldRecord || !oldRecord.id) return;
-                    setPages((prev) => prev.filter(p => p.id !== oldRecord.id));
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
                 }
             })
             .subscribe();
@@ -407,7 +415,7 @@ export default function HomeScreen() {
         return () => {
             subscription.unsubscribe();
         };
-    }, [fetchPages, user?.id]);
+    }, [user?.id, queryClient]);
 
     const lastScrollY = useRef(0);
     const onScroll = useCallback((event: any) => {
@@ -418,13 +426,14 @@ export default function HomeScreen() {
         }
     }, [triggerHaptic]);
 
-    const onRefresh = useCallback(() => {
+    const onRefresh = useCallback(async () => {
         triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
         setRefreshing(true);
-        fetchPages();
-    }, [fetchPages, triggerHaptic]);
+        await queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        setRefreshing(false);
+    }, [user?.id, queryClient, triggerHaptic]);
 
-    const deletePage = async (id: string) => {
+    const handleArchive = async (id: string) => {
         if (!user?.id) {
             showToast("Error: Identity not verified");
             return;
@@ -446,7 +455,7 @@ export default function HomeScreen() {
                 throw new Error(`Server returned ${response.status}: ${text || 'Unknown archive error'}`);
             }
 
-            setPages((prev) => prev.filter((p) => p.id !== id));
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
             showToast("Moved to Archive");
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
@@ -455,7 +464,7 @@ export default function HomeScreen() {
         }
     };
 
-    const deletePageForever = async (id: string) => {
+    const handleDeleteForever = async (id: string) => {
         if (!user?.id) {
             showToast("Error: Identity not verified");
             return;
@@ -472,7 +481,7 @@ export default function HomeScreen() {
                 throw new Error(`Server returned ${response.status}: ${text || 'Unknown delete error'}`);
             }
 
-            setPages((prev) => prev.filter((p) => p.id !== id));
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
             showToast("Permanently Deleted");
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
@@ -481,15 +490,9 @@ export default function HomeScreen() {
         }
     };
 
-    const togglePin = async (id: string) => {
+    const handlePin = async (id: string) => {
         try {
-            setPages(prev => {
-                const updated = prev.map(p => p.id === id ? { ...p, is_pinned: !p.is_pinned } : p);
-                return updated.sort((a, b) => {
-                    if (a.is_pinned === b.is_pinned) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                    return (a.is_pinned ? -1 : 1);
-                });
-            });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
             const page = pages.find(p => p.id === id);
             if (!page) return;
             const { error } = await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
@@ -539,6 +542,32 @@ export default function HomeScreen() {
                     { text: "Paste Link", onPress: () => inputRef.current?.focus() }
                 ]
             );
+        }
+    };
+
+    // Handle Edit Tags from Feed
+    const handleEditTagsTrigger = (id: string, currentTags: string[]) => {
+        setSelectedSiftId(id);
+        setSelectedSiftTags(currentTags);
+        setQuickTagModalVisible(true);
+    };
+
+    const handleSaveTags = async (newTags: string[]) => {
+        if (!selectedSiftId) return;
+
+        // Optimistic update could be added here, but for now just invalidate
+        try {
+            const { error } = await supabase
+                .from('pages')
+                .update({ tags: newTags })
+                .eq('id', selectedSiftId);
+
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            showToast("Tags updated");
+        } catch (error: any) {
+            console.error("Error updating tags:", error);
+            showToast("Failed to update tags");
         }
     };
 
@@ -600,9 +629,13 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* 2. INPUT BLOCK (SPOTLIGHT STYLE) */}
                     <View style={styles.inputContainer}>
-                        <Typography variant="label" style={styles.inputLabel}>SIFT</Typography>
+                        <TouchableOpacity
+                            onPress={pickAndSift}
+                            style={styles.imageUploadIcon}
+                        >
+                            <ImageSquare size={22} color={COLORS.stone} weight="regular" />
+                        </TouchableOpacity>
                         <TextInput
                             ref={inputRef}
                             style={styles.textInput}
@@ -630,14 +663,35 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
+                {/* 2. SEARCH BAR */}
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchInputWrapper}>
+                        <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Find a sift..."
+                            placeholderTextColor={COLORS.stone}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => { setSearchQuery(""); triggerHaptic('selection'); }}>
+                                <XCircle size={18} color={COLORS.stone} weight="fill" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+
                 {/* 3. HERO CAROUSEL */}
-                {activeFilter === 'All' && <HeroCarousel pages={pages} />}
+                {activeFilter === 'All' && searchQuery === '' && <HeroCarousel pages={pages} />}
 
                 {/* 4. FILTER BAR */}
                 <FilterBar
                     filters={[
                         { id: 'All', text: 'All' },
-                        ...allTags.map(tag => ({ id: tag, text: tag }))
+                        ...ALLOWED_TAGS.map(tag => ({ id: tag, text: tag }))
                     ]}
                     activeFilter={activeFilter}
                     onSelect={setActiveFilter}
@@ -645,20 +699,32 @@ export default function HomeScreen() {
 
                 {/* 5. FEED */}
                 <SiftFeed
-                    pages={filteredPages}
+                    pages={filteredPages as any}
+                    onPin={handlePin}
+                    onArchive={handleArchive}
+                    onDeleteForever={handleDeleteForever}
+                    onEditTags={handleEditTagsTrigger}
                     loading={loading}
-                    onArchive={deletePage}
-                    onPin={togglePin}
-                    onDeleteForever={deletePageForever}
                 />
 
-                {filteredPages.length === 0 && (
-                    <View style={styles.emptyState}>
-                        <Typography variant="h3" color={COLORS.ink} style={{ marginBottom: 4 }}>Time to Sift</Typography>
-                        <Typography variant="body" color={COLORS.stone}>Paste a link above to start.</Typography>
-                    </View>
+                {filteredPages.length === 0 && !loading && (
+                    <EmptyState
+                        type={searchQuery ? 'no-results' : 'no-sifts'}
+                        title={searchQuery ? "No sifts found" : "Time to Sift"}
+                        description={searchQuery ? `We couldn't find any results for "${searchQuery}"` : "Paste a link above or scan a photo to start building your library."}
+                        actionLabel={searchQuery ? "Clear Search" : "Browse Categories"}
+                        onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
+                    />
                 )}
             </ScrollView>
+
+            {/* 6. MODALS */}
+            <QuickTagEditor
+                visible={quickTagModalVisible}
+                onClose={() => setQuickTagModalVisible(false)}
+                initialTags={selectedSiftTags}
+                onSave={handleSaveTags}
+            />
 
             <Toast
                 message={toastMessage}
@@ -694,9 +760,9 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: '#E5E5E5',
     },
-    inputLabel: {
-        color: COLORS.stone,
-        marginRight: 10,
+    imageUploadIcon: {
+        marginRight: 12,
+        padding: 4,
     },
     textInput: {
         flex: 1,
@@ -711,11 +777,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    emptyState: {
-        marginTop: 48,
+    searchContainer: {
+        paddingHorizontal: 20,
+        marginBottom: SPACING.m,
+    },
+    searchInputWrapper: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: SPACING.xl,
+        backgroundColor: COLORS.subtle,
+        borderRadius: RADIUS.m,
+        paddingHorizontal: 12,
+        height: 40,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        fontFamily: 'System',
+        color: COLORS.ink,
     }
 });
 

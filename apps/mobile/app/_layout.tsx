@@ -7,11 +7,30 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Theme, COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
-import { View, ImageBackground, StyleSheet, TouchableOpacity, Text } from "react-native";
+import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
+import { ThemeProvider, useTheme } from "../context/ThemeContext";
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: 2,
+            staleTime: 1000 * 60 * 5, // 5 minutes
+            gcTime: 1000 * 60 * 60 * 24, // 24 hours
+        },
+    },
+});
+
+const asyncStoragePersister = createAsyncStoragePersister({
+    storage: AsyncStorage,
+});
 
 // Basic Error Boundary
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -71,6 +90,7 @@ function RootLayoutNav() {
     const segments = useSegments();
     const router = useRouter();
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+    const { colors } = useTheme();
 
     const [fontsLoaded] = useFonts({
         PlayfairDisplay_700Bold,
@@ -147,11 +167,11 @@ function RootLayoutNav() {
     }
 
     return (
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.canvas }}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
             <ImageBackground
                 source={require("../assets/noise.png")}
                 style={StyleSheet.absoluteFill}
-                imageStyle={{ opacity: 0.04 }}
+                imageStyle={{ opacity: colors.canvas === '#121211' ? 0.08 : 0.04 }}
                 resizeMode="repeat"
             >
                 {showOnboarding ? (
@@ -176,9 +196,16 @@ function RootLayoutNav() {
 export default function RootLayout() {
     return (
         <ErrorBoundary>
-            <AuthProvider>
-                <RootLayoutNav />
-            </AuthProvider>
+            <ThemeProvider>
+                <PersistQueryClientProvider
+                    client={queryClient}
+                    persistOptions={{ persister: asyncStoragePersister }}
+                >
+                    <AuthProvider>
+                        <RootLayoutNav />
+                    </AuthProvider>
+                </PersistQueryClientProvider>
+            </ThemeProvider>
         </ErrorBoundary>
     );
 }

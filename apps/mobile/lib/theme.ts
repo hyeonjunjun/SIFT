@@ -1,17 +1,31 @@
 import { Platform, StyleSheet } from "react-native";
 
 // Cozy Design System (Digital Hygge)
-export const COLORS = {
-    ink: '#333330',       // Soft Charcoal (Primary Text) - Never pure black
+export const LIGHT_COLORS = {
+    ink: '#333330',       // Soft Charcoal (Primary Text)
     paper: '#FFFFFF',     // Pure White (Cards/Surfaces)
     canvas: '#FAFAF9',    // Warm Stone/Oatmeal (Backgrounds)
     stone: '#8E8E8A',     // Warm Grey (Secondary Text)
     separator: '#E5E5E0', // Organic Grey (Dividers)
     subtle: '#F2F2F0',    // Soft Highlight
-    accent: '#6E7C94',    // Slate Blue (Earthenware Accent)
-    danger: '#C47F65',    // Clay Red (Soft warning)
+    accent: '#6E7C94',    // Slate Blue
+    danger: '#C47F65',    // Clay Red
     success: '#8DA399',   // Sage Green
 };
+
+export const DARK_COLORS = {
+    ink: '#F2F2F0',       // Off-White (Primary Text)
+    paper: '#1C1C1A',     // Deep Charcoal (Cards/Surfaces)
+    canvas: '#121211',    // Midnight (Backgrounds)
+    stone: '#8E8E8A',     // Warm Grey (Secondary Text)
+    separator: '#2C2C2A', // Dark Dividers
+    subtle: '#252523',    // Dark Highlight
+    accent: '#8D9DB6',    // Lighter Slate Blue
+    danger: '#D99A84',    // Lighter Clay Red
+    success: '#A5B7AF',   // Lighter Sage Green
+};
+
+export const COLORS = LIGHT_COLORS; // Default export for backwards compatibility
 
 export const SPACING = {
     xs: 4,

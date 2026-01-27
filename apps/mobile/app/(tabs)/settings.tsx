@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image } from "react-native";
+import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight } from 'phosphor-react-native';
@@ -13,6 +13,10 @@ import { SettingsRow } from "../../components/design-system/SettingsRow";
 import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../context/ThemeContext";
+import { useQueryClient } from '@tanstack/react-query';
+
+
 
 
 
@@ -20,6 +24,8 @@ export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
     const { user, signOut } = useAuth();
     const router = useRouter();
+    const { theme, setTheme, colors } = useTheme();
+    const queryClient = useQueryClient();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -84,8 +90,9 @@ export default function ProfileScreen() {
     const clearCache = async () => {
         try {
             await AsyncStorage.removeItem('sift_pages_cache');
+            queryClient.clear();
             if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            // Optional: Alert user
+            Alert.alert("Success", "Cache Cleared");
         } catch (e) {
             console.error(e);
         }
@@ -97,7 +104,7 @@ export default function ProfileScreen() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                 }
             >
                 {/* 1. USER HEADER */}
@@ -109,21 +116,25 @@ export default function ProfileScreen() {
                                 style={styles.avatarImage}
                             />
                         ) : (
-                            <Typography variant="h1" color={COLORS.stone}>
+                            <Typography variant="h1" color={colors.stone}>
                                 {(user?.user_metadata?.display_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                             </Typography>
                         )}
                     </View>
                     <View style={styles.profileInfo}>
-                        <Typography variant="label" style={styles.smallCapsLabel}>PRO MEMBER</Typography>
+                        <View style={[styles.tierBadge, user?.user_metadata?.plan === 'Unlimited' ? styles.proBadge : styles.plusBadge]}>
+                            <Typography variant="label" style={styles.tierText}>
+                                {user?.user_metadata?.plan === 'Unlimited' ? 'PRO MEMBER' : 'PLUS MEMBER'}
+                            </Typography>
+                        </View>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
                             {user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User'}
                         </Typography>
-                        <Typography variant="body" color={COLORS.stone} numberOfLines={2} style={styles.userBio}>
+                        <Typography variant="body" color={colors.stone} numberOfLines={2} style={styles.userBio}>
                             {user?.user_metadata?.bio || 'No bio yet.'}
                         </Typography>
                         {user?.user_metadata?.username && (
-                            <Typography variant="label" color={COLORS.stone} style={styles.handle}>
+                            <Typography variant="label" color={colors.stone} style={styles.handle}>
                                 @{user.user_metadata.username.toLowerCase()}
                             </Typography>
                         )}
@@ -139,13 +150,13 @@ export default function ProfileScreen() {
                         label="Identity"
                         description="Profile, Avatar, and Bio"
                         onPress={() => router.push('/settings/identity')}
-                        icon={<UserIcon size={20} color={COLORS.ink} />}
+                        icon={<UserIcon size={20} color={colors.ink} />}
                     />
                     <SettingsRow
                         label="History"
                         description="Activity log and recent actions"
                         onPress={() => router.push('/settings/history')}
-                        icon={<ClockCounterClockwise size={20} color={COLORS.ink} />}
+                        icon={<ClockCounterClockwise size={20} color={colors.ink} />}
                     />
                 </View>
 
@@ -160,7 +171,7 @@ export default function ProfileScreen() {
                         type="toggle"
                         value={hapticsEnabled}
                         onValueChange={toggleHaptics}
-                        icon={<Vibrate size={20} color={COLORS.ink} />}
+                        icon={<Vibrate size={20} color={colors.ink} />}
                     />
                     <SettingsRow
                         label="Auto-grab Clipboard"
@@ -168,17 +179,42 @@ export default function ProfileScreen() {
                         type="toggle"
                         value={autoClipboard}
                         onValueChange={toggleClipboard}
-                        icon={<ClipboardText size={20} color={COLORS.ink} />}
+                        icon={<ClipboardText size={20} color={colors.ink} />}
                     />
                     <SettingsRow
                         label="Clear Cache"
                         description="Purge local storage and refresh"
                         onPress={clearCache}
-                        icon={<Trash size={20} color={COLORS.ink} />}
+                        icon={<Trash size={20} color={colors.ink} />}
                     />
                 </View>
 
-                {/* 4. LEGAL & SUPPORT SECTION */}
+                {/* 4. APPEARANCE SECTION */}
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label">Appearance</Typography>
+                </View>
+                <View style={styles.settingsBox}>
+                    <TouchableOpacity
+                        style={[styles.appearanceOption, theme === 'light' && styles.selectedOption, { borderColor: colors.separator }]}
+                        onPress={() => setTheme('light')}
+                    >
+                        <Typography variant="body" color={theme === 'light' ? colors.accent : colors.ink}>Light Mode</Typography>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.appearanceOption, theme === 'dark' && styles.selectedOption, { borderColor: colors.separator }]}
+                        onPress={() => setTheme('dark')}
+                    >
+                        <Typography variant="body" color={theme === 'dark' ? colors.accent : colors.ink}>Midnight Mode</Typography>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.appearanceOption, theme === 'system' && styles.selectedOption, { borderBottomWidth: 0, borderColor: colors.separator }]}
+                        onPress={() => setTheme('system')}
+                    >
+                        <Typography variant="body" color={theme === 'system' ? colors.accent : colors.ink}>System Mode</Typography>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 5. LEGAL & SUPPORT SECTION */}
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Legal & Support</Typography>
                 </View>
@@ -186,12 +222,12 @@ export default function ProfileScreen() {
                     <SettingsRow
                         label="Privacy Policy"
                         onPress={() => router.push('/settings/privacy')}
-                        icon={<Shield size={20} color={COLORS.ink} />}
+                        icon={<Shield size={20} color={colors.ink} />}
                     />
                     <SettingsRow
                         label="Terms of Service"
                         onPress={() => Linking.openURL('https://sift-rho.vercel.app/terms')}
-                        icon={<FileText size={20} color={COLORS.ink} />}
+                        icon={<FileText size={20} color={colors.ink} />}
                     />
                 </View>
 
@@ -205,7 +241,7 @@ export default function ProfileScreen() {
 
                     {savedPages.length === 0 && !loading && (
                         <View style={styles.emptyState}>
-                            <Typography variant="body" color={COLORS.stone}>No pinned items yet.</Typography>
+                            <Typography variant="body" color={colors.stone}>No pinned items yet.</Typography>
                         </View>
                     )}
                 </View>
@@ -264,6 +300,26 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginTop: 2,
     },
+    tierBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+        marginBottom: 4,
+    },
+    proBadge: {
+        backgroundColor: COLORS.ink,
+    },
+    plusBadge: {
+        backgroundColor: COLORS.subtle,
+        borderWidth: 1,
+        borderColor: COLORS.separator,
+    },
+    tierText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: COLORS.paper,
+    },
     handle: {
         marginTop: 4,
         letterSpacing: 0.5,
@@ -308,6 +364,14 @@ const styles = StyleSheet.create({
     },
     feedWrapper: {
         marginTop: SPACING.s,
+    },
+    appearanceOption: {
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    selectedOption: {
+        backgroundColor: 'rgba(110, 124, 148, 0.05)', // Subtle accent tint
     },
     logoutButton: {
         marginTop: 40,

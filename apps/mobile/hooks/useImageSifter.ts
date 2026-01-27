@@ -34,69 +34,43 @@ export const useImageSifter = (onSuccess?: () => void) => {
             const manipulated = await ImageManipulator.manipulateAsync(
                 asset.uri,
                 [{ resize: { width: 1080 } }],
-                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+                { compress: 0.65, format: ImageManipulator.SaveFormat.JPEG, base64: true }
             );
 
-            // 3. Upload to Supabase Storage
-            const fileName = `${user.id}/${Date.now()}.jpg`;
-            const fileUri = manipulated.uri;
+            if (!manipulated.base64) throw new Error("Failed to generate image base64");
 
-            // Create form data for upload
-            const formData = new FormData();
-            formData.append('file', {
-                uri: fileUri,
-                name: fileName,
-                type: 'image/jpeg',
-            } as any);
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('sifts')
-                .upload(fileName, formData, {
-                    contentType: 'image/jpeg',
-                    upsert: true
-                });
-
-            if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-
-            // 4. Get Public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('sifts')
-                .getPublicUrl(fileName);
-
-            // 5. Call AI Analysis API
-            const response = await fetch(`${API_URL}/api/analyze-image`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl: publicUrl })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'AI analysis failed');
-            }
-
-            const { data: aiData } = await response.json();
-
-            // 6. Save to Database
-            const { error: insertError } = await supabase
+            // 3. Create optimistic record in Supabase
+            const { data: pendingData, error: pendingError } = await supabase
                 .from('pages')
                 .insert({
                     user_id: user.id,
-                    url: publicUrl,
-                    title: aiData.title,
-                    summary: aiData.summary,
-                    content: aiData.summary,
-                    tags: aiData.tags || ['Lifestyle'],
-                    metadata: {
-                        image_url: publicUrl,
-                        category: aiData.category,
-                        source: 'Visual Scan',
-                        scraped_at: new Date().toISOString(),
-                        status: 'completed'
-                    }
-                });
+                    url: 'image://scan-' + Date.now(),
+                    title: 'Sifting Image...',
+                    summary: 'Extracting data with AI...',
+                    tags: ['Lifestyle'],
+                    metadata: { status: 'pending', source: 'Visual Scan' }
+                })
+                .select()
+                .single();
 
-            if (insertError) throw insertError;
+            if (pendingError) throw pendingError;
+
+            // 4. Call Unified AI Sift API with base64
+            const response = await fetch(`${API_URL}/api/sift`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: 'image://' + Date.now(),
+                    user_id: user.id,
+                    id: pendingData.id,
+                    image_base64: manipulated.base64
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Image sifting failed');
+            }
 
             if (onSuccess) onSuccess();
 

@@ -10,7 +10,9 @@ import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import SiftFeed from '../../components/SiftFeed';
+import { QuickTagEditor } from '../../components/QuickTagEditor';
 import * as Haptics from 'expo-haptics';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -42,11 +44,36 @@ export default function LibraryScreen() {
     const { user } = useAuth();
     const router = useRouter();
     const navigation = useNavigation();
-    const [pages, setPages] = useState<SiftItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+    // Quick Tag Modal State
+    const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
+    const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
+    const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
+
+    const { data: pages = [], isLoading: loading, refetch } = useQuery({
+        queryKey: ['pages', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            console.log(`[Fetch] Fetching pages for user: ${user.id}`);
+            const { data, error } = await supabase
+                .from('pages')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('is_archived', false)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching sifts:', error);
+                throw error;
+            }
+            return (data || []) as SiftItem[];
+        },
+        enabled: !!user?.id,
+    });
 
     // Tab Bar Reset Logic
     React.useEffect(() => {
@@ -61,33 +88,40 @@ export default function LibraryScreen() {
         return unsubscribe;
     }, [navigation, activeCategory]);
 
-    const fetchPages = useCallback(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('pages')
-                .select('*')
-                .eq('user_id', user?.id)
-                .eq('is_archived', false)
-                .order('created_at', { ascending: false });
+    const handleEditTagsTrigger = (id: string, currentTags: string[]) => {
+        setSelectedSiftId(id);
+        setSelectedSiftTags(currentTags);
+        setQuickTagModalVisible(true);
+    };
 
-            if (data) setPages(data || []);
-        } catch (error) {
-            console.error('Error fetching sifts:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+    const handleSaveTags = async (newTags: string[]) => {
+        if (!selectedSiftId) return;
+
+        // Optimistic update could be added here
+        try {
+            const { error } = await supabase
+                .from('pages')
+                .update({ tags: newTags })
+                .eq('id', selectedSiftId);
+
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        } catch (error: any) {
+            console.error("Error updating tags:", error);
+            Alert.alert("Error", "Failed to update tags");
         }
-    }, [user?.id]);
+    };
 
     useFocusEffect(
         useCallback(() => {
-            fetchPages();
-        }, [fetchPages])
+            refetch();
+        }, [refetch])
     );
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        fetchPages();
+        await queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        setRefreshing(false);
     };
 
     const categoryData = useMemo(() => {
@@ -188,6 +222,7 @@ export default function LibraryScreen() {
                     <View style={styles.feedWrapper}>
                         <SiftFeed
                             pages={activeCategoryPages as any}
+                            onEditTags={handleEditTagsTrigger}
                             loading={loading}
                         />
                         {activeCategoryPages.length === 0 && (
@@ -210,6 +245,12 @@ export default function LibraryScreen() {
                     </View>
                 )}
             </ScrollView>
+            <QuickTagEditor
+                visible={quickTagModalVisible}
+                onClose={() => setQuickTagModalVisible(false)}
+                initialTags={selectedSiftTags}
+                onSave={handleSaveTags}
+            />
         </ScreenWrapper>
     );
 }

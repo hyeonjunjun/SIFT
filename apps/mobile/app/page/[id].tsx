@@ -26,6 +26,7 @@ import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
 import { Plus, X, ArrowSquareOut, PlusCircle } from 'phosphor-react-native';
 import { useAuth } from '../../lib/auth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
 
@@ -33,8 +34,7 @@ export default function PageDetail() {
     const { id } = useLocalSearchParams();
     const { user } = useAuth();
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState<any>(null);
+    const queryClient = useQueryClient();
     const [content, setContent] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -43,37 +43,34 @@ export default function PageDetail() {
     const [editedTags, setEditedTags] = useState<string[]>([]);
     const [isShared, setIsShared] = useState(false);
 
-    useEffect(() => {
-        if (!id) return;
-        fetchPage();
-    }, [id]);
-
-    const fetchPage = async () => {
-        try {
-            setLoading(true);
+    const { data: page, isLoading: loading, refetch } = useQuery({
+        queryKey: ['page', id],
+        queryFn: async () => {
+            if (!id) return null;
+            console.log(`[Fetch] Fetching page detail for: ${id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
                 .eq('id', id)
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error fetching page:', error);
+                throw error;
+            }
+            return data;
+        },
+        enabled: !!id,
+    });
 
-            setPage(data);
-            setIsShared(data.user_id !== user?.id);
-            const fullDoc = data.content || `# ${data.title}\n\n> ${data.summary}`;
+    useEffect(() => {
+        if (page) {
+            setIsShared(page.user_id !== user?.id);
+            const fullDoc = page.content || `# ${page.title}\n\n> ${page.summary}`;
             setContent(fullDoc);
-            setEditedTags(data.tags || []);
-
-        } catch (error) {
-            console.error('Error fetching page:', error);
-            Alert.alert('Error', 'Could not load page.');
-            router.back();
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+            setEditedTags(page.tags || []);
         }
-    };
+    }, [page, user?.id]);
 
     useEffect(() => {
         if (!id) return;
@@ -90,10 +87,7 @@ export default function PageDetail() {
                 },
                 (payload) => {
                     console.log('[Realtime] Page updated:', payload.new.id);
-                    const newRecord = payload.new as any;
-                    setPage(newRecord);
-                    const fullDoc = newRecord.content || `# ${newRecord.title}\n\n> ${newRecord.summary}`;
-                    setContent(fullDoc);
+                    queryClient.invalidateQueries({ queryKey: ['page', id] });
                 }
             )
             .subscribe();
@@ -103,9 +97,10 @@ export default function PageDetail() {
         };
     }, [id]);
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        fetchPage();
+        await queryClient.invalidateQueries({ queryKey: ['page', id] });
+        setRefreshing(false);
     };
 
     const handleMoreOptions = () => {
@@ -221,7 +216,9 @@ export default function PageDetail() {
 
             if (error) throw error;
             setIsEditing(false);
-            Alert.alert('Success', 'Changes saved.');
+            queryClient.invalidateQueries({ queryKey: ['page', id] });
+            queryClient.invalidateQueries({ queryKey: ['pages'] }); // Invalidate home feed too
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             Alert.alert('Error', error.message);
         } finally {

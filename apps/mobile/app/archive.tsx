@@ -11,6 +11,7 @@ import { API_URL } from '../lib/config';
 import * as Haptics from 'expo-haptics';
 import SiftFeed from '../components/SiftFeed';
 import { useAuth } from '../lib/auth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Page {
     id: string;
@@ -28,34 +29,26 @@ interface Page {
 export default function ArchiveScreen() {
     const router = useRouter();
     const { user } = useAuth();
-    const [pages, setPages] = useState<Page[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchArchived = useCallback(async () => {
-        if (!user?.id) return;
-        try {
+    const { data: pages = [], isLoading: loading, refetch } = useQuery({
+        queryKey: ['pages', 'archived', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            console.log(`[Fetch] Fetching archived pages for user: ${user.id}`);
             const apiUrl = `${API_URL}/api/archive?user_id=${user.id}`;
             const response = await fetch(apiUrl);
             const data = await response.json();
-            if (Array.isArray(data)) {
-                setPages(data);
-            }
-        } catch (e) {
-            console.error('Error fetching archive:', e);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [user?.id]);
+            return Array.isArray(data) ? data : [];
+        },
+        enabled: !!user?.id,
+    });
 
-    useEffect(() => {
-        fetchArchived();
-    }, [fetchArchived]);
-
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        fetchArchived();
+        await queryClient.invalidateQueries({ queryKey: ['pages', 'archived', user?.id] });
+        setRefreshing(false);
     };
 
     const handleRestore = async (id: string) => {
@@ -69,7 +62,7 @@ export default function ArchiveScreen() {
 
             if (!response.ok) throw new Error('Failed');
 
-            setPages(prev => prev.filter(p => p.id !== id));
+            queryClient.invalidateQueries({ queryKey: ['pages'] });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
             console.error(e);
@@ -91,7 +84,7 @@ export default function ArchiveScreen() {
                             const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
                             const response = await fetch(apiUrl, { method: 'DELETE' });
                             if (!response.ok) throw new Error('Failed');
-                            setPages(prev => prev.filter(p => p.id !== id));
+                            queryClient.invalidateQueries({ queryKey: ['pages', 'archived', user?.id] });
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         } catch (e) {
                             console.error(e);

@@ -3,6 +3,8 @@ import { View, Switch, TouchableOpacity, StyleSheet } from 'react-native';
 import { Typography } from './Typography';
 import { COLORS, SPACING } from '../../lib/theme';
 
+import { useTheme } from '../../context/ThemeContext';
+
 interface SettingsRowProps {
     label: string;
     value?: boolean;
@@ -22,13 +24,15 @@ export function SettingsRow({
     description,
     icon
 }: SettingsRowProps) {
+    const { colors } = useTheme();
+
     const content = (
         <View style={styles.container}>
             {icon && <View style={styles.iconContainer}>{icon}</View>}
             <View style={styles.textContainer}>
-                <Typography variant="body">{label}</Typography>
+                <Typography variant="body" color={colors.ink}>{label}</Typography>
                 {description && (
-                    <Typography variant="caption" color={COLORS.stone}>{description}</Typography>
+                    <Typography variant="caption" color={colors.stone}>{description}</Typography>
                 )}
             </View>
 
@@ -36,9 +40,9 @@ export function SettingsRow({
                 <Switch
                     value={value}
                     onValueChange={onValueChange}
-                    trackColor={{ false: COLORS.separator, true: COLORS.accent }}
-                    thumbColor={COLORS.paper}
-                    ios_backgroundColor={COLORS.separator}
+                    trackColor={{ false: colors.separator, true: colors.accent }}
+                    thumbColor={colors.paper}
+                    ios_backgroundColor={colors.separator}
                 />
             )}
         </View>
@@ -46,21 +50,22 @@ export function SettingsRow({
 
     if (type === 'button') {
         return (
-            <TouchableOpacity style={styles.wrapper} onPress={onPress}>
+            <TouchableOpacity
+                style={[styles.wrapper, { backgroundColor: colors.paper, borderBottomColor: colors.separator }]}
+                onPress={onPress}
+            >
                 {content}
             </TouchableOpacity>
         );
     }
 
-    return <View style={styles.wrapper}>{content}</View>;
+    return <View style={[styles.wrapper, { backgroundColor: colors.paper, borderBottomColor: colors.separator }]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
     wrapper: {
-        backgroundColor: COLORS.paper,
         paddingHorizontal: 20,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: COLORS.separator,
     },
     container: {
         flexDirection: 'row',

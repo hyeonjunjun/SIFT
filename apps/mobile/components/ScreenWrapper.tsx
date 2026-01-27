@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../lib/theme';
+import { useTheme } from '../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 
@@ -15,6 +16,7 @@ interface Props {
 export default function ScreenWrapper({ children, style, contentStyle, edges = ['top'] }: Props) {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
+    const { colors } = useTheme();
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('beforeRemove', () => {
@@ -31,7 +33,7 @@ export default function ScreenWrapper({ children, style, contentStyle, edges = [
     };
 
     return (
-        <View style={[styles.container, style]}>
+        <View style={[styles.container, { backgroundColor: colors.canvas }, style]}>
             <View style={[styles.content, safeStyle, contentStyle]}>
                 {children}
             </View>
@@ -42,7 +44,6 @@ export default function ScreenWrapper({ children, style, contentStyle, edges = [
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.canvas,
     },
     content: {
         flex: 1,

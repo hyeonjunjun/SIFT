@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Text, TextProps, StyleSheet, TextStyle } from 'react-native';
 import { TEXT } from '../../lib/typography';
 import { COLORS } from '../../lib/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { cssInterop } from 'nativewind';
 
 interface TypographyProps extends TextProps {
@@ -11,8 +12,9 @@ interface TypographyProps extends TextProps {
 }
 
 export function Typography({ variant = 'body', style, children, color, weight, ...props }: TypographyProps) {
+    const { colors } = useTheme();
     const variantStyle = TEXT[variant] || TEXT.body;
-    const colorStyle = color ? { color } : {};
+    const colorStyle = color ? { color } : { color: colors.ink };
     const weightStyle = weight ? { fontWeight: weight } : {};
 
     return (

@@ -20,7 +20,7 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
 
 const SYSTEM_PROMPT = `
     You are an expert curator and archivist.
-    Your goal is to read the provided web content and synthesize it into a structured JSON response.
+    Your goal is to read the provided web content, video transcripts, or image OCR data and synthesize it into a structured JSON response.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
@@ -28,7 +28,13 @@ const SYSTEM_PROMPT = `
         "title": "A short, catchy title",
         "category": "Cooking, Tech, Design, Health, Fashion, News, or Random",
         "tags": ["Tag1", "Tag2"],
-        "summary": "The full formatted content in Markdown"
+        "summary": "The full formatted content in Markdown",
+        "smart_data": {
+            "ingredients": ["item1"],
+            "price": "$0.00",
+            "extracted_text": "any specific raw text extracted",
+            "video_insights": "key takeaways if it's a video"
+        }
     }
 
     **TAGGING RULES (STRICT):**
@@ -48,6 +54,12 @@ const SYSTEM_PROMPT = `
     **CRITICAL FOR RECIPES/HOW-TO:**
     - If the content is a Recipe, you MUST extract the full **Ingredients** and **Preparation/Steps** verbatim into the markdown.
     - Use headers: ## Ingredients, ## Preparation.
+
+    **CRITICAL FOR IMAGES (OCR):**
+    - If OCR data or image analysis is provided, focus on extracting structured data like prices, ingredients, dates, or key entities.
+
+    **CRITICAL FOR VIDEOS (Transcript):**
+    - Use the provided transcript to provide specific insights and a detailed summary of the video's content.
 `;
 
 function extractMetaTags(html: string) {
@@ -124,11 +136,31 @@ export async function POST(request: Request) {
             return NextResponse.json({ status: 'success', data }, { headers: corsHeaders });
         }
 
-        if (!url) {
-            return NextResponse.json({ status: 'error', message: 'URL is required' }, { status: 400, headers: corsHeaders });
+        if (!url && !body.image_base64) {
+            return NextResponse.json({ status: 'error', message: 'URL or Image is required' }, { status: 400, headers: corsHeaders });
         }
 
-        console.log(`[SIFT] Processing URL: ${url} User: ${user_id || 'Guest'}`);
+        // 0. SUBSCRIPTION CHECK (Conceptual implementation)
+        // In a real app, you'd fetch the user's plan from Supabase 'profiles' or 'subscriptions'
+        // For now, we mock a limit for 'Plus' (Trial) vs 'Unlimited' (Pro)
+        const userTier = body.user_tier || 'Plus'; // Default to trial/plus
+
+        if (userTier === 'Plus') {
+            const { count, error: countError } = await supabaseAdmin
+                .from('pages')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user_id);
+
+            if (!countError && count && count >= 10) {
+                return NextResponse.json({
+                    status: 'limit_reached',
+                    message: 'You have reached the monthly limit for the Plus tier (10 sifts). Upgrade to Unlimited for more!',
+                    upgrade_url: 'https://sift.app/upgrade'
+                }, { status: 403, headers: corsHeaders });
+            }
+        }
+
+        console.log(`[SIFT] Processing URL: ${url || 'Image Scan'} User: ${user_id || 'Guest'} Tier: ${userTier}`);
 
         // 1. DISPATCH ROUTER (Switchboard Strategy)
         let scrapedData: any = {};
@@ -230,15 +262,29 @@ export async function POST(request: Request) {
         let finalSummary = scrapedData.description || "Summary unavailable.";
         let finalTags = ["Lifestyle"];
         let finalCategory = "Random";
+        let smartData = {};
 
-        if (openai && scrapedData.description) {
+        if (openai && (scrapedData.description || scrapedData.transcript || body.image_base64)) {
             try {
+                const messages: any[] = [
+                    { role: "system", content: SYSTEM_PROMPT }
+                ];
+
+                if (body.image_base64) {
+                    messages.push({
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Analyze this image and extract all relevant data." },
+                            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${body.image_base64}` } }
+                        ]
+                    });
+                } else {
+                    messages.push({ role: "user", content: JSON.stringify(scrapedData) });
+                }
+
                 const completion = await openai.chat.completions.create({
                     model: "gpt-4o",
-                    messages: [
-                        { role: "system", content: SYSTEM_PROMPT },
-                        { role: "user", content: JSON.stringify(scrapedData) }
-                    ],
+                    messages,
                     response_format: { type: "json_object" }
                 });
 
@@ -247,6 +293,7 @@ export async function POST(request: Request) {
                 finalSummary = ai.summary || finalSummary;
                 finalTags = ai.tags || finalTags;
                 finalCategory = ai.category || finalCategory;
+                smartData = ai.smart_data || {};
                 debugInfoSnippet += "AI: Success. ";
             } catch (e) {
                 console.error('[SIFT] AI Failed');
@@ -280,6 +327,7 @@ export async function POST(request: Request) {
                 ...body.metadata,
                 image_url: ogImage,
                 category: finalCategory,
+                smart_data: smartData,
                 debug_info: debugInfoSnippet,
                 scraped_at: new Date().toISOString(),
                 status: 'completed'
