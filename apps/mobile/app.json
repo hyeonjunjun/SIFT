@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/sift-white-new.png",
     "scheme": "sift",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -36,7 +36,7 @@
           }
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Sift needs access to your photos to save covers and synthesized images."
+        "NSPhotoLibraryUsageDescription": "Sift needs access to your photos to extract and summarize content from screenshots and images you select for sifting."
       }
     },
     "android": {
@@ -45,7 +45,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
-      "versionCode": 12,
+      "versionCode": 13,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",

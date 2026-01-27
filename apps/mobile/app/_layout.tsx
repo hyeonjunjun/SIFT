@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { useShareIntent } from "expo-share-intent";
 import React, { useEffect, useState, useCallback } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Theme, COLORS } from "../lib/theme";
+import { Theme, COLORS, LIGHT_COLORS, DARK_COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
 import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-native";
@@ -17,6 +17,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -50,22 +51,71 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     render() {
         if (this.state.hasError) {
             return (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: COLORS.canvas }}>
-                    <Text style={{ fontSize: 32, fontWeight: '700', color: COLORS.ink, marginBottom: 10 }}>Something went wrong.</Text>
-                    <Text style={{ fontSize: 16, textAlign: 'center', color: COLORS.stone, marginBottom: 10 }}>
-                        Sift encountered an unexpected error.
-                    </Text>
-                    {this.state.error && (
-                        <Text style={{ fontSize: 12, color: '#EF4444', fontFamily: 'System', marginBottom: 20, textAlign: 'center' }}>
-                            {this.state.error.message}
-                        </Text>
-                    )}
-                    <TouchableOpacity
-                        onPress={() => this.setState({ hasError: false, error: null })}
-                        style={{ backgroundColor: COLORS.ink, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}
+                <View style={{ flex: 1, backgroundColor: LIGHT_COLORS.canvas }}>
+                    <ImageBackground
+                        source={require("../assets/noise.png")}
+                        style={StyleSheet.absoluteFill}
+                        imageStyle={{ opacity: 0.04 }}
+                        resizeMode="repeat"
                     >
-                        <Text style={{ color: COLORS.paper, fontWeight: '600' }}>Try Again</Text>
-                    </TouchableOpacity>
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+                            <Text style={{
+                                fontSize: 32,
+                                fontFamily: 'PlayfairDisplay_700Bold',
+                                color: LIGHT_COLORS.ink,
+                                marginBottom: 12,
+                                textAlign: 'center'
+                            }}>
+                                Something went wrong.
+                            </Text>
+                            <Text style={{
+                                fontSize: 16,
+                                fontFamily: 'Inter_400Regular',
+                                textAlign: 'center',
+                                color: LIGHT_COLORS.stone,
+                                marginBottom: 24,
+                                lineHeight: 24
+                            }}>
+                                Sift encountered an unexpected error. We've been notified and are looking into it.
+                            </Text>
+
+                            {this.state.error && (
+                                <View style={{
+                                    backgroundColor: 'rgba(0,0,0,0.03)',
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    marginBottom: 32,
+                                    width: '100%'
+                                }}>
+                                    <Text style={{
+                                        fontSize: 12,
+                                        color: '#C47F65',
+                                        fontFamily: 'GeistMono_400Regular',
+                                        textAlign: 'left'
+                                    }}>
+                                        {this.state.error.message}
+                                    </Text>
+                                </View>
+                            )}
+
+                            <TouchableOpacity
+                                onPress={() => this.setState({ hasError: false, error: null })}
+                                style={{
+                                    backgroundColor: LIGHT_COLORS.ink,
+                                    paddingVertical: 16,
+                                    paddingHorizontal: 32,
+                                    borderRadius: 40,
+                                    shadowColor: "#000",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.1,
+                                    shadowRadius: 10,
+                                    elevation: 3
+                                }}
+                            >
+                                <Text style={{ color: LIGHT_COLORS.paper, fontWeight: '600', fontSize: 16, letterSpacing: 0.5 }}>Try Again</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ImageBackground>
                 </View>
             );
         }
@@ -77,6 +127,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display';
 import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif';
 import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
+import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono';
 
 // Safe Splash Screen Prevention
 try {
@@ -98,7 +149,8 @@ function RootLayoutNav() {
         InstrumentSerif_400Regular,
         Inter_400Regular,
         Inter_500Medium,
-        Inter_700Bold
+        Inter_700Bold,
+        GeistMono_400Regular
     });
 
     const [appReady, setAppReady] = useState(false);
@@ -168,10 +220,11 @@ function RootLayoutNav() {
 
     return (
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
+            <StatusBar style={colors.canvas === '#0D0D0C' ? 'light' : 'dark'} />
             <ImageBackground
                 source={require("../assets/noise.png")}
                 style={StyleSheet.absoluteFill}
-                imageStyle={{ opacity: colors.canvas === '#121211' ? 0.08 : 0.04 }}
+                imageStyle={{ opacity: colors.canvas === '#0D0D0C' ? 0.08 : 0.04 }}
                 resizeMode="repeat"
             >
                 {showOnboarding ? (

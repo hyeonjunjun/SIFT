@@ -16,12 +16,14 @@ import {
     Platform,
     Share
 } from 'react-native';
+import ScreenWrapper from '../../components/ScreenWrapper';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { CaretLeft, DotsThree, Export, NotePencil, Trash } from 'phosphor-react-native';
-import { Theme, COLORS, SPACING } from '../../lib/theme';
+import { Theme, COLORS, SPACING, RADIUS } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
+import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
 import { Plus, X, ArrowSquareOut, PlusCircle } from 'phosphor-react-native';
@@ -31,6 +33,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
 
 export default function PageDetail() {
+    const { colors, isDark } = useTheme();
     const { id } = useLocalSearchParams();
     const { user } = useAuth();
     const router = useRouter();
@@ -111,6 +114,7 @@ export default function PageDetail() {
                     options,
                     cancelButtonIndex: 0,
                     destructiveButtonIndex: 2,
+                    userInterfaceStyle: isDark ? 'dark' : 'light',
                 },
                 (buttonIndex) => {
                     if (buttonIndex === 1) setIsEditing(true);
@@ -227,7 +231,7 @@ export default function PageDetail() {
     };
 
     return (
-        <View style={styles.container}>
+        <ScreenWrapper edges={['top', 'bottom']}>
             <Stack.Screen options={{ headerShown: false }} />
 
             {/* Standardized Header */}
@@ -239,20 +243,20 @@ export default function PageDetail() {
                     }}
                     style={styles.navButton}
                 >
-                    <CaretLeft size={28} color={COLORS.ink} />
+                    <CaretLeft size={28} color={colors.ink} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleBox}>
-                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>SAVED ARTIFACT</Typography>
+                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>SAVED ARTIFACT</Typography>
                     <Typography variant="h1" numberOfLines={1} style={styles.serifTitle}>{page?.title || 'Loading...'}</Typography>
                 </View>
                 <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton}>
-                    <DotsThree size={28} color={COLORS.ink} />
+                    <DotsThree size={28} color={colors.ink} />
                 </TouchableOpacity>
             </View>
 
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
             >
                 {/* Card 1: Image */}
                 {page?.metadata?.image_url && (
@@ -266,7 +270,7 @@ export default function PageDetail() {
                 )}
 
                 {/* Card 2: Header Info */}
-                <View style={styles.bentoCard}>
+                <View style={[styles.bentoCard, { backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}>
                     <View style={styles.tagRow}>
                         {isEditing ? (
                             <View style={styles.tagEditor}>
@@ -274,7 +278,11 @@ export default function PageDetail() {
                                     {ALLOWED_TAGS.map(tag => (
                                         <TouchableOpacity
                                             key={tag}
-                                            style={[styles.tagPill, editedTags.includes(tag) && styles.tagPillActive]}
+                                            style={[
+                                                styles.tagPill,
+                                                { backgroundColor: colors.canvas, borderColor: colors.separator },
+                                                editedTags.includes(tag) && { backgroundColor: colors.ink, borderColor: colors.ink }
+                                            ]}
                                             onPress={() => {
                                                 if (editedTags.includes(tag)) {
                                                     setEditedTags(editedTags.filter(t => t !== tag));
@@ -283,7 +291,7 @@ export default function PageDetail() {
                                                 }
                                             }}
                                         >
-                                            <Typography variant="caption" style={{ color: editedTags.includes(tag) ? COLORS.paper : COLORS.stone }}>
+                                            <Typography variant="caption" style={{ color: editedTags.includes(tag) ? colors.paper : colors.stone }}>
                                                 {tag}
                                             </Typography>
                                         </TouchableOpacity>
@@ -291,8 +299,9 @@ export default function PageDetail() {
                                 </View>
                                 <View style={styles.customTagInput}>
                                     <TextInput
-                                        style={styles.smallInput}
+                                        style={[styles.smallInput, { backgroundColor: colors.paper, borderColor: colors.separator, color: colors.ink }]}
                                         placeholder="Add custom tag..."
+                                        placeholderTextColor={colors.stone}
                                         value={newTag}
                                         onChangeText={setNewTag}
                                         onSubmitEditing={() => {
@@ -310,22 +319,22 @@ export default function PageDetail() {
                                             }
                                         }}
                                     >
-                                        <Plus size={20} color={COLORS.ink} />
+                                        <Plus size={20} color={colors.ink} />
                                     </TouchableOpacity>
                                 </View>
                                 <View style={styles.tagList}>
                                     {editedTags.filter(t => !ALLOWED_TAGS.includes(t)).map(tag => (
-                                        <View key={tag} style={styles.customTagPill}>
-                                            <Typography variant="caption" color={COLORS.ink}>{tag}</Typography>
+                                        <View key={tag} style={[styles.customTagPill, { backgroundColor: isDark ? colors.subtle : '#E5E5E5' }]}>
+                                            <Typography variant="caption" color="ink">{tag}</Typography>
                                             <TouchableOpacity onPress={() => setEditedTags(editedTags.filter(t => t !== tag))}>
-                                                <X size={14} color={COLORS.stone} style={{ marginLeft: 4 }} />
+                                                <X size={14} color={colors.stone} style={{ marginLeft: 4 }} />
                                             </TouchableOpacity>
                                         </View>
                                     ))}
                                 </View>
                             </View>
                         ) : (
-                            <Typography variant="label" style={styles.metaLabel}>
+                            <Typography variant="label" color="stone" style={styles.metaLabel}>
                                 {page?.tags?.join(' • ') || 'SAVED'} • {page?.created_at ? new Date(page.created_at).toLocaleDateString() : 'Recent'}
                             </Typography>
                         )}
@@ -347,7 +356,12 @@ export default function PageDetail() {
                 {/* Card 3: Actions (2 cols) */}
                 <View style={{ flexDirection: 'row', gap: 16 }}>
                     <TouchableOpacity
-                        style={[styles.bentoCard, styles.actionCard, { flex: 1 }, isEditing && { borderColor: COLORS.ink, borderWidth: 1 }]}
+                        style={[
+                            styles.bentoCard,
+                            styles.actionCard,
+                            { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' },
+                            isEditing && { borderColor: colors.ink, borderWidth: 1 }
+                        ]}
                         onPress={() => {
                             if (isEditing) {
                                 handleSave();
@@ -361,30 +375,30 @@ export default function PageDetail() {
                         }}
                     >
                         {isEditing ? (
-                            <NotePencil size={24} color={COLORS.ink} weight="fill" style={{ marginBottom: 8 }} />
+                            <NotePencil size={24} color={colors.ink} weight="fill" style={{ marginBottom: 8 }} />
                         ) : (
                             isShared ? (
-                                <PlusCircle size={24} color={COLORS.ink} weight="fill" style={{ marginBottom: 8 }} />
+                                <PlusCircle size={24} color={colors.ink} weight="fill" style={{ marginBottom: 8 }} />
                             ) : (
-                                <ArrowSquareOut size={24} color={COLORS.stone} weight="thin" style={{ marginBottom: 8 }} />
+                                <ArrowSquareOut size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
                             )
                         )}
-                        <Typography variant="label" style={(isEditing || isShared) && { color: COLORS.ink }}>
+                        <Typography variant="label" color={isEditing || isShared ? "ink" : "stone"}>
                             {isEditing ? (saving ? 'Saving...' : 'Save') : (isShared ? (saving ? 'Adding...' : 'Add to My Library') : 'View Original')}
                         </Typography>
                     </TouchableOpacity>
                     {!isEditing && (
                         <TouchableOpacity
-                            style={[styles.bentoCard, styles.actionCard, { flex: 1 }]}
+                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
                             onPress={handleShare}
                         >
-                            <Export size={24} color={COLORS.stone} weight="thin" style={{ marginBottom: 8 }} />
-                            <Typography variant="label">Share</Typography>
+                            <Export size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
+                            <Typography variant="label" color="stone">Share</Typography>
                         </TouchableOpacity>
                     )}
                     {isEditing && (
                         <TouchableOpacity
-                            style={[styles.bentoCard, styles.actionCard, { flex: 1 }]}
+                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
                             onPress={() => {
                                 setIsEditing(false);
                                 setEditedTags(page.tags || []);
@@ -398,12 +412,12 @@ export default function PageDetail() {
                 </View>
 
                 {/* Card 4: Content */}
-                <View style={[styles.bentoCard, { minHeight: 400 }]}>
+                <View style={[styles.bentoCard, { minHeight: 400, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}>
                     {!isEditing ? (
                         <SafeContentRenderer content={content} />
                     ) : (
                         <TextInput
-                            style={{ fontSize: 16, lineHeight: 24, color: COLORS.ink }}
+                            style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}
                             multiline
                             scrollEnabled={false}
                             value={content}
@@ -413,7 +427,7 @@ export default function PageDetail() {
                 </View>
 
             </ScrollView>
-        </View>
+        </ScreenWrapper>
     );
 }
 
@@ -421,7 +435,6 @@ export default function PageDetail() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.canvas,
     },
     navBar: {
         flexDirection: 'row',
@@ -438,7 +451,6 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     smallCapsLabel: {
-        color: COLORS.stone,
         marginBottom: 2,
     },
     serifTitle: {
@@ -450,11 +462,9 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     bentoCard: {
-        backgroundColor: '#FFFFFF',
         borderRadius: 8,
         padding: 20,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(0,0,0,0.1)',
         // @ts-ignore
         cornerCurve: 'continuous',
     },
@@ -462,7 +472,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(0,0,0,0.1)',
         // @ts-ignore
         cornerCurve: 'continuous',
     },
@@ -476,7 +485,6 @@ const styles = StyleSheet.create({
     },
     metaLabel: {
         fontSize: 11,
-        color: COLORS.stone,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
@@ -505,13 +513,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
-        backgroundColor: COLORS.canvas,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
     },
     tagPillActive: {
-        backgroundColor: COLORS.ink,
-        borderColor: COLORS.ink,
+        // Handled dynamically
     },
     customTagPill: {
         flexDirection: 'row',
@@ -519,7 +524,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 16,
-        backgroundColor: '#E5E5E5',
     },
     customTagInput: {
         flexDirection: 'row',
@@ -530,11 +534,9 @@ const styles = StyleSheet.create({
     smallInput: {
         flex: 1,
         height: 36,
-        backgroundColor: COLORS.paper,
         borderRadius: 8,
         paddingHorizontal: 12,
         fontSize: 14,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
     }
 });

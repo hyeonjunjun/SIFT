@@ -4,12 +4,14 @@ import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
-import { Theme, COLORS, SPACING } from '../lib/theme';
+import { Theme, COLORS, SPACING, RADIUS } from '../lib/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Typography } from '../components/design-system/Typography';
 import { CaretLeft, Trash } from 'phosphor-react-native';
 import { API_URL } from '../lib/config';
 import * as Haptics from 'expo-haptics';
 import SiftFeed from '../components/SiftFeed';
+import ScreenWrapper from '../components/ScreenWrapper';
 import { useAuth } from '../lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -27,6 +29,7 @@ interface Page {
 
 
 export default function ArchiveScreen() {
+    const { colors, isDark } = useTheme();
     const router = useRouter();
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -97,15 +100,15 @@ export default function ArchiveScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <ScreenWrapper edges={['top', 'bottom']}>
             <Stack.Screen options={{ headerShown: false }} />
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <CaretLeft color={COLORS.ink} size={28} />
+                    <CaretLeft color={colors.ink} size={28} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleBox}>
-                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>YOUR TRASH</Typography>
+                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>YOUR TRASH</Typography>
                     <Typography variant="h1" style={styles.serifTitle}>Archive</Typography>
                 </View>
             </View>
@@ -113,12 +116,12 @@ export default function ArchiveScreen() {
             <ScrollView
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
             >
                 {pages.length === 0 && !loading ? (
                     <View style={styles.emptyState}>
-                        <Trash size={48} color={COLORS.stone} weight="thin" />
-                        <Typography variant="body" color={COLORS.stone} style={{ marginTop: 16 }}>Trash is empty</Typography>
+                        <Trash size={48} color={colors.stone} weight="thin" />
+                        <Typography variant="body" color="stone" style={{ marginTop: 16 }}>Trash is empty</Typography>
                     </View>
                 ) : (
                     <SiftFeed
@@ -130,15 +133,11 @@ export default function ArchiveScreen() {
                     />
                 )}
             </ScrollView>
-        </View>
+        </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.canvas,
-    },
     header: {
         paddingHorizontal: 20,
         paddingTop: 60,
@@ -154,7 +153,6 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     smallCapsLabel: {
-        color: COLORS.stone,
         marginBottom: 4,
     },
     serifTitle: {

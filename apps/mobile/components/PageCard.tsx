@@ -2,13 +2,14 @@ import React from 'react';
 import { View, Alert, Pressable, Image, Text, ActionSheetIOS, Platform } from 'react-native';
 import { Trash, PushPin as Pin } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { COLORS, RADIUS, Theme } from '../lib/theme';
+import { COLORS, RADIUS, Theme, LIGHT_COLORS, DARK_COLORS, TRANSITIONS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
+import { useTheme } from '../context/ThemeContext';
 
 interface PageCardProps {
     id: string;
@@ -26,6 +27,7 @@ interface PageCardProps {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) {
+    const { colors, isDark, theme } = useTheme();
     const router = useRouter();
     const scale = useSharedValue(1);
     const [imageError, setImageError] = React.useState(false);
@@ -48,11 +50,17 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
     const showSummary = gist && gist !== "No summary generated.";
 
     const handlePressIn = () => {
-        scale.value = withSpring(0.98, { damping: 10, stiffness: 300 });
+        scale.value = withTiming(0.98, {
+            duration: TRANSITIONS.short,
+            easing: Easing.inOut(Easing.ease),
+        });
     };
 
     const handlePressOut = () => {
-        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+        scale.value = withTiming(1, {
+            duration: TRANSITIONS.short,
+            easing: Easing.inOut(Easing.ease),
+        });
     };
 
     const handlePress = () => {
@@ -68,7 +76,7 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
                     options: ['Cancel', 'Copy Link', 'Pin/Unpin Page', 'Archive Page', 'Delete Permanently'],
                     destructiveButtonIndex: 4,
                     cancelButtonIndex: 0,
-                    userInterfaceStyle: 'light',
+                    userInterfaceStyle: isDark ? 'dark' : 'light',
                 },
                 (buttonIndex) => {
                     if (buttonIndex === 1) { // Copy Link
@@ -134,9 +142,9 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
         return (
             <Pressable
                 onPress={handleDelete}
-                style={{ height: '100%', maxHeight: 300, backgroundColor: COLORS.danger, justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: RADIUS.m, marginBottom: 12, marginLeft: 8 }}
+                style={{ height: '100%', maxHeight: 300, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: RADIUS.m, marginBottom: 12, marginLeft: 8 }}
             >
-                <Trash size={24} color="white" />
+                <Trash size={24} color={isDark ? colors.paper : "white"} />
             </Pressable>
         );
     };
@@ -156,27 +164,25 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
             >
                 <View
                     style={{
-                        backgroundColor: COLORS.paper,      // Pure White on Oatmeal
-                        borderRadius: RADIUS.l,             // Pebble Shape (24)
+                        backgroundColor: colors.paper,
+                        borderRadius: RADIUS.l,
                         overflow: 'hidden',
                         marginBottom: 24,
-
-                        // Ambient Occlusion Shadow (Soft Cloud)
                         ...Theme.shadows.soft,
-
-                        // No Border (Clean look)
+                        shadowColor: isDark ? "#000000" : "#5A5A50",
+                        shadowOpacity: isDark ? 0.4 : 0.05,
                     }}
                 >
                     {isPinned && (
-                        <View style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
-                            <Pin size={10} color={COLORS.ink} weight="fill" />
+                        <View style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
+                            <Pin size={10} color={colors.ink} weight="fill" />
                         </View>
                     )}
 
                     {imageUrl && (
                         <Image
                             source={imageError ? require('../assets/covers/gastronomy.jpg') : { uri: imageUrl }}
-                            style={{ width: '100%', height: 180, backgroundColor: COLORS.subtle }}
+                            style={{ width: '100%', height: 180, backgroundColor: colors.subtle }}
                             resizeMode="cover"
                             onError={() => setImageError(true)}
                         />

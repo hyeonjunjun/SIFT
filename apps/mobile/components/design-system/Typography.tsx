@@ -14,7 +14,10 @@ interface TypographyProps extends TextProps {
 export function Typography({ variant = 'body', style, children, color, weight, ...props }: TypographyProps) {
     const { colors } = useTheme();
     const variantStyle = TEXT[variant] || TEXT.body;
-    const colorStyle = color ? { color } : { color: colors.ink };
+
+    // Map theme keys if provided, otherwise use raw color or default ink
+    const resolvedColor = (color && (colors as any)[color]) ? (colors as any)[color] : (color || colors.ink);
+    const colorStyle = { color: resolvedColor };
     const weightStyle = weight ? { fontWeight: weight } : {};
 
     return (

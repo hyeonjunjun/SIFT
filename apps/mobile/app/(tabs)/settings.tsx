@@ -24,7 +24,7 @@ export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
     const { user, signOut } = useAuth();
     const router = useRouter();
-    const { theme, setTheme, colors } = useTheme();
+    const { theme, setTheme, colors, isDark } = useTheme();
     const queryClient = useQueryClient();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -109,32 +109,32 @@ export default function ProfileScreen() {
             >
                 {/* 1. USER HEADER */}
                 <View style={styles.profileHeader}>
-                    <View style={styles.avatarContainer}>
+                    <View style={[styles.avatarContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                         {user?.user_metadata?.avatar_url ? (
                             <Image
                                 source={{ uri: user.user_metadata.avatar_url }}
                                 style={styles.avatarImage}
                             />
                         ) : (
-                            <Typography variant="h1" color={colors.stone}>
+                            <Typography variant="h1" color="stone">
                                 {(user?.user_metadata?.display_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                             </Typography>
                         )}
                     </View>
                     <View style={styles.profileInfo}>
-                        <View style={[styles.tierBadge, user?.user_metadata?.plan === 'Unlimited' ? styles.proBadge : styles.plusBadge]}>
-                            <Typography variant="label" style={styles.tierText}>
+                        <View style={[styles.tierBadge, user?.user_metadata?.plan === 'Unlimited' ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
+                            <Typography variant="label" style={[styles.tierText, { color: user?.user_metadata?.plan === 'Unlimited' ? colors.paper : colors.stone }]}>
                                 {user?.user_metadata?.plan === 'Unlimited' ? 'PRO MEMBER' : 'PLUS MEMBER'}
                             </Typography>
                         </View>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
                             {user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User'}
                         </Typography>
-                        <Typography variant="body" color={colors.stone} numberOfLines={2} style={styles.userBio}>
+                        <Typography variant="body" color="stone" numberOfLines={2} style={styles.userBio}>
                             {user?.user_metadata?.bio || 'No bio yet.'}
                         </Typography>
                         {user?.user_metadata?.username && (
-                            <Typography variant="label" color={colors.stone} style={styles.handle}>
+                            <Typography variant="label" color="stone" style={styles.handle}>
                                 @{user.user_metadata.username.toLowerCase()}
                             </Typography>
                         )}
@@ -145,7 +145,7 @@ export default function ProfileScreen() {
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Account</Typography>
                 </View>
-                <View style={styles.settingsBox}>
+                <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                     <SettingsRow
                         label="Identity"
                         description="Profile, Avatar, and Bio"
@@ -164,7 +164,7 @@ export default function ProfileScreen() {
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Preferences</Typography>
                 </View>
-                <View style={styles.settingsBox}>
+                <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                     <SettingsRow
                         label="Haptic Feedback"
                         description="Tactile response to actions"
@@ -193,24 +193,24 @@ export default function ProfileScreen() {
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Appearance</Typography>
                 </View>
-                <View style={styles.settingsBox}>
+                <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                     <TouchableOpacity
-                        style={[styles.appearanceOption, theme === 'light' && styles.selectedOption, { borderColor: colors.separator }]}
+                        style={[styles.appearanceOption, theme === 'light' && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }, { borderColor: colors.separator }]}
                         onPress={() => setTheme('light')}
                     >
-                        <Typography variant="body" color={theme === 'light' ? colors.accent : colors.ink}>Light Mode</Typography>
+                        <Typography variant="body" color={theme === 'light' ? "accent" : "ink"}>Light Mode</Typography>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.appearanceOption, theme === 'dark' && styles.selectedOption, { borderColor: colors.separator }]}
+                        style={[styles.appearanceOption, theme === 'dark' && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }, { borderColor: colors.separator }]}
                         onPress={() => setTheme('dark')}
                     >
-                        <Typography variant="body" color={theme === 'dark' ? colors.accent : colors.ink}>Midnight Mode</Typography>
+                        <Typography variant="body" color={theme === 'dark' ? "accent" : "ink"}>Midnight Mode</Typography>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.appearanceOption, theme === 'system' && styles.selectedOption, { borderBottomWidth: 0, borderColor: colors.separator }]}
+                        style={[styles.appearanceOption, theme === 'system' && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }, { borderBottomWidth: 0, borderColor: colors.separator }]}
                         onPress={() => setTheme('system')}
                     >
-                        <Typography variant="body" color={theme === 'system' ? colors.accent : colors.ink}>System Mode</Typography>
+                        <Typography variant="body" color={theme === 'system' ? "accent" : "ink"}>System Mode</Typography>
                     </TouchableOpacity>
                 </View>
 
@@ -218,7 +218,7 @@ export default function ProfileScreen() {
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Legal & Support</Typography>
                 </View>
-                <View style={styles.settingsBox}>
+                <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                     <SettingsRow
                         label="Privacy Policy"
                         onPress={() => router.push('/settings/privacy')}
@@ -241,12 +241,12 @@ export default function ProfileScreen() {
 
                     {savedPages.length === 0 && !loading && (
                         <View style={styles.emptyState}>
-                            <Typography variant="body" color={colors.stone}>No pinned items yet.</Typography>
+                            <Typography variant="body" color="stone">No pinned items yet.</Typography>
                         </View>
                     )}
                 </View>
 
-                <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
+                <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.paper, borderColor: colors.separator }]} onPress={signOut}>
                     <SignOut size={18} color="#C67D63" style={{ marginRight: 8 }} />
                     <Typography variant="label" style={{ color: '#C67D63' }}>Sign Out</Typography>
                 </TouchableOpacity>
@@ -272,12 +272,10 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: COLORS.paper,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: COLORS.separator,
         ...Theme.shadows.soft,
     },
     avatarImage: {
@@ -289,7 +287,6 @@ const styles = StyleSheet.create({
         marginLeft: 16,
     },
     smallCapsLabel: {
-        color: COLORS.stone,
         marginBottom: 2,
     },
     serifTitle: {
@@ -307,18 +304,9 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         marginBottom: 4,
     },
-    proBadge: {
-        backgroundColor: COLORS.ink,
-    },
-    plusBadge: {
-        backgroundColor: COLORS.subtle,
-        borderWidth: 1,
-        borderColor: COLORS.separator,
-    },
     tierText: {
         fontSize: 10,
         fontWeight: '700',
-        color: COLORS.paper,
     },
     handle: {
         marginTop: 4,
@@ -335,7 +323,6 @@ const styles = StyleSheet.create({
         aspectRatio: 1, // FORCE SQUARE
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.paper, // White on Oatmeal
         borderRadius: RADIUS.l, // Pebble Shape (24)
         padding: 16,
         // Soft Shadow (Ambient)
@@ -346,16 +333,13 @@ const styles = StyleSheet.create({
         marginTop: 12,
         fontSize: 13,
         fontWeight: '500', // Reduced weight
-        color: COLORS.ink,
         fontFamily: 'System', // Keep clean sans
     },
     settingsBox: {
         marginHorizontal: 20,
-        backgroundColor: COLORS.paper,
         borderRadius: RADIUS.m,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
     },
     sectionHeader: {
         paddingHorizontal: 20,
@@ -370,9 +354,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    selectedOption: {
-        backgroundColor: 'rgba(110, 124, 148, 0.05)', // Subtle accent tint
-    },
     logoutButton: {
         marginTop: 40,
         marginBottom: 20,
@@ -381,11 +362,9 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         paddingVertical: 14,
         paddingHorizontal: 32,
-        backgroundColor: COLORS.paper,
         borderRadius: RADIUS.pill,
         ...Theme.shadows.soft,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
     },
     emptyState: {
         padding: SPACING.xl,

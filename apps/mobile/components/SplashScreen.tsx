@@ -10,55 +10,51 @@ import Animated, {
     runOnJS
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { COLORS } from '../lib/theme';
-
-const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
+import { useTheme } from '../context/ThemeContext';
 
 interface SplashScreenProps {
     onFinish?: () => void;
 }
 
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
+    const { colors, isDark } = useTheme();
     const logoOpacity = useSharedValue(0);
     const logoScale = useSharedValue(0.9);
     const containerOpacity = useSharedValue(1);
-    const noiseOpacity = useSharedValue(0);
 
-    const [isFinished, setIsFinished] = useState(false);
+    // Shared value for noise to animate in if needed, or just static to match app base
+    const noiseOpacity = useSharedValue(isDark ? 0.08 : 0.04);
 
     useEffect(() => {
-        // 1. Fade in Noise Texture
-        noiseOpacity.value = withTiming(0.04, { duration: 800 });
-
-        // 2. Logo Animation Sequence: Scale + Fade
-        logoOpacity.value = withDelay(200, withTiming(1, {
-            duration: 800,
+        // Logo Animation Sequence: Scale + Fade
+        logoOpacity.value = withTiming(1, {
+            duration: 1000,
             easing: Easing.bezier(0.33, 1, 0.68, 1)
-        }));
+        });
 
-        logoScale.value = withDelay(200, withTiming(1, {
-            duration: 1200,
-            easing: Easing.out(Easing.back(1.5))
-        }));
+        logoScale.value = withTiming(1, {
+            duration: 1400,
+            easing: Easing.out(Easing.back(1.0)) // Muted springiness
+        });
 
         // 3. Exit Sequence
         const exitTimeout = setTimeout(() => {
             containerOpacity.value = withTiming(0, {
-                duration: 500,
+                duration: 600,
                 easing: Easing.bezier(0.45, 0, 0.55, 1)
             }, (finished) => {
                 if (finished && onFinish) {
                     runOnJS(onFinish)();
                 }
             });
-        }, 1800);
+        }, 2200);
 
         return () => clearTimeout(exitTimeout);
     }, []);
 
     const containerStyle = useAnimatedStyle(() => ({
         opacity: containerOpacity.value,
-        backgroundColor: COLORS.canvas,
+        backgroundColor: colors.canvas,
     }));
 
     const logoStyle = useAnimatedStyle(() => ({
@@ -68,13 +64,14 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
     return (
         <Animated.View style={[StyleSheet.absoluteFill, containerStyle, { zIndex: 9999 }]}>
-            {/* 1. Underlying Porcelain Canvas */}
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.canvas }]} />
+            {/* 1. Underlying Canvas */}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.canvas }]} />
 
             {/* 2. Tactile Grain Layer */}
-            <Animated.Image
+            <ImageBackground
                 source={require('../assets/noise.png')}
-                style={[StyleSheet.absoluteFill, { opacity: 0.04 }]}
+                style={StyleSheet.absoluteFill}
+                imageStyle={{ opacity: isDark ? 0.08 : 0.04 }}
                 resizeMode="repeat"
             />
 
@@ -82,7 +79,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             <View style={styles.center}>
                 <Animated.View style={logoStyle}>
                     <Image
-                        source={require('../assets/sift-white.png')}
+                        source={require('../assets/sift-white-new.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />

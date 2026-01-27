@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useShareIntent } from 'expo-share-intent';
+import { useTheme } from '../context/ThemeContext';
 import { Typography } from '../components/design-system/Typography';
 
 export default function ShareScreen() {
+    const { colors } = useTheme();
     const router = useRouter();
     const params = useLocalSearchParams();
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
@@ -63,9 +65,9 @@ export default function ShareScreen() {
     }, [params, hasShareIntent, shareIntent, resetShareIntent, router]);
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
-            <ActivityIndicator size="large" color="#000" />
-            <Typography variant="body" className="mt-4 text-gray-500">Redirecting...</Typography>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.canvas }}>
+            <ActivityIndicator size="large" color={colors.ink} />
+            <Typography variant="body" color="stone" style={{ marginTop: 16 }}>Redirecting...</Typography>
         </View>
     );
 }

@@ -3,7 +3,8 @@ import { useCallback, useState, useMemo } from 'react';
 import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
 import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
-import { COLORS, SPACING, Theme } from '../../lib/theme';
+import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { MagnifyingGlass, CaretLeft, DotsThree } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -41,6 +42,7 @@ const CATEGORIES = [
 ];
 
 export default function LibraryScreen() {
+    const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const router = useRouter();
     const navigation = useNavigation();
@@ -159,8 +161,8 @@ export default function LibraryScreen() {
 
     if (loading && !refreshing) {
         return (
-            <View style={styles.loaderContainer}>
-                <ActivityIndicator color={COLORS.ink} />
+            <View style={[styles.loaderContainer, { backgroundColor: colors.canvas }]}>
+                <ActivityIndicator color={colors.ink} />
             </View>
         );
     }
@@ -174,11 +176,11 @@ export default function LibraryScreen() {
                         onPress={() => setActiveCategory(null)}
                         style={styles.backButton}
                     >
-                        <CaretLeft size={28} color={COLORS.ink} />
+                        <CaretLeft size={28} color={colors.ink} />
                     </TouchableOpacity>
                 ) : null}
                 <View style={[styles.titleGroup, activeCategory ? { marginLeft: 12 } : {}]}>
-                    <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>
+                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
                         {activeCategory ? `CATEGORY / ${activeCategory}` : 'YOUR COLLECTION'}
                     </Typography>
                     <Typography variant="h1" style={styles.serifTitle}>
@@ -190,19 +192,19 @@ export default function LibraryScreen() {
                         style={styles.manageButton}
                         onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
                     >
-                        <DotsThree size={28} color={COLORS.ink} />
+                        <DotsThree size={28} color={colors.ink} />
                     </TouchableOpacity>
                 )}
             </View>
 
             {/* 2. SEARCH INPUT (Only in main view) */}
             {!activeCategory && (
-                <View style={styles.searchContainer}>
-                    <MagnifyingGlass size={18} color={COLORS.stone} weight="regular" />
+                <View style={[styles.searchContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                    <MagnifyingGlass size={18} color={colors.stone} weight="regular" />
                     <TextInput
-                        style={styles.searchInput}
+                        style={[styles.searchInput, { color: colors.ink }]}
                         placeholder="Search your mind..."
-                        placeholderTextColor={COLORS.stone}
+                        placeholderTextColor={colors.stone}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         autoCapitalize="none"
@@ -215,7 +217,7 @@ export default function LibraryScreen() {
                 contentContainerStyle={activeCategory ? styles.feedContainer : styles.gridContainer}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                 }
             >
                 {activeCategory ? (
@@ -234,12 +236,12 @@ export default function LibraryScreen() {
                 ) : (
                     <View style={styles.bentoWrapper}>
                         {filteredCategories.map((cat) => (
-                            <Tile key={cat.name} cat={cat} onPress={() => setActiveCategory(cat.name)} />
+                            <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
                         ))}
 
                         {filteredCategories.length === 0 && (
                             <View style={styles.emptyState}>
-                                <Typography variant="body" color={COLORS.stone}>No categories match your search.</Typography>
+                                <Typography variant="body" color="stone">No categories match your search.</Typography>
                             </View>
                         )}
                     </View>
@@ -264,7 +266,7 @@ interface CategoryData {
     latestImage?: string;
 }
 
-const Tile = ({ cat, onPress }: { cat: CategoryData, onPress: () => void }) => {
+const Tile = ({ cat, colors, isDark, onPress }: { cat: CategoryData, colors: any, isDark: boolean, onPress: () => void }) => {
     const isAnchor = cat.count > 0; // Use count to determine if we show contents
 
     if (isAnchor) {
@@ -272,19 +274,26 @@ const Tile = ({ cat, onPress }: { cat: CategoryData, onPress: () => void }) => {
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={onPress}
-                style={[styles.tile, styles.anchorTile, { height: cat.height }]}
+                style={[
+                    styles.tile,
+                    {
+                        height: cat.height,
+                        backgroundColor: colors.paper,
+                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'
+                    }
+                ]}
             >
                 {cat.latestImage ? (
                     <Image source={{ uri: cat.latestImage }} style={StyleSheet.absoluteFill} />
                 ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.subtle }]} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.subtle }]} />
                 )}
                 <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                    colors={['transparent', isDark ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.8)']}
                     style={StyleSheet.absoluteFill}
                 />
-                <View style={styles.newTag}>
-                    <View style={styles.dot} />
+                <View style={[styles.newTag, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)' }]}>
+                    <View style={[styles.dot, { backgroundColor: colors.danger }]} />
                     <Typography variant="label" color="white" style={styles.newTagText}>NEW</Typography>
                 </View>
                 <View style={styles.tileContent}>
@@ -299,11 +308,18 @@ const Tile = ({ cat, onPress }: { cat: CategoryData, onPress: () => void }) => {
         <TouchableOpacity
             activeOpacity={0.7}
             onPress={onPress}
-            style={[styles.tile, styles.emptyTile, { height: cat.height }]}
+            style={[
+                styles.tile,
+                {
+                    height: cat.height,
+                    backgroundColor: colors.paper,
+                    borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'
+                }
+            ]}
         >
             <View style={styles.emptyContent}>
-                <Typography variant="label" color={COLORS.stone} style={styles.emptyLabel}>{cat.name}</Typography>
-                <Typography variant="body" color={COLORS.stone} style={[styles.startSifting, { opacity: 0.5 }]}>Start Sifting</Typography>
+                <Typography variant="label" color="stone" style={styles.emptyLabel}>{cat.name}</Typography>
+                <Typography variant="body" color="stone" style={[styles.startSifting, { opacity: 0.5 }]}>Start Sifting</Typography>
             </View>
         </TouchableOpacity>
     );
@@ -315,7 +331,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.canvas,
     },
     header: {
         flexDirection: 'row',
@@ -328,7 +343,6 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     smallCapsLabel: {
-        color: COLORS.stone,
         marginBottom: 4,
     },
     serifTitle: {
@@ -347,16 +361,13 @@ const styles = StyleSheet.create({
         marginBottom: 24,
         paddingHorizontal: 16,
         height: 48, // Slightly taller
-        backgroundColor: COLORS.paper,
         borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
     },
     searchInput: {
         flex: 1,
         marginLeft: 10,
         fontSize: 16,
-        color: COLORS.ink,
     },
     gridContainer: {
         paddingHorizontal: 20,
@@ -379,17 +390,8 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(0,0,0,0.1)',
         // @ts-ignore
         cornerCurve: 'continuous',
-    },
-    anchorTile: {
-        backgroundColor: COLORS.paper,
-    },
-    emptyTile: {
-        backgroundColor: COLORS.paper,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     tileContent: {
         position: 'absolute',
@@ -415,14 +417,12 @@ const styles = StyleSheet.create({
     },
     startSifting: {
         fontSize: 12,
-        color: COLORS.stone,
         marginTop: 4,
     },
     newTag: {
         position: 'absolute',
         top: 10,
         right: 10,
-        backgroundColor: 'rgba(0,0,0,0.4)',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 6,
@@ -433,7 +433,6 @@ const styles = StyleSheet.create({
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: COLORS.danger,
         marginRight: 4,
     },
     newTagText: {

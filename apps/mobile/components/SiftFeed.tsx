@@ -2,14 +2,15 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { COLORS, RADIUS } from '../lib/theme';
+import { COLORS, RADIUS, TRANSITIONS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { Article, Video } from 'phosphor-react-native';
-import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, Layout, Easing } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
+import { useTheme } from '../context/ThemeContext';
 
 interface Page {
     id: string;
@@ -45,6 +46,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
     onEditTags?: (id: string, currentTags: string[]) => void,
     mode?: 'feed' | 'archive'
 }) => {
+    const { colors, isDark } = useTheme();
     const router = useRouter();
 
     const handlePress = () => {
@@ -69,6 +71,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
                     cancelButtonIndex: 0,
                     destructiveButtonIndex: options.indexOf('Delete Forever'),
                     title: item.title,
+                    userInterfaceStyle: isDark ? 'dark' : 'light',
                 },
                 (buttonIndex) => {
                     const selectedOption = options[buttonIndex];
@@ -113,7 +116,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
         <Animated.View
             entering={FadeIn.duration(400)}
             exiting={FadeOut.duration(200)}
-            layout={Layout.springify().damping(15)}
+            layout={Layout.duration(TRANSITIONS.normal).easing(Easing.inOut(Easing.ease))}
             style={{ padding: 8 }}
         >
             <Pressable
@@ -122,15 +125,15 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
                 onLongPress={handleLongPress}
                 delayLongPress={300}
             >
-                <View style={styles.imageWrapper}>
+                <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {isFallback ? (
-                        <View style={styles.fallbackContainer}>
+                        <View style={[styles.fallbackContainer, { backgroundColor: colors.paper }]}>
                             {(item.category?.toLowerCase?.()?.includes('video') ||
                                 item.source?.toLowerCase?.()?.includes('tiktok') ||
                                 item.source?.toLowerCase?.()?.includes('youtube')) ? (
-                                <Video size={32} color={COLORS.stone} weight="thin" />
+                                <Video size={32} color={colors.stone} weight="thin" />
                             ) : (
-                                <Article size={32} color={COLORS.stone} weight="thin" />
+                                <Article size={32} color={colors.stone} weight="thin" />
                             )}
                         </View>
                     ) : (
@@ -149,11 +152,11 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
                         {item.title || 'Untitled'}
                     </Typography>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography style={styles.metadata}>
+                        <Typography style={[styles.metadata, { color: colors.stone }]}>
                             {(item.category || 'General').toUpperCase()} • {(item.source || 'Sift').toUpperCase()}
                         </Typography>
                         {item.is_pinned && (
-                            <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.accent }} />
+                            <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />
                         )}
                     </View>
                 </View>
@@ -163,6 +166,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
 };
 
 export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed', loading = false }: SiftFeedProps) {
+    const { colors, isDark } = useTheme();
     const transformedData = useMemo(() => {
         if (!pages) return [];
         return pages.map((page) => {
@@ -190,6 +194,7 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onE
                 numColumns={2}
                 extraData={true} // Trigger masonry
                 renderItem={() => <SiftCardSkeleton />}
+                // @ts-ignore
                 estimatedItemSize={250}
                 contentContainerStyle={{ paddingHorizontal: 12 }}
             />
@@ -202,6 +207,7 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onE
             keyExtractor={(item) => item.id}
             numColumns={2}
             extraData={true} // Trigger masonry
+            // @ts-ignore
             estimatedItemSize={250}
             renderItem={({ item }) => (
                 <Card
@@ -227,12 +233,6 @@ const styles = StyleSheet.create({
         aspectRatio: 16 / 9,
         borderRadius: RADIUS.l,
         overflow: 'hidden',
-        backgroundColor: COLORS.subtle,
-        shadowColor: "#5A5A50",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 3,
     },
     fallbackContainer: {
         flex: 1,
@@ -251,7 +251,6 @@ const styles = StyleSheet.create({
     },
     metadata: {
         fontSize: 13,
-        color: '#8E8E93',
         fontFamily: 'System',
         textTransform: 'uppercase',
         letterSpacing: 0.5,

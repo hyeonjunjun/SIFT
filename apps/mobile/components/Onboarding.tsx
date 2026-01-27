@@ -3,7 +3,6 @@ import { View, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Animated as
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
     withTiming,
     withDelay,
     withRepeat,

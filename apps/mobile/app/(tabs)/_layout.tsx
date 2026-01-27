@@ -1,18 +1,20 @@
 import { Tabs } from "expo-router";
-import { DeviceEventEmitter, StyleSheet } from "react-native";
-import { COLORS, Theme } from "../../lib/theme";
+import { DeviceEventEmitter, View } from "react-native";
 import { House, Books, User, SquaresFour } from 'phosphor-react-native';
-import { View } from "react-native";
+import { useTheme } from "../../context/ThemeContext";
+import { COLORS } from "../../lib/theme";
 
 export default function TabLayout() {
+    const { colors, isDark } = useTheme();
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: COLORS.canvas, // #FDFCF8 (Oatmeal)
+                    backgroundColor: colors.canvas,
                     borderTopWidth: 0.5,
-                    borderTopColor: 'rgba(0,0,0,0.05)',
+                    borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                     height: 95,
                     paddingTop: 12,
                     paddingBottom: 35,
@@ -26,8 +28,8 @@ export default function TabLayout() {
                     marginTop: 4,
                     textTransform: 'uppercase',
                 },
-                tabBarActiveTintColor: COLORS.ink,
-                tabBarInactiveTintColor: COLORS.stone,
+                tabBarActiveTintColor: colors.ink,
+                tabBarInactiveTintColor: colors.stone,
             }}
         >
             <Tabs.Screen

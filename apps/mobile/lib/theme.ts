@@ -14,15 +14,15 @@ export const LIGHT_COLORS = {
 };
 
 export const DARK_COLORS = {
-    ink: '#F2F2F0',       // Off-White (Primary Text)
-    paper: '#1C1C1A',     // Deep Charcoal (Cards/Surfaces)
-    canvas: '#121211',    // Midnight (Backgrounds)
-    stone: '#8E8E8A',     // Warm Grey (Secondary Text)
-    separator: '#2C2C2A', // Dark Dividers
-    subtle: '#252523',    // Dark Highlight
-    accent: '#8D9DB6',    // Lighter Slate Blue
-    danger: '#D99A84',    // Lighter Clay Red
-    success: '#A5B7AF',   // Lighter Sage Green
+    ink: '#F5F5F0',       // Bone White (Primary Text)
+    paper: '#161615',     // Obsidian (Cards/Surfaces)
+    canvas: '#0D0D0C',    // Near Black (Backgrounds)
+    stone: '#70706C',     // Dimmed Stone (Secondary Text)
+    separator: '#222220', // Stealth Dividers
+    subtle: '#1C1C1A',    // Dark Highlight
+    accent: '#7E8DA4',    // Muted Slate Blue
+    danger: '#B56E56',    // Deep Clay Red
+    success: '#7D9389',   // Deep Sage Green
 };
 
 export const COLORS = LIGHT_COLORS; // Default export for backwards compatibility
@@ -49,6 +49,13 @@ export const RADIUS = {
 export const BORDER = {
     hairline: StyleSheet.hairlineWidth,
     thin: 1,
+};
+
+export const TRANSITIONS = {
+    short: 200,
+    normal: 300,
+    long: 500,
+    // Forbid spring animations - use withTiming + Easing.inOut(Easing.ease)
 };
 
 export const Theme = {

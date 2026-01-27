@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, Text, PressableProps } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { Theme } from '../../lib/theme';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import { Theme, TRANSITIONS } from '../../lib/theme';
 import { cn } from '../../lib/utils'; // Assuming utils exists, if not I will inline or create it. I should check.
 
 // Basic cn utility replacement if not exists
@@ -29,11 +29,17 @@ export function Button({ variant = 'primary', label, icon, className, ...props }
     });
 
     const handlePressIn = () => {
-        scale.value = withSpring(0.98, { damping: 10, stiffness: 300 });
+        scale.value = withTiming(0.98, {
+            duration: TRANSITIONS.short,
+            easing: Easing.inOut(Easing.ease),
+        });
     };
 
     const handlePressOut = () => {
-        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+        scale.value = withTiming(1, {
+            duration: TRANSITIONS.short,
+            easing: Easing.inOut(Easing.ease),
+        });
     };
 
     const getVariantStyles = () => {
