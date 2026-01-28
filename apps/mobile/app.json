@@ -14,7 +14,7 @@
       "backgroundColor": "#FDFCF8"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
       "buildNumber": "62",
