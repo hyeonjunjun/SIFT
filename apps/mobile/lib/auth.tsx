@@ -28,6 +28,7 @@ type AuthContextType = {
     loading: boolean;
     tier: 'free' | 'plus' | 'unlimited' | 'admin';
     signOut: () => Promise<void>;
+    refreshTier: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     tier: 'free',
     signOut: async () => { },
+    refreshTier: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -46,12 +48,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [tier, setTier] = useState<'free' | 'plus' | 'unlimited' | 'admin'>('free');
     const [loading, setLoading] = useState(true);
 
-    const fetchUserTier = async (userId: string) => {
+    const refreshTier = async () => {
+        if (!user?.id) return;
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('tier')
-                .eq('id', userId)
+                .eq('id', user.id)
                 .single();
 
             if (!error && data) {
@@ -77,9 +80,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (error) throw error;
 
                 setSession(session);
-                setUser(session?.user ?? null);
-                if (session?.user) {
-                    await fetchUserTier(session.user.id);
+                const currentUser = session?.user ?? null;
+                setUser(currentUser);
+
+                if (currentUser) {
+                    // Fetch tier manually once user is set
+                    const { data, error: tierError } = await supabase
+                        .from('profiles')
+                        .select('tier')
+                        .eq('id', currentUser.id)
+                        .single();
+                    if (!tierError && data) setTier(data.tier as any);
                 }
             } catch (error) {
                 console.error('Error fetching session:', error);
@@ -93,9 +104,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             console.log('Auth state change:', _event);
             setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                await fetchUserTier(session.user.id);
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+
+            if (currentUser) {
+                const { data, error: tierError } = await supabase
+                    .from('profiles')
+                    .select('tier')
+                    .eq('id', currentUser.id)
+                    .single();
+                if (!tierError && data) setTier(data.tier as any);
             } else {
                 setTier('free');
             }
@@ -106,7 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, tier, signOut }}>
+        <AuthContext.Provider value={{ user, session, loading, tier, signOut, refreshTier }}>
             {children}
         </AuthContext.Provider>
     );

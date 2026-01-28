@@ -55,10 +55,21 @@ export default function LoginScreen() {
                 return;
             }
 
+            // Generate nonce for security (similar to Apple Sign-In)
+            const rawNonce = Math.random().toString(36).substring(2, 11);
+            const hashedNonce = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256,
+                rawNonce
+            );
+
             const { GoogleSignin } = require('@react-native-google-signin/google-signin');
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-            const response = await GoogleSignin.signIn();
-            // ... (rest of the code)
+
+            // Pass the hashed nonce to Google Sign-In
+            // Note: Modern versions of react-native-google-signin support passing nonce in signIn
+            const response = await GoogleSignin.signIn({
+                nonce: hashedNonce,
+            });
 
             // Native library structure differs slightly by version
             const idToken = response.data?.idToken || (response as any).idToken;
@@ -67,6 +78,7 @@ export default function LoginScreen() {
                 const { error } = await supabase.auth.signInWithIdToken({
                     provider: 'google',
                     token: idToken,
+                    nonce: rawNonce, // Pass the raw (unhashed) nonce to Supabase
                 });
                 if (error) throw error;
             } else {

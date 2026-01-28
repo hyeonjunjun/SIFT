@@ -22,7 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
-    const { user, signOut } = useAuth();
+    const { user, tier, refreshTier, signOut } = useAuth();
     const router = useRouter();
     const { theme, setTheme, colors, isDark } = useTheme();
     const queryClient = useQueryClient();
@@ -67,7 +67,8 @@ export default function ProfileScreen() {
         useCallback(() => {
             fetchSavedPages();
             loadSettings();
-        }, [fetchSavedPages, loadSettings])
+            refreshTier(); // Refresh user tier on focus
+        }, [fetchSavedPages, loadSettings, refreshTier])
     );
 
     const onRefresh = () => {
@@ -122,9 +123,9 @@ export default function ProfileScreen() {
                         )}
                     </View>
                     <View style={styles.profileInfo}>
-                        <View style={[styles.tierBadge, user?.user_metadata?.plan === 'Unlimited' ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
-                            <Typography variant="label" style={[styles.tierText, { color: user?.user_metadata?.plan === 'Unlimited' ? colors.paper : colors.stone }]}>
-                                {user?.user_metadata?.plan === 'Unlimited' ? 'PRO MEMBER' : 'PLUS MEMBER'}
+                        <View style={[styles.tierBadge, (tier === 'unlimited' || tier === 'admin') ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
+                            <Typography variant="label" style={[styles.tierText, { color: (tier === 'unlimited' || tier === 'admin') ? colors.paper : colors.stone }]}>
+                                {(tier === 'unlimited' || tier === 'admin') ? 'PRO MEMBER' : tier === 'plus' ? 'PLUS MEMBER' : 'FREE MEMBER'}
                             </Typography>
                         </View>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>

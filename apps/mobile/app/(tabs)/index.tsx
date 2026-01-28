@@ -43,13 +43,13 @@ const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Profe
 import { useAuth } from "../../lib/auth";
 
 export default function HomeScreen() {
-    const { user } = useAuth(); // Get authenticated user
+    const { user, tier } = useAuth(); // Get authenticated user
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const { data: pages = [], isLoading: loading, refetch } = useQuery({
-        queryKey: ['pages', user?.id],
+        queryKey: ['pages', user?.id, tier],
         queryFn: async () => {
             if (!user) return [];
             console.log(`[Fetch] Fetching pages for user: ${user.id}`);
