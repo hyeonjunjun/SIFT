@@ -140,21 +140,27 @@ export async function POST(request: Request) {
             return NextResponse.json({ status: 'error', message: 'URL or Image is required' }, { status: 400, headers: corsHeaders });
         }
 
-        // 0. SUBSCRIPTION CHECK (Conceptual implementation)
-        // In a real app, you'd fetch the user's plan from Supabase 'profiles' or 'subscriptions'
-        // For now, we mock a limit for 'Plus' (Trial) vs 'Unlimited' (Pro)
-        const userTier = body.user_tier || 'Plus'; // Default to trial/plus
+        // 0. SUBSCRIPTION CHECK
+        const userTier = body.user_tier || 'free';
+        const tierLimits: Record<string, number> = {
+            'free': 10,
+            'plus': 30,
+            'unlimited': 999999,
+            'admin': 999999
+        };
 
-        if (userTier === 'Plus') {
+        const currentLimit = tierLimits[userTier] || tierLimits['free'];
+
+        if (userTier !== 'unlimited' && userTier !== 'admin') {
             const { count, error: countError } = await supabaseAdmin
                 .from('pages')
                 .select('*', { count: 'exact', head: true })
                 .eq('user_id', user_id);
 
-            if (!countError && count && count >= 10) {
+            if (!countError && count && count >= currentLimit) {
                 return NextResponse.json({
                     status: 'limit_reached',
-                    message: 'You have reached the monthly limit for the Plus tier (10 sifts). Upgrade to Unlimited for more!',
+                    message: `You have reached your tier limit (${currentLimit} sifts). Upgrade for more!`,
                     upgrade_url: 'https://sift.app/upgrade'
                 }, { status: 403, headers: corsHeaders });
             }

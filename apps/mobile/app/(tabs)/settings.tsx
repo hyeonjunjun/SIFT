@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
-import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight } from 'phosphor-react-native';
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -123,9 +123,9 @@ export default function ProfileScreen() {
                         )}
                     </View>
                     <View style={styles.profileInfo}>
-                        <View style={[styles.tierBadge, (tier === 'unlimited' || tier === 'admin') ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
-                            <Typography variant="label" style={[styles.tierText, { color: (tier === 'unlimited' || tier === 'admin') ? colors.paper : colors.stone }]}>
-                                {(tier === 'unlimited' || tier === 'admin') ? 'PRO MEMBER' : tier === 'plus' ? 'PLUS MEMBER' : 'FREE MEMBER'}
+                        <View style={[styles.tierBadge, (tier !== 'free') ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
+                            <Typography variant="label" style={[styles.tierText, { color: (tier !== 'free') ? colors.paper : colors.stone }]}>
+                                {tier === 'unlimited' ? 'UNLIMITED MEMBER' : tier === 'plus' ? 'PRO MEMBER' : tier === 'admin' ? 'ADMIN' : 'FREE MEMBER'}
                             </Typography>
                         </View>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
@@ -152,6 +152,12 @@ export default function ProfileScreen() {
                         description="Profile, Avatar, and Bio"
                         onPress={() => router.push('/settings/identity')}
                         icon={<UserIcon size={20} color={colors.ink} />}
+                    />
+                    <SettingsRow
+                        label="Membership"
+                        description={tier === 'free' ? 'Upgrade for more sifts' : 'Manage your subscription'}
+                        onPress={() => router.push('/settings/subscription')}
+                        icon={<Crown size={20} color={colors.ink} />}
                     />
                     <SettingsRow
                         label="History"

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { COLORS } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
+import { Typography } from './design-system/Typography';
 
 interface SafeContentRendererProps {
     content: string;
@@ -80,6 +81,13 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
         <View style={dynamicStyles.container}>
             {parsedData.summary && (
                 <Text style={dynamicStyles.bodyText}>{parsedData.summary}</Text>
+            )}
+
+            {parsedData.smart_data?.price && parsedData.smart_data.price !== '$0.00' && (
+                <View style={[dynamicStyles.section, { backgroundColor: colors.subtle, padding: 12, borderRadius: 8, marginBottom: 16 }]}>
+                    <Text style={[dynamicStyles.subHeader, { marginBottom: 4 }]}>IDENTIFIED PRICE</Text>
+                    <Typography variant="h2" color="ink">{parsedData.smart_data.price}</Typography>
+                </View>
             )}
 
             {parsedData.Inputs && (
