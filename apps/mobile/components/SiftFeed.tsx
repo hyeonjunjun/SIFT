@@ -38,7 +38,7 @@ interface SiftFeedProps {
     loading?: boolean;
 }
 
-const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
+const Card = React.memo(({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
     item: any,
     onPin?: (id: string) => void,
     onArchive?: (id: string) => void,
@@ -163,7 +163,7 @@ const Card = ({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'fee
             </Pressable>
         </Animated.View>
     );
-};
+});
 
 export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed', loading = false }: SiftFeedProps) {
     const { colors, isDark } = useTheme();

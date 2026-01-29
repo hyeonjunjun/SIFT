@@ -9,7 +9,6 @@ import Animated, {
     FadeIn,
     runOnJS
 } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
 import { useTheme } from '../context/ThemeContext';
 
 interface SplashScreenProps {
@@ -79,7 +78,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             <View style={styles.center}>
                 <Animated.View style={logoStyle}>
                     <Image
-                        source={require('../assets/sift-white-new.png')}
+                        source={require('../assets/sift-logo.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />

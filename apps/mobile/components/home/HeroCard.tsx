@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Typography } from '../design-system/Typography';
 import { useRouter } from 'expo-router';
 import { COLORS, BORDER } from '../../lib/theme';
@@ -11,7 +12,7 @@ interface HeroCardProps {
     imageUrl?: string;
 }
 
-export function HeroCard({ id, title, tags = [], imageUrl }: HeroCardProps) {
+export const HeroCard = React.memo(({ id, title, tags = [], imageUrl }: HeroCardProps) => {
     const router = useRouter();
     const category = tags[0] || 'Uncategorized';
 
@@ -23,9 +24,10 @@ export function HeroCard({ id, title, tags = [], imageUrl }: HeroCardProps) {
             <View style={styles.imageContainer}>
                 {imageUrl ? (
                     <Image
-                        source={{ uri: imageUrl }}
+                        source={imageUrl}
                         style={styles.image}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        transition={500}
                     />
                 ) : (
                     <View style={styles.placeholder} />
@@ -41,7 +43,7 @@ export function HeroCard({ id, title, tags = [], imageUrl }: HeroCardProps) {
             </View>
         </Pressable>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {

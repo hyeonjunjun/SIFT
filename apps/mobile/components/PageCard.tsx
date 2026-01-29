@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Alert, Pressable, Image, Text, ActionSheetIOS, Platform } from 'react-native';
+import { View, Alert, Pressable, Text, ActionSheetIOS, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Trash, PushPin as Pin } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
@@ -26,7 +27,7 @@ interface PageCardProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) {
+export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) => {
     const { colors, isDark, theme } = useTheme();
     const router = useRouter();
     const scale = useSharedValue(1);
@@ -181,10 +182,10 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
 
                     {imageUrl && (
                         <Image
-                            source={imageError ? require('../assets/covers/gastronomy.jpg') : { uri: imageUrl }}
+                            source={imageUrl}
                             style={{ width: '100%', height: 180, backgroundColor: colors.subtle }}
-                            resizeMode="cover"
-                            onError={() => setImageError(true)}
+                            contentFit="cover"
+                            transition={500}
                         />
                     )}
 
@@ -212,4 +213,4 @@ export function PageCard({ id, title, gist, url, tags = [], onDelete, onDeleteFo
             </AnimatedPressable>
         </ReanimatedSwipeable>
     );
-}
+});
