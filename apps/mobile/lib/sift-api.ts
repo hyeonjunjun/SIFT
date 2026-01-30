@@ -14,17 +14,18 @@ export const safeSift = async <T = any>(
     originalUrl: string,
     userId?: string,
     pendingId?: string,
+    userTier?: string,
     retryCount = 0
 ): Promise<T | null> => {
     try {
-        const apiUrl = `${API_URL}/api/sift_v2`;
-        console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl}`);
-
+        const apiUrl = `${API_URL}/api/sift`;
+        console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl} (Tier: ${userTier || 'free'})`);
         const body = {
             url: originalUrl,
             platform: 'share_sheet',
             user_id: userId,
-            id: pendingId
+            id: pendingId,
+            user_tier: userTier
         };
 
         const res = await fetch(apiUrl, {
@@ -41,7 +42,7 @@ export const safeSift = async <T = any>(
             json = {
                 status: "error",
                 message: "Invalid JSON response from server",
-                debug_info: `Response code: ${res.status}`
+                debug_info: `URL: ${apiUrl} | Status: ${res.status}`
             };
         }
 
@@ -53,7 +54,7 @@ export const safeSift = async <T = any>(
                 const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
                 console.warn(`[SafeSift] Retrying in ${backoff}ms... (${msg})`);
                 await new Promise(resolve => setTimeout(resolve, backoff));
-                return safeSift(originalUrl, userId, pendingId, retryCount + 1);
+                return safeSift(originalUrl, userId, pendingId, userTier, retryCount + 1);
             }
 
             throw new Error(msg);
@@ -67,7 +68,7 @@ export const safeSift = async <T = any>(
             const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
             console.warn(`[SafeSift] Network error, retrying in ${backoff}ms...`, error.message);
             await new Promise(resolve => setTimeout(resolve, backoff));
-            return safeSift(originalUrl, userId, pendingId, retryCount + 1);
+            return safeSift(originalUrl, userId, pendingId, userTier, retryCount + 1);
         }
 
         console.error("[SafeSift] Terminal Exception:", error);

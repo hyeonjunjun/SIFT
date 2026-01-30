@@ -9,8 +9,8 @@ const getApiUrl = () => {
     }
 
     // 2. Production (FORCE CORRECT URL)
-    // We ignore process.env.EXPO_PUBLIC_API_URL because it might be poisoned by old EAS Secrets
-    return 'https://sift-rho.vercel.app';
+    // We prefer EXPO_PUBLIC_API_URL if set in EAS secrets, but fallback to known good.
+    return process.env.EXPO_PUBLIC_API_URL || 'https://sift-rho.vercel.app';
 };
 
 export const API_URL = getApiUrl();

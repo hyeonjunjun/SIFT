@@ -321,7 +321,7 @@ export default function HomeScreen() {
             if (!task.pendingId) continue;
             try {
                 console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
-                await safeSift(task.url, user!.id, task.pendingId);
+                await safeSift(task.url, user!.id, task.pendingId, tier);
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
             } finally {
@@ -591,29 +591,22 @@ export default function HomeScreen() {
                                 // ENABLED FOR DEBUGGING IN PROD
                                 // if (!__DEV__) return; 
                                 Alert.alert(
-                                    "SIFT Debug",
-                                    `API: ${API_URL}\nSB: ${process.env.EXPO_PUBLIC_SUPABASE_URL?.substring(0, 20)}...\nUser: ${user?.id}\nPages: ${pages.length}`,
+                                    "SIFT Diagnostics",
+                                    `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102`,
                                     [
                                         { text: "OK" },
                                         {
-                                            text: "Run Mock Sift",
+                                            text: "Test Connection",
                                             onPress: async () => {
                                                 try {
-                                                    showToast("Starting Mock Sift...");
-                                                    const res = await fetch(`${API_URL}/api/sift`, {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ mock: true, user_id: user?.id, platform: 'debug' })
-                                                    });
-                                                    const json = await res.json();
+                                                    const res = await fetch(`${API_URL}/api/archive?user_id=${user?.id}`);
                                                     if (res.ok) {
-                                                        showToast("Mock Sift Success! Check feed.");
-                                                        onRefresh(); // Trigger feed update
+                                                        Alert.alert("Success", "API is reachable!");
                                                     } else {
-                                                        Alert.alert("Mock Sift Failed", json.message || "Unknown error");
+                                                        Alert.alert("Failed", `Status: ${res.status}`);
                                                     }
                                                 } catch (e: any) {
-                                                    Alert.alert("Request Exception", e.message);
+                                                    Alert.alert("Error", e.message);
                                                 }
                                             }
                                         }

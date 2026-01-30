@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { CaretLeft, Check, Crown, Star, Infinity as InfinityIcon } from 'phosphor-react-native';
+import { CaretLeft, Check, Crown, Star, ArrowsClockwise as InfinityIcon } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -108,7 +108,11 @@ function TierCard({ tierId, name, icon: Icon, color, isCurrent, onPress }: {
         >
             <View style={styles.cardHeader}>
                 <View style={[styles.iconBox, { backgroundColor: isDark ? colors.subtle : '#F9F9F7' }]}>
-                    <Icon size={24} color={isCurrent ? colors.ink : colors.stone} weight={isCurrent ? "fill" : "regular"} />
+                    {Icon ? (
+                        <Icon size={24} color={isCurrent ? colors.ink : colors.stone} weight={isCurrent ? "fill" : "regular"} />
+                    ) : (
+                        <View style={{ width: 24, height: 24 }} />
+                    )}
                 </View>
                 <View style={{ flex: 1 }}>
                     <Typography variant="h3">{name}</Typography>
