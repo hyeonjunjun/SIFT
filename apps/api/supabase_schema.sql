@@ -25,7 +25,7 @@ alter table public.pages enable row level security;
 do $$
 begin
   if not exists (select 1 from pg_policies where policyname = 'Authenticated users can read sifts' and tablename = 'pages') then
-    create policy "Authenticated users can read sifts" on public.pages for select to authenticated using (true);
+    create policy "Authenticated users can read sifts" on public.pages for select to authenticated using (auth.uid() = user_id);
   end if;
   
   if not exists (select 1 from pg_policies where policyname = 'Authenticated users can create sifts' and tablename = 'pages') then

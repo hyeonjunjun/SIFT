@@ -657,11 +657,11 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Initializing State Overlay */}
+                {/* 1.5. Initializing State Overlay - Only on cold start or auth check */}
                 {(authLoading && pages.length === 0) && (
-                    <View style={{ height: 300, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' }}>
                         <ActivityIndicator size="small" color={COLORS.ink} />
-                        <Typography variant="caption" style={{ marginTop: 12, color: COLORS.stone }}>Initializing SIFT...</Typography>
+                        <Typography variant="caption" style={{ marginTop: 12, color: COLORS.stone }}>Preparing your library...</Typography>
                     </View>
                 )}
 

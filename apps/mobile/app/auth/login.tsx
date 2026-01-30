@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Dimensions, NativeModules } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Dimensions, NativeModules, Switch } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '../../lib/supabase';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
+
 // Native modules handled conditionally below
 let statusCodes: any = {};
 if (NativeModules.RNGoogleSignin) {
@@ -20,11 +22,27 @@ WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 
+const REMEMBER_ME_KEY = 'auth_remembered_email';
+
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        const loadRememberedEmail = async () => {
+            try {
+                const savedEmail = await SecureStore.getItemAsync(REMEMBER_ME_KEY);
+                if (savedEmail) {
+                    setEmail(savedEmail);
+                    setRememberMe(true);
+                }
+            } catch (e) { }
+        };
+        loadRememberedEmail();
+    }, []);
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -42,6 +60,15 @@ export default function LoginScreen() {
         if (error) {
             Alert.alert('Login Failed', error.message);
             setLoading(false);
+        } else {
+            // Success
+            try {
+                if (rememberMe) {
+                    await SecureStore.setItemAsync(REMEMBER_ME_KEY, email);
+                } else {
+                    await SecureStore.deleteItemAsync(REMEMBER_ME_KEY);
+                }
+            } catch (e) { }
         }
     };
 
@@ -66,7 +93,6 @@ export default function LoginScreen() {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
             // Pass the hashed nonce to Google Sign-In
-            // Note: Modern versions of react-native-google-signin support passing nonce in signIn
             const response = await GoogleSignin.signIn({
                 nonce: hashedNonce,
             });
@@ -87,9 +113,9 @@ export default function LoginScreen() {
         } catch (error: any) {
             setLoading(false);
             if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                // user cancelled the login flow
+                // user cancelled
             } else if (error.code === statusCodes.IN_PROGRESS) {
-                // operation (e.g. sign in) is in progress already
+                // in progress
             } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                 Alert.alert('Google Play Services', 'Play services not available or outdated');
             } else {
@@ -185,6 +211,23 @@ export default function LoginScreen() {
                         />
                     </View>
 
+                    <View style={styles.optionsRow}>
+                        <View style={styles.rememberMeContainer}>
+                            <Switch
+                                value={rememberMe}
+                                onValueChange={setRememberMe}
+                                trackColor={{ false: COLORS.subtle, true: COLORS.ink }}
+                                thumbColor={COLORS.paper}
+                                ios_backgroundColor={COLORS.subtle}
+                                style={{ transform: Platform.OS === 'ios' ? [{ scaleX: .7 }, { scaleY: .7 }] : [] }}
+                            />
+                            <Typography variant="caption" color={COLORS.stone}>Remember me</Typography>
+                        </View>
+                        <TouchableOpacity onPress={() => router.push('/auth/forgot-password')}>
+                            <Typography variant="caption" color={COLORS.stone} style={{ fontWeight: '500' }}>Forgot password?</Typography>
+                        </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
                         style={[styles.loginButton, loading && styles.buttonDisabled]}
                         onPress={handleLogin}
@@ -239,6 +282,8 @@ export default function LoginScreen() {
     );
 }
 
+import { Platform } from 'react-native';
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -248,11 +293,11 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 60,
+        marginBottom: 40,
     },
     logoText: {
         fontSize: 84,
-        fontFamily: 'PlayfairDisplay', // Consistent with Home
+        fontFamily: 'PlayfairDisplay',
         fontWeight: '400',
         letterSpacing: -4,
         color: COLORS.ink,
@@ -267,7 +312,7 @@ const styles = StyleSheet.create({
     },
     form: {
         width: '100%',
-        gap: 16,
+        gap: 12,
     },
     inputContainer: {
         backgroundColor: COLORS.paper,
@@ -282,6 +327,19 @@ const styles = StyleSheet.create({
         fontSize: 17,
         color: COLORS.ink,
         fontFamily: 'System',
+    },
+    optionsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+        marginTop: 4,
+        marginBottom: 8,
+    },
+    rememberMeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     loginButton: {
         backgroundColor: COLORS.ink,
@@ -298,7 +356,7 @@ const styles = StyleSheet.create({
     dividerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 40,
+        marginVertical: 32,
     },
     divider: {
         flex: 1,
@@ -336,7 +394,7 @@ const styles = StyleSheet.create({
         ...Theme.shadows.soft,
     },
     footer: {
-        marginTop: 60,
+        marginTop: 40,
         alignItems: 'center',
     },
 });

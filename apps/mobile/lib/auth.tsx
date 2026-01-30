@@ -11,8 +11,9 @@ if (isGoogleSigninAvailable) {
     try {
         GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
         GoogleSignin.configure({
-            iosClientId: '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
-            webClientId: '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
+            iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
+            webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
+            androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || '240781979317-bjl813ouj9hma6vnheba5l0uhcka9t9u.apps.googleusercontent.com',
             offlineAccess: true,
         });
     } catch (e) {
@@ -97,23 +98,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchInitialState = async () => {
-            setLoading(true);
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) throw error;
 
-                setSession(session);
-                const currentUser = session?.user ?? null;
-                setUser(currentUser);
+                if (isMounted) {
+                    setSession(session);
+                    const currentUser = session?.user ?? null;
+                    setUser(currentUser);
 
-                if (currentUser) {
-                    await refreshProfile(currentUser);
+                    if (currentUser) {
+                        await refreshProfile(currentUser);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching session:', error);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
 
@@ -121,25 +125,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             console.log('Auth state change:', _event);
-            setSession(session);
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
 
-            if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
-                setLoading(true);
-                await refreshProfile(currentUser);
-                setLoading(false);
-            } else if (_event === 'SIGNED_OUT') {
-                setProfile(null);
-                setTier('free');
-                setLoading(false);
-            } else {
-                // For other events, we might still want to ensure loading is false
-                setLoading(false);
+            if (isMounted) {
+                setSession(session);
+                const currentUser = session?.user ?? null;
+                setUser(currentUser);
+
+                if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+                    setLoading(true);
+                    await refreshProfile(currentUser);
+                    setLoading(false);
+                } else if (_event === 'SIGNED_OUT') {
+                    setProfile(null);
+                    setTier('free');
+                    setLoading(false);
+                } else {
+                    setLoading(false);
+                }
             }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     return (
