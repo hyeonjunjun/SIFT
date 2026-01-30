@@ -13,13 +13,13 @@ import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
 export default function IdentityScreen() {
-    const { user } = useAuth();
+    const { user, profile, refreshProfile } = useAuth();
     const router = useRouter();
-    const [displayName, setDisplayName] = useState(user?.user_metadata?.display_name || user?.email?.split('@')[0] || '');
-    const [username, setUsername] = useState(user?.user_metadata?.username || user?.email?.split('@')[0] || '');
-    const [bio, setBio] = useState(user?.user_metadata?.bio || '');
-    const [interests, setInterests] = useState<string[]>(user?.user_metadata?.interests || []);
-    const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || '');
+    const [displayName, setDisplayName] = useState(profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || '');
+    const [username, setUsername] = useState(profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || '');
+    const [bio, setBio] = useState(profile?.bio || user?.user_metadata?.bio || '');
+    const [interests, setInterests] = useState<string[]>(profile?.interests || user?.user_metadata?.interests || []);
+    const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || user?.user_metadata?.avatar_url || '');
     const [loading, setLoading] = useState(false);
     const [newInterest, setNewInterest] = useState('');
 
@@ -82,7 +82,7 @@ export default function IdentityScreen() {
     const handleSave = async () => {
         setLoading(true);
         try {
-            const { error } = await supabase.auth.updateUser({
+            const { error: authError } = await supabase.auth.updateUser({
                 data: {
                     display_name: displayName,
                     username: username,
@@ -91,7 +91,23 @@ export default function IdentityScreen() {
                     avatar_url: avatarUrl
                 }
             });
-            if (error) throw error;
+            if (authError) throw authError;
+
+            // Dual write to profiles table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    display_name: displayName,
+                    username: username,
+                    bio: bio,
+                    interests: interests,
+                    avatar_url: avatarUrl
+                })
+                .eq('id', user?.id);
+
+            if (profileError) throw profileError;
+
+            await refreshProfile();
             Alert.alert('Success', 'Profile updated successfully.');
             router.back();
         } catch (error: any) {

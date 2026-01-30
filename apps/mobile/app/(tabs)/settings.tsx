@@ -22,7 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
-    const { user, tier, refreshTier, signOut } = useAuth();
+    const { user, tier, profile, refreshProfile, signOut } = useAuth();
     const router = useRouter();
     const { theme, setTheme, colors, isDark } = useTheme();
     const queryClient = useQueryClient();
@@ -67,8 +67,8 @@ export default function ProfileScreen() {
         useCallback(() => {
             fetchSavedPages();
             loadSettings();
-            refreshTier(); // Refresh user tier on focus
-        }, [fetchSavedPages, loadSettings, refreshTier])
+            refreshProfile(); // Refresh user profile on focus
+        }, [fetchSavedPages, loadSettings, refreshProfile])
     );
 
     const onRefresh = () => {
@@ -129,14 +129,14 @@ export default function ProfileScreen() {
                             </Typography>
                         </View>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
-                            {user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User'}
+                            {profile?.display_name || user?.email?.split('@')[0] || 'User'}
                         </Typography>
                         <Typography variant="body" color="stone" numberOfLines={2} style={styles.userBio}>
-                            {user?.user_metadata?.bio || 'No bio yet.'}
+                            {profile?.bio || 'No bio yet.'}
                         </Typography>
-                        {user?.user_metadata?.username && (
+                        {profile?.username && (
                             <Typography variant="label" color="stone" style={styles.handle}>
-                                @{user.user_metadata.username.toLowerCase()}
+                                @{profile.username.toLowerCase()}
                             </Typography>
                         )}
                     </View>

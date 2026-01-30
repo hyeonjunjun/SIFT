@@ -22,13 +22,23 @@ if (isGoogleSigninAvailable) {
     console.log('Google Sign-In is not available in this environment');
 }
 
+export type Profile = {
+    display_name?: string;
+    username?: string;
+    bio?: string;
+    avatar_url?: string;
+    interests?: string[];
+    tier?: 'free' | 'plus' | 'unlimited' | 'admin';
+};
+
 type AuthContextType = {
     user: User | null;
     session: Session | null;
     loading: boolean;
     tier: 'free' | 'plus' | 'unlimited' | 'admin';
+    profile: Profile | null;
     signOut: () => Promise<void>;
-    refreshTier: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,8 +46,9 @@ const AuthContext = createContext<AuthContextType>({
     session: null,
     loading: true,
     tier: 'free',
+    profile: null,
     signOut: async () => { },
-    refreshTier: async () => { },
+    refreshProfile: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -46,23 +57,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [tier, setTier] = useState<'free' | 'plus' | 'unlimited' | 'admin'>('free');
+    const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const refreshTier = async () => {
-        if (!user?.id) return;
+    const refreshProfile = async (targetUser?: User | null) => {
+        const actingUser = targetUser ?? user;
+        if (!actingUser?.id) {
+            setProfile(null);
+            setTier('free');
+            return;
+        }
+
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('tier')
-                .eq('id', user.id)
+                .select('*')
+                .eq('id', actingUser.id)
                 .single();
 
             if (!error && data) {
-                setTier(data.tier as any);
+                setProfile(data);
+                setTier(data.tier as any || 'free');
             } else {
+                console.log('[Auth] Profile fetch error/not found, using defaults:', error?.message);
                 setTier('free');
+                setProfile({ tier: 'free' });
             }
         } catch (e) {
+            console.error('[Auth] Failed to refresh profile:', e);
             setTier('free');
         }
     };
@@ -71,10 +93,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { error } = await supabase.auth.signOut();
         if (error) console.error('Error signing out:', error);
         setTier('free');
+        setProfile(null);
     };
 
     useEffect(() => {
-        const fetchSession = async () => {
+        const fetchInitialState = async () => {
+            setLoading(true);
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) throw error;
@@ -84,13 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setUser(currentUser);
 
                 if (currentUser) {
-                    // Fetch tier manually once user is set
-                    const { data, error: tierError } = await supabase
-                        .from('profiles')
-                        .select('tier')
-                        .eq('id', currentUser.id)
-                        .single();
-                    if (!tierError && data) setTier(data.tier as any);
+                    await refreshProfile(currentUser);
                 }
             } catch (error) {
                 console.error('Error fetching session:', error);
@@ -99,7 +117,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         };
 
-        fetchSession();
+        fetchInitialState();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             console.log('Auth state change:', _event);
@@ -107,24 +125,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const currentUser = session?.user ?? null;
             setUser(currentUser);
 
-            if (currentUser) {
-                const { data, error: tierError } = await supabase
-                    .from('profiles')
-                    .select('tier')
-                    .eq('id', currentUser.id)
-                    .single();
-                if (!tierError && data) setTier(data.tier as any);
-            } else {
+            if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+                setLoading(true);
+                await refreshProfile(currentUser);
+                setLoading(false);
+            } else if (_event === 'SIGNED_OUT') {
+                setProfile(null);
                 setTier('free');
+                setLoading(false);
+            } else {
+                // For other events, we might still want to ensure loading is false
+                setLoading(false);
             }
-            setLoading(false);
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, session, loading, tier, signOut, refreshTier }}>
+        <AuthContext.Provider value={{ user, session, loading, tier, profile, signOut, refreshProfile }}>
             {children}
         </AuthContext.Provider>
     );

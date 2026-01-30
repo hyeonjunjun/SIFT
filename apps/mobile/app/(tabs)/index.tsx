@@ -1,4 +1,4 @@
-import { ActionSheetIOS, Platform, View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert } from "react-native";
+import { ActionSheetIOS, Platform, View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import * as Linking from 'expo-linking';
@@ -43,7 +43,7 @@ const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Profe
 import { useAuth } from "../../lib/auth";
 
 export default function HomeScreen() {
-    const { user, tier } = useAuth(); // Get authenticated user
+    const { user, tier, profile, loading: authLoading } = useAuth(); // Get authenticated user
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -619,7 +619,7 @@ export default function HomeScreen() {
                             style={styles.greetingBox}
                         >
                             <Typography variant="label" style={{ fontFamily: 'System', fontWeight: '500', color: COLORS.stone }}>{getGreeting()},</Typography>
-                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
+                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
                         </TouchableOpacity>
                     </View>
 
@@ -656,6 +656,14 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* Initializing State Overlay */}
+                {(authLoading && pages.length === 0) && (
+                    <View style={{ height: 300, justifyContent: 'center', alignItems: 'center' }}>
+                        <ActivityIndicator size="small" color={COLORS.ink} />
+                        <Typography variant="caption" style={{ marginTop: 12, color: COLORS.stone }}>Initializing SIFT...</Typography>
+                    </View>
+                )}
 
                 {/* 2. SEARCH BAR */}
                 <View style={styles.searchContainer}>
