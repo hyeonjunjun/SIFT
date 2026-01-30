@@ -57,7 +57,7 @@ export default function HomeScreen() {
                 .from('pages')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('is_archived', false)
+                .neq('is_archived', true) // More resilient than .eq(false) because it handles NULLs
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
@@ -592,7 +592,7 @@ export default function HomeScreen() {
                                 // if (!__DEV__) return; 
                                 Alert.alert(
                                     "SIFT Diagnostics",
-                                    `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102`,
+                                    `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102\nSifts: ${pages.length}`,
                                     [
                                         { text: "OK" },
                                         {
@@ -603,7 +603,8 @@ export default function HomeScreen() {
                                                     if (res.ok) {
                                                         Alert.alert("Success", "API is reachable!");
                                                     } else {
-                                                        Alert.alert("Failed", `Status: ${res.status}`);
+                                                        const txt = await res.text();
+                                                        Alert.alert("Failed", `Status: ${res.status}\nBody: ${txt.substring(0, 100)}`);
                                                     }
                                                 } catch (e: any) {
                                                     Alert.alert("Error", e.message);
@@ -708,6 +709,15 @@ export default function HomeScreen() {
                         actionLabel={searchQuery ? "Clear Search" : "Browse Categories"}
                         onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
                     />
+                )}
+
+                {/* ERROR STATE */}
+                {!(pages.length > 0) && !loading && (filteredPages.length === 0) && (
+                    <View style={{ padding: 20 }}>
+                        <Typography variant="caption" color="stone" style={{ textAlign: 'center' }}>
+                            If your items are missing, check your connection or try restarting the app.
+                        </Typography>
+                    </View>
                 )}
             </ScrollView>
 
