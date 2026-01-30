@@ -66,7 +66,6 @@ end $$;
 -- 3. Create profiles table for custom user data
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
-  tier text default 'free' check (tier in ('free', 'plus', 'unlimited', 'admin')),
   display_name text,
   username text unique,
   bio text,
@@ -74,6 +73,14 @@ create table if not exists public.profiles (
   interests text[],
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure 'tier' column exists (if table was created without it)
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'tier') then
+    alter table public.profiles add column tier text default 'free' check (tier in ('free', 'plus', 'unlimited', 'admin'));
+  end if;
+end $$;
 
 -- Enable RLS for profiles
 alter table public.profiles enable row level security;

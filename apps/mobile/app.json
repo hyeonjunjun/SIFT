@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "102",
+      "buildNumber": "103",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -48,7 +48,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.hkjstudio.sift",
-      "versionCode": 102,
+      "versionCode": 103,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
