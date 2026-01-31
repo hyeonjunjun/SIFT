@@ -15,7 +15,6 @@ import SiftFeed from '../../components/SiftFeed';
 import { QuickTagEditor } from '../../components/QuickTagEditor';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
-import { useQuery } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -43,7 +42,7 @@ const CATEGORIES = [
     { name: 'PROFESSIONAL', icon: 'Professional' },
 ];
 
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const PAGE_SIZE = 20;
 
@@ -64,24 +63,20 @@ export default function LibraryScreen() {
     const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
 
     const {
-        data,
+        data: pages = [],
         isLoading: loading,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
         refetch
-    } = useInfiniteQuery({
+    } = useQuery({
         queryKey: ['pages', user?.id],
-        queryFn: async ({ pageParam = 0 }) => {
+        queryFn: async () => {
             if (!user?.id) return [];
-            console.log(`[Fetch] Fetching pages for user: ${user.id}, offset: ${pageParam}`);
+            console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
                 .eq('user_id', user.id)
                 .eq('is_archived', false)
-                .order('created_at', { ascending: false })
-                .range(pageParam, pageParam + PAGE_SIZE - 1);
+                .order('created_at', { ascending: false });
 
             if (error) {
                 console.error('Error fetching sifts:', error);
@@ -89,23 +84,9 @@ export default function LibraryScreen() {
             }
             return (data || []) as SiftItem[];
         },
-        getNextPageParam: (lastPage, allPages) => {
-            if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
-            return allPages.length * PAGE_SIZE;
-        },
-        initialPageParam: 0,
         enabled: !!user?.id,
     });
 
-    const pages = useMemo(() => {
-        return data?.pages.flat() || [];
-    }, [data]);
-
-    const handleLoadMore = useCallback(() => {
-        if (hasNextPage && !isFetchingNextPage) {
-            fetchNextPage();
-        }
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Tab Bar Reset Logic
     React.useEffect(() => {
@@ -265,16 +246,9 @@ export default function LibraryScreen() {
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                         }
-                        onEndReached={handleLoadMore}
-                        onEndReachedThreshold={0.5}
                         contentContainerStyle={styles.feedContainer}
                     />
-                    {isFetchingNextPage && (
-                        <View style={{ paddingVertical: 20 }}>
-                            <ActivityIndicator color={colors.ink} />
-                        </View>
-                    )}
-                    {activeCategoryPages.length === 0 && !loading && (
+                    {(!activeCategoryPages || activeCategoryPages.length === 0) && !loading && (
                         <View style={styles.emptyState}>
                             <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
                         </View>
@@ -293,7 +267,7 @@ export default function LibraryScreen() {
                             <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
                         ))}
 
-                        {filteredCategories.length === 0 && (
+                        {(!filteredCategories || filteredCategories.length === 0) && (
                             <View style={styles.emptyState}>
                                 <Typography variant="body" color="stone">No categories match your search.</Typography>
                             </View>

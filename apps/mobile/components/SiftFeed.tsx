@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform, Dimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS, TRANSITIONS } from '../lib/theme';
@@ -45,8 +45,15 @@ interface SiftFeedProps {
     onEndReachedThreshold?: number;
 }
 
-const Card = React.memo(({ item: page, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
+const { width } = Dimensions.get('window');
+const GRID_PADDING = 20;
+const GRID_GAP = 15;
+// Exact same math as library.tsx
+const TILE_WIDTH = (width - (GRID_PADDING * 2) - GRID_GAP) / 2;
+
+const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
     item: Page,
+    index: number,
     onPin?: (id: string) => void,
     onArchive?: (id: string) => void,
     onDeleteForever?: (id: string) => void,
@@ -133,9 +140,19 @@ const Card = React.memo(({ item: page, onPin, onArchive, onDeleteForever, onEdit
 
     const isFallback = !item.image;
 
+    // Determine column position for explicit margins (Full Bleed Container)
+    const isLeftColumn = index % 2 === 0;
+    const marginLeft = isLeftColumn ? 20 : 7.5;
+    const marginRight = isLeftColumn ? 7.5 : 20;
+
     if (item.status === 'pending') {
         return (
-            <View style={{ padding: 8 }}>
+            <View style={{
+                width: TILE_WIDTH,
+                marginBottom: GRID_GAP,
+                marginLeft,
+                marginRight,
+            }}>
                 <SiftCardSkeleton />
             </View>
         );
@@ -145,7 +162,12 @@ const Card = React.memo(({ item: page, onPin, onArchive, onDeleteForever, onEdit
         <Animated.View
             entering={FadeIn.duration(400).easing(Easing.out(Easing.quad))}
             exiting={FadeOut.duration(200)}
-            style={{ padding: 8 }}
+            style={{
+                width: TILE_WIDTH,
+                marginBottom: GRID_GAP,
+                marginLeft,
+                marginRight,
+            }}
         >
             <Pressable
                 style={styles.cardContainer}
@@ -217,10 +239,26 @@ export default function SiftFeed({
                 data={[1, 2, 3, 4, 5, 6]}
                 numColumns={2}
                 extraData={true} // Trigger masonry
-                renderItem={() => <View style={{ padding: 8 }}><SiftCardSkeleton /></View>}
+                renderItem={({ index }) => {
+                    const isLeft = index % 2 === 0;
+                    return (
+                        <View style={{
+                            width: TILE_WIDTH,
+                            marginBottom: GRID_GAP,
+                            marginLeft: isLeft ? 20 : 7.5,
+                            marginRight: isLeft ? 7.5 : 20,
+                        }}>
+                            <SiftCardSkeleton />
+                        </View>
+                    );
+                }}
                 // @ts-ignore
                 estimatedItemSize={250}
-                contentContainerStyle={{ paddingHorizontal: 12 }}
+                contentContainerStyle={{
+                    paddingHorizontal: 0, // Full bleed, margins handled by items
+                    paddingBottom: 40,
+                    ...contentContainerStyle
+                }}
             />
         );
     }
@@ -233,9 +271,10 @@ export default function SiftFeed({
             extraData={isDark} // Minimal extraData to prevent unnecessary re-renders
             // @ts-ignore
             estimatedItemSize={250}
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
                 <Card
                     item={item}
+                    index={index}
                     onPin={onPin}
                     onArchive={onArchive}
                     onDeleteForever={onDeleteForever}
@@ -249,7 +288,7 @@ export default function SiftFeed({
             refreshControl={refreshControl}
             scrollEventThrottle={16}
             contentContainerStyle={{
-                paddingHorizontal: 12,
+                paddingHorizontal: 0, // Full bleed, margins handled by items
                 paddingBottom: 40,
                 ...contentContainerStyle
             }}
@@ -281,7 +320,7 @@ const styles = StyleSheet.create({
     meta: {
         marginTop: 10,
         gap: 2,
-        paddingHorizontal: 4,
+        // paddingHorizontal: 4, // Removed to align text with image edge
     },
     metadata: {
         fontSize: 13,

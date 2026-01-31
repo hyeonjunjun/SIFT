@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log('[Auth] No user ID available for profile refresh');
             setProfile(null);
             setTier('free');
-            return;
+            return; // No change needed here, as the original code already returns void.
         }
 
         try {
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .from('profiles')
                 .select('*')
                 .eq('id', actingUser.id)
-                .single();
+                .maybeSingle();
 
             if (!error && data) {
                 console.log('[Auth] Profile fetched successfully for:', actingUser.id);

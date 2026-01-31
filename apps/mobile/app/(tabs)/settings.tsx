@@ -246,7 +246,7 @@ export default function ProfileScreen() {
                 <View style={styles.feedWrapper}>
                     <SiftFeed pages={savedPages} loading={loading} />
 
-                    {savedPages.length === 0 && !loading && (
+                    {(!savedPages || savedPages.length === 0) && !loading && (
                         <View style={styles.emptyState}>
                             <Typography variant="body" color="stone">No pinned items yet.</Typography>
                         </View>

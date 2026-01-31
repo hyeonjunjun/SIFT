@@ -10,7 +10,10 @@ const ExpoSecureStoreAdapter = {
             if (typeof localStorage === 'undefined') return Promise.resolve(null);
             return Promise.resolve(localStorage.getItem(key));
         }
-        return SecureStore.getItemAsync(key);
+        return SecureStore.getItemAsync(key).catch(err => {
+            console.warn(`[Supabase Storage] Error reading ${key}:`, err.message);
+            return null; // Treat as not found on error to prevent total app crash
+        });
     },
     setItem: (key: string, value: string) => {
         if (Platform.OS === 'web') {
@@ -19,7 +22,9 @@ const ExpoSecureStoreAdapter = {
             }
             return Promise.resolve();
         }
-        return SecureStore.setItemAsync(key, value);
+        return SecureStore.setItemAsync(key, value).catch(err => {
+            console.warn(`[Supabase Storage] Error writing ${key}:`, err.message);
+        });
     },
     removeItem: (key: string) => {
         if (Platform.OS === 'web') {
@@ -28,7 +33,9 @@ const ExpoSecureStoreAdapter = {
             }
             return Promise.resolve();
         }
-        return SecureStore.deleteItemAsync(key);
+        return SecureStore.deleteItemAsync(key).catch(err => {
+            console.warn(`[Supabase Storage] Error deleting ${key}:`, err.message);
+        });
     },
 };
 

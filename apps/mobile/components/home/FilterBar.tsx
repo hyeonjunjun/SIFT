@@ -69,11 +69,13 @@ const styles = StyleSheet.create({
     },
     chip: {
         paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingVertical: 10, // Slightly taller for better touch target
+        borderRadius: 100, // Pill shape
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.08)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
     },
     chipActive: {
         backgroundColor: '#1A1A1A',

@@ -29,7 +29,7 @@ export function HeroCarousel({ pages }: HeroCarouselProps) {
 
     return (
         <View style={{ marginBottom: 24 }}>
-            <Typography variant="h3" style={{ paddingHorizontal: 20, marginBottom: 12 }}>Recently Sifted</Typography>
+            <Typography variant="h3" style={{ paddingHorizontal: 20, marginBottom: 16 }}>Recently Sifted</Typography>
             <FlatList
                 data={recentPages}
                 horizontal

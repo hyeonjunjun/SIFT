@@ -162,7 +162,7 @@ function RootLayoutNav() {
     useEffect(() => {
         async function prepare() {
             try {
-                const hasLaunched = await SecureStore.getItemAsync('has_launched');
+                const hasLaunched = await AsyncStorage.getItem('has_launched');
                 if (hasLaunched !== 'true') {
                     setShowOnboarding(true);
                 }
@@ -247,7 +247,7 @@ function RootLayoutNav() {
                     <Onboarding
                         onComplete={() => {
                             setShowOnboarding(false);
-                            SecureStore.setItemAsync('has_launched', 'true');
+                            AsyncStorage.setItem('has_launched', 'true');
                         }}
                     />
                 ) : (

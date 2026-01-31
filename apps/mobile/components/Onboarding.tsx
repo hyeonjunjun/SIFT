@@ -155,14 +155,16 @@ function AnimatedShape({ delay, x, y, size, color }: { delay: number; x: number;
         ));
     }, []);
 
-    const style = useAnimatedStyle(() => ({
-        transform: [
-            { translateX: x },
-            { translateY: y },
-            { scale: sv.value }
-        ] as any,
-        opacity: sv.value
-    }));
+    const style = useAnimatedStyle(() => {
+        return {
+            transform: [
+                { translateX: x },
+                { translateY: y },
+                { scale: sv.value }
+            ],
+            opacity: sv.value
+        } as any;
+    });
 
     return <Animated.View style={[style, { position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }]} />;
 }

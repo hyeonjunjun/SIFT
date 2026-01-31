@@ -119,7 +119,7 @@ export default function ArchiveScreen() {
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
             >
-                {pages.length === 0 && !loading ? (
+                {(!pages || pages.length === 0) && !loading ? (
                     <View style={styles.emptyState}>
                         <Trash size={48} color={colors.stone} weight="thin" />
                         <Typography variant="body" color="stone" style={{ marginTop: 16 }}>Trash is empty</Typography>

@@ -114,15 +114,8 @@ export default function IdentityScreen() {
                     username: username,
                     bio: bio,
                     interests: interests,
-<<<<<<< HEAD
-                    avatar_url: avatarUrl,
-                    updated_at: new Date().toISOString(),
-                });
-=======
                     avatar_url: avatarUrl
-                })
-                .eq('id', user.id);
->>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
+                });
 
             if (profileError) {
                 console.error('[Identity] Profile table error:', profileError);

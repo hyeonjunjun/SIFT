@@ -23,7 +23,7 @@ import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import Fuse from "fuse.js";
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Page {
     id: string;
@@ -53,49 +53,31 @@ export default function HomeScreen() {
     const PAGE_SIZE = 20;
 
     const {
-        data,
+        data: pages = [],
         isLoading: loading,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
         refetch
-    } = useInfiniteQuery({
+    } = useQuery({
         queryKey: ['pages', user?.id],
-        queryFn: async ({ pageParam = 0 }) => {
+        queryFn: async () => {
             if (!user) return [];
-            console.log(`[Fetch] Fetching pages for user: ${user.id}, offset: ${pageParam}`);
+            console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
                 .eq('user_id', user.id)
                 .neq('is_archived', true)
                 .order('is_pinned', { ascending: false })
-                .order('created_at', { ascending: false })
-                .range(pageParam, pageParam + PAGE_SIZE - 1);
+                .order('created_at', { ascending: false });
 
             if (error) {
                 console.error('[Fetch] Supabase Error:', error);
                 throw error;
             }
-            return data as Page[];
+            return (data || []) as Page[];
         },
-        getNextPageParam: (lastPage, allPages) => {
-            if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
-            return allPages.length * PAGE_SIZE;
-        },
-        initialPageParam: 0,
         enabled: !!user,
     });
 
-    const pages = useMemo(() => {
-        return data?.pages.flat() || [];
-    }, [data]);
-
-    const handleLoadMore = useCallback(() => {
-        if (hasNextPage && !isFetchingNextPage) {
-            fetchNextPage();
-        }
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
@@ -346,13 +328,9 @@ export default function HomeScreen() {
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
 
-<<<<<<< HEAD
         // PHASE 2: Parallel Sifting with safeSift
         // We use Promise.all to process all tasks concurrently.
         // If one fails, it doesn't stop others because we catch inside the map.
-=======
-        // PHASE 2: Parallel Processing
->>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
         await Promise.all(tasks.map(async (task) => {
             if (!task.pendingId) return;
             try {
@@ -360,13 +338,8 @@ export default function HomeScreen() {
                 await safeSift(task.url, user!.id, task.pendingId, tier);
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
-<<<<<<< HEAD
 
                 // Ensure the database knows we failed if we didn't get success
-=======
-            } finally {
-                processingUrls.current.delete(task.url);
->>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
                 try {
                     const { data: checkData } = await supabase.from('pages').select('metadata').eq('id', task.pendingId).single();
                     if (checkData?.metadata?.status === 'pending') {
@@ -383,11 +356,7 @@ export default function HomeScreen() {
         }));
 
         setIsProcessingQueue(false);
-<<<<<<< HEAD
     }, [queue, isProcessingQueue, user?.id, tier, triggerHaptic, showToast]);
-=======
-    }, [queue, isProcessingQueue, user?.id, tier]);
->>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
 
     useEffect(() => {
         const shareIntent = intent as any;
@@ -640,7 +609,7 @@ export default function HomeScreen() {
                         onLongPress={() => {
                             Alert.alert(
                                 "SIFT Diagnostics",
-                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102\nSifts: ${pages.length}`,
+                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102\nSifts: ${pages?.length || 0}`,
                                 [
                                     { text: "OK" },
                                     {
@@ -667,7 +636,7 @@ export default function HomeScreen() {
                         style={styles.greetingBox}
                     >
                         <Typography variant="label" style={{ fontFamily: 'System', fontWeight: '500', color: COLORS.stone }}>{getGreeting()},</Typography>
-                        <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
+                        <Typography variant="h1" numberOfLines={1} style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
                     </TouchableOpacity>
                 </View>
 
@@ -706,7 +675,7 @@ export default function HomeScreen() {
             </View>
 
             {/* 1.5. Initializing State Overlay */}
-            {(authLoading && pages.length === 0) && (
+            {(authLoading && (!pages || pages.length === 0)) && (
                 <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator size="small" color={COLORS.ink} />
                     <Typography variant="caption" style={{ marginTop: 12, color: COLORS.stone }}>Preparing your library...</Typography>
@@ -715,7 +684,7 @@ export default function HomeScreen() {
 
             {/* 2. SEARCH BAR */}
             <View style={styles.searchContainer}>
-                <View style={styles.searchInputWrapper}>
+                <View style={[styles.searchInputWrapper, { borderRadius: RADIUS.l }]}>
                     <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
                     <TextInput
                         style={styles.searchInput}
@@ -726,7 +695,7 @@ export default function HomeScreen() {
                         autoCapitalize="none"
                         autoCorrect={false}
                     />
-                    {searchQuery.length > 0 && (
+                    {searchQuery?.length > 0 && (
                         <TouchableOpacity onPress={() => { setSearchQuery(""); triggerHaptic('selection'); }}>
                             <XCircle size={18} color={COLORS.stone} weight="fill" />
                         </TouchableOpacity>
@@ -758,7 +727,7 @@ export default function HomeScreen() {
                 actionLabel={searchQuery ? "Clear Search" : "Browse Categories"}
                 onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
             />
-            {!(pages.length > 0) && !loading && (filteredPages.length === 0) && (
+            {(!pages || pages.length === 0) && !loading && (!filteredPages || filteredPages.length === 0) && (
                 <View style={{ padding: 20 }}>
                     <Typography variant="caption" color="stone" style={{ textAlign: 'center' }}>
                         If your items are missing, check your connection or try restarting the app.
@@ -766,7 +735,7 @@ export default function HomeScreen() {
                 </View>
             )}
         </View>
-    ), [searchQuery, pages, loading, filteredPages.length]);
+    ), [searchQuery, pages?.length, loading, filteredPages?.length]);
 
     return (
         <ScreenWrapper edges={['top']}>
@@ -784,14 +753,7 @@ export default function HomeScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
                 contentContainerStyle={{ paddingBottom: 160 }}
-                onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.5}
             />
-            {isFetchingNextPage && (
-                <View style={{ paddingVertical: 20 }}>
-                    <ActivityIndicator color={COLORS.ink} />
-                </View>
-            )}
 
             {/* 6. MODALS */}
             <QuickTagEditor
@@ -855,16 +817,19 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         paddingHorizontal: 20,
-        marginBottom: SPACING.m,
+        marginBottom: SPACING.l,
     },
     searchInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.subtle,
-        borderRadius: RADIUS.m,
-        paddingHorizontal: 12,
-        height: 40,
-        gap: 8,
+        paddingHorizontal: 16,
+        height: 52,
+        backgroundColor: '#FFFFFF', // Fallback or strict white
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.08)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
+        ...Theme.shadows.soft,
     },
     searchInput: {
         flex: 1,

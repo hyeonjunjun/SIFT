@@ -119,7 +119,11 @@ export default function LoginScreen() {
             } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                 Alert.alert('Google Play Services', 'Play services not available or outdated');
             } else {
-                Alert.alert('Google Auth Failed', error.message);
+                console.error('[Google Auth] Detailed Error:', error);
+                Alert.alert(
+                    'Google Auth Failed',
+                    `${error.message}\n\nCode: ${error.code || 'unknown'}\n\nCheck terminal/logs for full object.`
+                );
             }
         } finally {
             setLoading(false);
