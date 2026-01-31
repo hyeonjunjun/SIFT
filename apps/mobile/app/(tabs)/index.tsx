@@ -346,9 +346,13 @@ export default function HomeScreen() {
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
 
+<<<<<<< HEAD
         // PHASE 2: Parallel Sifting with safeSift
         // We use Promise.all to process all tasks concurrently.
         // If one fails, it doesn't stop others because we catch inside the map.
+=======
+        // PHASE 2: Parallel Processing
+>>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
         await Promise.all(tasks.map(async (task) => {
             if (!task.pendingId) return;
             try {
@@ -356,8 +360,13 @@ export default function HomeScreen() {
                 await safeSift(task.url, user!.id, task.pendingId, tier);
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
+<<<<<<< HEAD
 
                 // Ensure the database knows we failed if we didn't get success
+=======
+            } finally {
+                processingUrls.current.delete(task.url);
+>>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
                 try {
                     const { data: checkData } = await supabase.from('pages').select('metadata').eq('id', task.pendingId).single();
                     if (checkData?.metadata?.status === 'pending') {
@@ -374,7 +383,11 @@ export default function HomeScreen() {
         }));
 
         setIsProcessingQueue(false);
+<<<<<<< HEAD
     }, [queue, isProcessingQueue, user?.id, tier, triggerHaptic, showToast]);
+=======
+    }, [queue, isProcessingQueue, user?.id, tier]);
+>>>>>>> e1830ce3cf889586158dad800c5b3a51b45fa5a8
 
     useEffect(() => {
         const shareIntent = intent as any;

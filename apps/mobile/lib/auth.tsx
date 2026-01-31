@@ -11,9 +11,8 @@ if (isGoogleSigninAvailable) {
     try {
         GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
         GoogleSignin.configure({
-            iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
             webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com',
-            androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || '240781979317-bjl813ouj9hma6vnheba5l0uhcka9t9u.apps.googleusercontent.com',
+            iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com',
             offlineAccess: true,
         });
     } catch (e) {
@@ -66,12 +65,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const refreshProfile = async (targetUser?: User | null) => {
         const actingUser = targetUser ?? user;
         if (!actingUser?.id) {
+            console.log('[Auth] No user ID available for profile refresh');
             setProfile(null);
             setTier('free');
             return;
         }
 
         try {
+            console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -81,6 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (!error && data) {
                 console.log('[Auth] Profile fetched successfully for:', actingUser.id);
                 setProfile(data);
+                setUser(actingUser); // Ensure user is in sync
                 setTier(data.tier as any || 'free');
             } else {
                 console.warn('[Auth] Profile fetch error/not found:', error?.message);
@@ -130,19 +132,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log('Auth state change:', _event);
 
             if (isMounted) {
-                setSession(session);
                 const currentUser = session?.user ?? null;
+                setSession(session);
                 setUser(currentUser);
 
-                if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
-                    setLoading(true);
-                    await refreshProfile(currentUser);
-                    setLoading(false);
-                } else if (_event === 'SIGNED_OUT') {
-                    setProfile(null);
-                    setTier('free');
-                    setLoading(false);
-                } else {
+                try {
+                    if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+                        setLoading(true);
+                        await refreshProfile(currentUser);
+                    } else if (_event === 'SIGNED_OUT') {
+                        setProfile(null);
+                        setTier('free');
+                    }
+                } catch (err) {
+                    console.error('[Auth] Event handler error:', err);
+                } finally {
                     setLoading(false);
                 }
             }
