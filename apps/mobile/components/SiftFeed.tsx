@@ -36,10 +36,17 @@ interface SiftFeedProps {
     onEditTags?: (id: string, currentTags: string[]) => void;
     mode?: 'feed' | 'archive';
     loading?: boolean;
+    ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
+    ListEmptyComponent?: React.ComponentType<any> | React.ReactElement | null;
+    onScroll?: (event: any) => void;
+    refreshControl?: any;
+    contentContainerStyle?: any;
+    onEndReached?: () => void;
+    onEndReachedThreshold?: number;
 }
 
-const Card = React.memo(({ item, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
-    item: any,
+const Card = React.memo(({ item: page, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
+    item: Page,
     onPin?: (id: string) => void,
     onArchive?: (id: string) => void,
     onDeleteForever?: (id: string) => void,
@@ -48,6 +55,24 @@ const Card = React.memo(({ item, onPin, onArchive, onDeleteForever, onEditTags, 
 }) => {
     const { colors, isDark } = useTheme();
     const router = useRouter();
+
+    // Transform page data on-demand in the virtualized item
+    const item = useMemo(() => {
+        const domain = getDomain(page.url);
+        return {
+            id: page.id,
+            title: page.title || 'Untitled',
+            category: page.tags?.[0] || 'Saved',
+            source: domain,
+            image: page.metadata?.image_url,
+            blurhash: page.metadata?.blurhash,
+            is_pinned: page.is_pinned,
+            summary: page.summary,
+            rawTags: page.tags || [],
+            status: page.metadata?.status || 'completed',
+            debug_info: page.metadata?.debug_info
+        };
+    }, [page]);
 
     const handlePress = () => {
         Haptics.selectionAsync();
@@ -109,14 +134,17 @@ const Card = React.memo(({ item, onPin, onArchive, onDeleteForever, onEditTags, 
     const isFallback = !item.image;
 
     if (item.status === 'pending') {
-        return <SiftCardSkeleton />;
+        return (
+            <View style={{ padding: 8 }}>
+                <SiftCardSkeleton />
+            </View>
+        );
     }
 
     return (
         <Animated.View
-            entering={FadeIn.duration(400)}
+            entering={FadeIn.duration(400).easing(Easing.out(Easing.quad))}
             exiting={FadeOut.duration(200)}
-            layout={Layout.duration(TRANSITIONS.normal).easing(Easing.inOut(Easing.ease))}
             style={{ padding: 8 }}
         >
             <Pressable
@@ -165,27 +193,23 @@ const Card = React.memo(({ item, onPin, onArchive, onDeleteForever, onEditTags, 
     );
 });
 
-export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed', loading = false }: SiftFeedProps) {
+export default function SiftFeed({
+    pages,
+    onPin,
+    onArchive,
+    onDeleteForever,
+    onEditTags,
+    mode = 'feed',
+    loading = false,
+    ListHeaderComponent,
+    ListEmptyComponent,
+    onScroll,
+    refreshControl,
+    contentContainerStyle,
+    onEndReached,
+    onEndReachedThreshold = 0.5
+}: SiftFeedProps) {
     const { colors, isDark } = useTheme();
-    const transformedData = useMemo(() => {
-        if (!pages) return [];
-        return pages.map((page) => {
-            const domain = getDomain(page.url);
-            return {
-                id: page.id,
-                title: page.title || 'Untitled',
-                category: page.tags?.[0] || 'Saved',
-                source: domain,
-                image: page.metadata?.image_url,
-                blurhash: page.metadata?.blurhash,
-                is_pinned: page.is_pinned,
-                summary: page.summary,
-                rawTags: page.tags || [],
-                status: page.metadata?.status || 'completed',
-                debug_info: page.metadata?.debug_info
-            };
-        });
-    }, [pages]);
 
     if (loading) {
         return (
@@ -193,7 +217,7 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onE
                 data={[1, 2, 3, 4, 5, 6]}
                 numColumns={2}
                 extraData={true} // Trigger masonry
-                renderItem={() => <SiftCardSkeleton />}
+                renderItem={() => <View style={{ padding: 8 }}><SiftCardSkeleton /></View>}
                 // @ts-ignore
                 estimatedItemSize={250}
                 contentContainerStyle={{ paddingHorizontal: 12 }}
@@ -203,10 +227,10 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onE
 
     return (
         <FlashList
-            data={transformedData}
+            data={pages}
             keyExtractor={(item) => item.id}
             numColumns={2}
-            extraData={true} // Trigger masonry
+            extraData={isDark} // Minimal extraData to prevent unnecessary re-renders
             // @ts-ignore
             estimatedItemSize={250}
             renderItem={({ item }) => (
@@ -219,8 +243,18 @@ export default function SiftFeed({ pages, onPin, onArchive, onDeleteForever, onE
                     mode={mode}
                 />
             )}
-            contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}
-            onEndReachedThreshold={0.5}
+            ListHeaderComponent={ListHeaderComponent}
+            ListEmptyComponent={!loading ? ListEmptyComponent : null}
+            onScroll={onScroll}
+            refreshControl={refreshControl}
+            scrollEventThrottle={16}
+            contentContainerStyle={{
+                paddingHorizontal: 12,
+                paddingBottom: 40,
+                ...contentContainerStyle
+            }}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={onEndReachedThreshold}
         />
     );
 }
@@ -231,7 +265,7 @@ const styles = StyleSheet.create({
     },
     imageWrapper: {
         aspectRatio: 16 / 9,
-        borderRadius: RADIUS.l,
+        borderRadius: RADIUS.xl,
         overflow: 'hidden',
     },
     fallbackContainer: {

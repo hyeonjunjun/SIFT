@@ -85,13 +85,18 @@ function TierCard({ tierId, name, icon: Icon, color, isCurrent, onPress }: {
     // We mock the hook call by passing a temporary tier object or just accessing TIER_LIMITS if exported
     // For now, we'll manually define benefits based on the known plan
 
-    const benefits = [];
+    const benefits = [
+        "Social Link Support",
+        "Smart Data Extraction",
+        "Priority AI Processing"
+    ];
+
     if (tierId === 'free') {
-        benefits.push("10 Total Sifts", "Basic AI Extraction", "Social Link Support");
+        benefits.unshift("10 Total Sifts");
     } else if (tierId === 'plus') {
-        benefits.push("30 Total Sifts", "Smart Data Extraction", "Priority AI Processing", "Multiple Image Scan");
+        benefits.unshift("30 Total Sifts", "Multiple Image Scan");
     } else {
-        benefits.push("Unlimited Sifts", "Video Transcript Analysis", "Advanced OCR Scan", "White-glove Processing");
+        benefits.unshift("Unlimited Sifts", "Video Transcript Analysis");
     }
 
     const price = tierId === 'free' ? '$0' : tierId === 'plus' ? '$9.99' : '$19.99';

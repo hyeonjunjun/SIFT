@@ -216,9 +216,11 @@ function RootLayoutNav() {
 
     // Share Intent Logic
     useEffect(() => {
-        if (hasShareIntent && shareIntent.type === "weburl") {
+        if (hasShareIntent && shareIntent.type === "weburl" && shareIntent.webUrl) {
             console.log("🚀 Sifting URL from Share Sheet:", shareIntent.webUrl);
+            const url = shareIntent.webUrl;
             resetShareIntent();
+            router.replace(`/(tabs)/?siftUrl=${encodeURIComponent(url.trim())}`);
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 

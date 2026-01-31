@@ -29,6 +29,7 @@ import SafeContentRenderer from '../../components/SafeContentRenderer';
 import { Plus, X, ArrowSquareOut, PlusCircle } from 'phosphor-react-native';
 import { useAuth } from '../../lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SiftDetailSkeleton } from '../../components/SiftDetailSkeleton';
 
 const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
 
@@ -46,7 +47,7 @@ export default function PageDetail() {
     const [editedTags, setEditedTags] = useState<string[]>([]);
     const [isShared, setIsShared] = useState(false);
 
-    const { data: page, isLoading: loading, refetch } = useQuery({
+    const { data: page, isLoading: loading, isError, refetch } = useQuery({
         queryKey: ['page', id],
         queryFn: async () => {
             if (!id) return null;
@@ -90,7 +91,7 @@ export default function PageDetail() {
                 },
                 (payload) => {
                     console.log('[Realtime] Page updated:', payload.new.id);
-                    queryClient.invalidateQueries({ queryKey: ['page', id] });
+                    queryClient.resetQueries({ queryKey: ['page', id] });
                 }
             )
             .subscribe();
@@ -102,7 +103,7 @@ export default function PageDetail() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await queryClient.invalidateQueries({ queryKey: ['page', id] });
+        await queryClient.resetQueries({ queryKey: ['page', id] });
         setRefreshing(false);
     };
 
@@ -158,7 +159,31 @@ export default function PageDetail() {
     };
 
     if (loading && !refreshing) {
-        return <View style={styles.container} />;
+        return <SiftDetailSkeleton />;
+    }
+
+    if (isError || (!loading && !page)) {
+        return (
+            <ScreenWrapper edges={['top', 'bottom']}>
+                <View style={styles.navBar}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
+                        <CaretLeft size={28} color={colors.ink} />
+                    </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+                    <Typography variant="h1" style={{ marginBottom: 12, textAlign: 'center' }}>Sift not found</Typography>
+                    <Typography variant="body" color="stone" style={{ textAlign: 'center', marginBottom: 24 }}>
+                        This sift may have been deleted or moved.
+                    </Typography>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={[styles.bentoCard, { backgroundColor: colors.ink }]}
+                    >
+                        <Typography variant="label" style={{ color: colors.paper }}>Go Back</Typography>
+                    </TouchableOpacity>
+                </View>
+            </ScreenWrapper>
+        );
     }
 
     const handleSaveToLibrary = async () => {
@@ -220,8 +245,8 @@ export default function PageDetail() {
 
             if (error) throw error;
             setIsEditing(false);
-            queryClient.invalidateQueries({ queryKey: ['page', id] });
-            queryClient.invalidateQueries({ queryKey: ['pages'] }); // Invalidate home feed too
+            queryClient.resetQueries({ queryKey: ['page', id] });
+            queryClient.resetQueries({ queryKey: ['pages', user?.id] });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             Alert.alert('Error', error.message);

@@ -18,9 +18,9 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
         maxSiftsTotal: 10,
         price: '$0',
         description: 'Basic Sifting',
-        canUseSmartExtraction: false,
-        canUseVideoComprehension: false,
-        hasPriorityProcessing: false,
+        canUseSmartExtraction: true,
+        canUseVideoComprehension: true,
+        hasPriorityProcessing: true,
     },
     plus: {
         maxImagesPerSift: 5,
@@ -28,7 +28,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
         price: '$9.99',
         description: 'Advanced Curation',
         canUseSmartExtraction: true,
-        canUseVideoComprehension: false,
+        canUseVideoComprehension: true,
         hasPriorityProcessing: true,
     },
     unlimited: {

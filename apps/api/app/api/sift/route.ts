@@ -180,15 +180,15 @@ export async function POST(request: Request) {
         if (domain.includes('tiktok.com')) {
             console.log('[SIFT] Switchboard -> TikTok');
             actorId = 'clockworks/tiktok-scraper';
-            input = { "postURLs": [url] };
-        } else if (domain.includes('instagram.com')) {
+            input = { "postURLs": [url], "resultsPerPage": 1 };
+        } else if (domain.includes('instagram.com') || domain.includes('instagr.am')) {
             console.log('[SIFT] Switchboard -> Instagram');
             actorId = 'apify/instagram-scraper';
-            input = { "directUrls": [url], "resultsType": "details" };
+            input = { "directUrls": [url], "resultsType": "details", "resultsLimit": 1 };
         } else if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
             console.log('[SIFT] Switchboard -> YouTube');
             actorId = 'apify/youtube-scraper';
-            input = { "urls": [url], "downloadSubtitles": true };
+            input = { "urls": [url], "downloadSubtitles": true, "maxResultStream": 1 };
         } else {
             console.log('[SIFT] Switchboard -> General Web');
             actorId = 'apify/website-content-crawler';
@@ -211,11 +211,11 @@ export async function POST(request: Request) {
                             description: rawItem.text,
                             imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl
                         };
-                    } else if (domain.includes('instagram.com')) {
+                    } else if (domain.includes('instagram.com') || domain.includes('instagr.am')) {
                         scrapedData = {
-                            title: rawItem.caption?.substring(0, 50) || "Instagram Post",
+                            title: rawItem.caption?.substring(0, 50) || rawItem.alt || "Instagram Post",
                             description: rawItem.caption,
-                            imageUrl: rawItem.displayUrl
+                            imageUrl: rawItem.displayUrl || rawItem.displayUrlSrc
                         };
                     } else if (domain.includes('youtube.com')) {
                         scrapedData = {

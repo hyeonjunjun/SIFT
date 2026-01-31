@@ -96,14 +96,15 @@ export default function IdentityScreen() {
             // Dual write to profiles table
             const { error: profileError } = await supabase
                 .from('profiles')
-                .update({
+                .upsert({
+                    id: user?.id,
                     display_name: displayName,
                     username: username,
                     bio: bio,
                     interests: interests,
-                    avatar_url: avatarUrl
-                })
-                .eq('id', user?.id);
+                    avatar_url: avatarUrl,
+                    updated_at: new Date().toISOString(),
+                });
 
             if (profileError) throw profileError;
 

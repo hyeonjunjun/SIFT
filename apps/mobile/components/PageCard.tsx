@@ -166,17 +166,28 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
                 <View
                     style={{
                         backgroundColor: colors.paper,
-                        borderRadius: RADIUS.l,
+                        borderRadius: RADIUS.xl, // Premium larger rounding
                         overflow: 'hidden',
                         marginBottom: 24,
-                        ...Theme.shadows.soft,
+                        borderWidth: isDark ? 1 : 0,
+                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'transparent',
+                        ...Theme.shadows.medium, // Softer, more premium shadow
                         shadowColor: isDark ? "#000000" : "#5A5A50",
-                        shadowOpacity: isDark ? 0.4 : 0.05,
+                        shadowOpacity: isDark ? 0.6 : 0.08,
                     }}
                 >
                     {isPinned && (
-                        <View style={{ position: 'absolute', top: 12, right: 12, zIndex: 10, backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
-                            <Pin size={10} color={colors.ink} weight="fill" />
+                        <View style={{
+                            position: 'absolute',
+                            top: 14,
+                            right: 14,
+                            zIndex: 10,
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+                            padding: 8,
+                            borderRadius: 100,
+                            ...Theme.shadows.soft
+                        }}>
+                            <Pin size={12} color={colors.accent} weight="fill" />
                         </View>
                     )}
 

@@ -23,7 +23,7 @@ import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import Fuse from "fuse.js";
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Page {
     id: string;
@@ -41,25 +41,37 @@ interface Page {
 const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
 
 import { useAuth } from "../../lib/auth";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function HomeScreen() {
     const { user, tier, profile, loading: authLoading } = useAuth(); // Get authenticated user
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    const { data: pages = [], isLoading: loading, refetch } = useQuery({
+    const PAGE_SIZE = 20;
+
+    const {
+        data,
+        isLoading: loading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        refetch
+    } = useInfiniteQuery({
         queryKey: ['pages', user?.id],
-        queryFn: async () => {
+        queryFn: async ({ pageParam = 0 }) => {
             if (!user) return [];
-            console.log(`[Fetch] Fetching pages for user: ${user.id}`);
+            console.log(`[Fetch] Fetching pages for user: ${user.id}, offset: ${pageParam}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
                 .eq('user_id', user.id)
-                .neq('is_archived', true) // More resilient than .eq(false) because it handles NULLs
+                .neq('is_archived', true)
                 .order('is_pinned', { ascending: false })
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .range(pageParam, pageParam + PAGE_SIZE - 1);
 
             if (error) {
                 console.error('[Fetch] Supabase Error:', error);
@@ -67,8 +79,23 @@ export default function HomeScreen() {
             }
             return data as Page[];
         },
+        getNextPageParam: (lastPage, allPages) => {
+            if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
+            return allPages.length * PAGE_SIZE;
+        },
+        initialPageParam: 0,
         enabled: !!user,
     });
+
+    const pages = useMemo(() => {
+        return data?.pages.flat() || [];
+    }, [data]);
+
+    const handleLoadMore = useCallback(() => {
+        if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
@@ -143,8 +170,8 @@ export default function HomeScreen() {
         let results = pages;
 
         // 1. Apply Search Filter
-        if (searchQuery.trim()) {
-            results = fuse.search(searchQuery).map(r => r.item);
+        if (debouncedSearchQuery.trim()) {
+            results = fuse.search(debouncedSearchQuery).map(r => r.item);
         }
 
         // 2. Apply Category Filter
@@ -160,7 +187,7 @@ export default function HomeScreen() {
             const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
             return timeB - timeA;
         });
-    }, [pages, searchQuery, activeFilter, fuse]);
+    }, [pages, debouncedSearchQuery, activeFilter, fuse]);
 
     const [toastDuration, setToastDuration] = useState(3000);
 
@@ -277,12 +304,12 @@ export default function HomeScreen() {
 
         const count = urlsToProcess.length;
         if (count > 1) {
-            showToast(`Queueing ${count} links...`, 2000);
+            showToast(`Sifting ${count} links...`, 2000);
         } else {
             showToast("Sifting...", 1500);
         }
 
-        console.log(`[OPTIMISTIC] Processing ${count} urls`);
+        console.log(`[OPTIMISTIC] Processing ${count} urls in parallel`);
 
         // PHASE 1: Batch Optimistic Inserts (Parallel)
         const tasks: { url: string; pendingId?: string }[] = [];
@@ -312,36 +339,42 @@ export default function HomeScreen() {
                     processingUrls.current.delete(url);
                 }
             } catch (e) {
+                console.error(`[QUEUE] Insert failed for ${url}:`, e);
                 processingUrls.current.delete(url);
             }
         }));
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
 
-        // PHASE 2: Sequential Processing (Series)
-        for (const task of tasks) {
-            if (!task.pendingId) continue;
+        // PHASE 2: Parallel Sifting with safeSift
+        // We use Promise.all to process all tasks concurrently.
+        // If one fails, it doesn't stop others because we catch inside the map.
+        await Promise.all(tasks.map(async (task) => {
+            if (!task.pendingId) return;
             try {
                 console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
                 await safeSift(task.url, user!.id, task.pendingId, tier);
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
-            } finally {
-                processingUrls.current.delete(task.url);
-                // Ensure the database knows we are no longer processing if we didn't get success
+
+                // Ensure the database knows we failed if we didn't get success
                 try {
                     const { data: checkData } = await supabase.from('pages').select('metadata').eq('id', task.pendingId).single();
                     if (checkData?.metadata?.status === 'pending') {
                         await supabase.from('pages').update({
-                            metadata: { ...checkData.metadata, status: 'failed' }
+                            metadata: { ...checkData.metadata, status: 'failed', error: error.message }
                         }).eq('id', task.pendingId);
                     }
-                } catch (e) { }
+                } catch (e) {
+                    console.error(`[QUEUE] Cleanup update failed for ${task.pendingId}:`, e);
+                }
+            } finally {
+                processingUrls.current.delete(task.url);
             }
-        }
+        }));
 
         setIsProcessingQueue(false);
-    }, [queue, isProcessingQueue, user?.id]);
+    }, [queue, isProcessingQueue, user?.id, tier, triggerHaptic, showToast]);
 
     useEffect(() => {
         const shareIntent = intent as any;
@@ -394,7 +427,7 @@ export default function HomeScreen() {
     useEffect(() => {
         const subscription = supabase
             .channel('public:pages')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
                 const newRecord = payload.new as any;
                 const oldRecord = payload.old as any;
 
@@ -402,7 +435,7 @@ export default function HomeScreen() {
 
                 if (payload.eventType === 'INSERT') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
-                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                    await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
@@ -414,11 +447,11 @@ export default function HomeScreen() {
 
                     if (statusChanged || pinnedChanged || archivedChanged) {
                         console.log(`[Realtime] Significant update detected, refreshing feed.`);
-                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                        await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
                     }
                 } else if (payload.eventType === 'DELETE') {
                     if (!oldRecord || !oldRecord.id) return;
-                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                    await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
                 }
             })
             .subscribe();
@@ -440,7 +473,7 @@ export default function HomeScreen() {
     const onRefresh = useCallback(async () => {
         triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
         setRefreshing(true);
-        await queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
         setRefreshing(false);
     }, [user?.id, queryClient, triggerHaptic]);
 
@@ -582,163 +615,170 @@ export default function HomeScreen() {
         }
     };
 
+    // --- RENDER HELPERS ---
+
+    const HomeHeader = useMemo(() => (
+        <View style={{ paddingTop: SPACING.m }}>
+            {/* 1. BENTO HEADER */}
+            <View style={styles.bentoContainer}>
+                <View style={styles.bentoHeader}>
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onLongPress={() => {
+                            Alert.alert(
+                                "SIFT Diagnostics",
+                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102\nSifts: ${pages.length}`,
+                                [
+                                    { text: "OK" },
+                                    {
+                                        text: "Test Connection",
+                                        onPress: async () => {
+                                            try {
+                                                const res = await fetch(`${API_URL}/api/archive?user_id=${user?.id}`);
+                                                if (res.ok) {
+                                                    Alert.alert("Success", "API is reachable!");
+                                                } else {
+                                                    const txt = await res.text();
+                                                    Alert.alert("Failed", `Status: ${res.status}\nBody: ${txt.substring(0, 100)}`);
+                                                }
+                                            } catch (e: any) {
+                                                Alert.alert("Error", e.message);
+                                            }
+                                        }
+                                    }
+                                ]
+                            );
+                            triggerHaptic('notification', Haptics.NotificationFeedbackType.Warning);
+                        }}
+                        delayLongPress={2000}
+                        style={styles.greetingBox}
+                    >
+                        <Typography variant="label" style={{ fontFamily: 'System', fontWeight: '500', color: COLORS.stone }}>{getGreeting()},</Typography>
+                        <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.inputContainer}>
+                    <TouchableOpacity
+                        onPress={pickAndSift}
+                        style={styles.imageUploadIcon}
+                    >
+                        <ImageSquare size={22} color={COLORS.stone} weight="regular" />
+                    </TouchableOpacity>
+                    <TextInput
+                        ref={inputRef}
+                        style={styles.textInput}
+                        placeholder="A link to sift..."
+                        placeholderTextColor={COLORS.stone}
+                        value={manualUrl}
+                        onChangeText={setManualUrl}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                        returnKeyType="go"
+                        onSubmitEditing={handleSubmitUrl}
+                    />
+                    <TouchableOpacity
+                        style={styles.submitButton}
+                        onPress={handleSubmitUrl}
+                        disabled={isSiftingImage}
+                    >
+                        {isSiftingImage ? (
+                            <ActivityIndicator size="small" color={COLORS.ink} />
+                        ) : (
+                            <Plus size={20} color={COLORS.ink} weight="bold" />
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* 1.5. Initializing State Overlay */}
+            {(authLoading && pages.length === 0) && (
+                <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={COLORS.ink} />
+                    <Typography variant="caption" style={{ marginTop: 12, color: COLORS.stone }}>Preparing your library...</Typography>
+                </View>
+            )}
+
+            {/* 2. SEARCH BAR */}
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputWrapper}>
+                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Find a sift..."
+                        placeholderTextColor={COLORS.stone}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => { setSearchQuery(""); triggerHaptic('selection'); }}>
+                            <XCircle size={18} color={COLORS.stone} weight="fill" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+
+            {/* 3. HERO CAROUSEL */}
+            {activeFilter === 'All' && searchQuery === '' && <HeroCarousel pages={pages} />}
+
+            {/* 4. FILTER BAR */}
+            <FilterBar
+                filters={[
+                    { id: 'All', text: 'All' },
+                    ...ALLOWED_TAGS.map(tag => ({ id: tag, text: tag }))
+                ]}
+                activeFilter={activeFilter}
+                onSelect={setActiveFilter}
+            />
+        </View>
+    ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage]);
+
+    const HomeEmptyState = useMemo(() => (
+        <View style={{ paddingTop: 40 }}>
+            <EmptyState
+                type={searchQuery ? 'no-results' : 'no-sifts'}
+                title={searchQuery ? "No sifts found" : "Time to Sift"}
+                description={searchQuery ? `We couldn't find any results for "${searchQuery}"` : "Paste a link above or scan a photo to start building your library."}
+                actionLabel={searchQuery ? "Clear Search" : "Browse Categories"}
+                onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
+            />
+            {!(pages.length > 0) && !loading && (filteredPages.length === 0) && (
+                <View style={{ padding: 20 }}>
+                    <Typography variant="caption" color="stone" style={{ textAlign: 'center' }}>
+                        If your items are missing, check your connection or try restarting the app.
+                    </Typography>
+                </View>
+            )}
+        </View>
+    ), [searchQuery, pages, loading, filteredPages.length]);
+
     return (
         <ScreenWrapper edges={['top']}>
-            <ScrollView
-                ref={scrollViewRef}
-                contentContainerStyle={{ paddingBottom: 160 }}
+            <SiftFeed
+                pages={filteredPages as any}
+                onPin={handlePin}
+                onArchive={handleArchive}
+                onDeleteForever={handleDeleteForever}
+                onEditTags={handleEditTagsTrigger}
+                loading={loading}
+                ListHeaderComponent={HomeHeader}
+                ListEmptyComponent={HomeEmptyState}
                 onScroll={onScroll}
-                scrollEventThrottle={16}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
-            >
-                {/* 1. BENTO HEADER */}
-                <View style={styles.bentoContainer}>
-                    <View style={styles.bentoHeader}>
-                        <TouchableOpacity
-                            activeOpacity={1}
-                            onLongPress={() => {
-                                // ENABLED FOR DEBUGGING IN PROD
-                                // if (!__DEV__) return; 
-                                Alert.alert(
-                                    "SIFT Diagnostics",
-                                    `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102\nSifts: ${pages.length}`,
-                                    [
-                                        { text: "OK" },
-                                        {
-                                            text: "Test Connection",
-                                            onPress: async () => {
-                                                try {
-                                                    const res = await fetch(`${API_URL}/api/archive?user_id=${user?.id}`);
-                                                    if (res.ok) {
-                                                        Alert.alert("Success", "API is reachable!");
-                                                    } else {
-                                                        const txt = await res.text();
-                                                        Alert.alert("Failed", `Status: ${res.status}\nBody: ${txt.substring(0, 100)}`);
-                                                    }
-                                                } catch (e: any) {
-                                                    Alert.alert("Error", e.message);
-                                                }
-                                            }
-                                        }
-                                    ]
-                                );
-                                triggerHaptic('notification', Haptics.NotificationFeedbackType.Warning);
-                            }}
-                            delayLongPress={2000}
-                            style={styles.greetingBox}
-                        >
-                            <Typography variant="label" style={{ fontFamily: 'System', fontWeight: '500', color: COLORS.stone }}>{getGreeting()},</Typography>
-                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.inputContainer}>
-                        <TouchableOpacity
-                            onPress={pickAndSift}
-                            style={styles.imageUploadIcon}
-                        >
-                            <ImageSquare size={22} color={COLORS.stone} weight="regular" />
-                        </TouchableOpacity>
-                        <TextInput
-                            ref={inputRef}
-                            style={styles.textInput}
-                            placeholder="A link to sift..."
-                            placeholderTextColor={COLORS.stone}
-                            value={manualUrl}
-                            onChangeText={setManualUrl}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            keyboardType="url"
-                            returnKeyType="go"
-                            onSubmitEditing={handleSubmitUrl}
-                        />
-                        <TouchableOpacity
-                            style={styles.submitButton}
-                            onPress={handleSubmitUrl}
-                            disabled={isSiftingImage}
-                        >
-                            {isSiftingImage ? (
-                                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: COLORS.ink, borderTopColor: 'transparent' }} />
-                            ) : (
-                                <Plus size={20} color={COLORS.ink} weight="bold" />
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                contentContainerStyle={{ paddingBottom: 160 }}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5}
+            />
+            {isFetchingNextPage && (
+                <View style={{ paddingVertical: 20 }}>
+                    <ActivityIndicator color={COLORS.ink} />
                 </View>
-
-                {/* 1.5. Initializing State Overlay - Only on cold start or auth check */}
-                {(authLoading && pages.length === 0) && (
-                    <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' }}>
-                        <ActivityIndicator size="small" color={COLORS.ink} />
-                        <Typography variant="caption" style={{ marginTop: 12, color: COLORS.stone }}>Preparing your library...</Typography>
-                    </View>
-                )}
-
-                {/* 2. SEARCH BAR */}
-                <View style={styles.searchContainer}>
-                    <View style={styles.searchInputWrapper}>
-                        <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Find a sift..."
-                            placeholderTextColor={COLORS.stone}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                        {searchQuery.length > 0 && (
-                            <TouchableOpacity onPress={() => { setSearchQuery(""); triggerHaptic('selection'); }}>
-                                <XCircle size={18} color={COLORS.stone} weight="fill" />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-
-                {/* 3. HERO CAROUSEL */}
-                {activeFilter === 'All' && searchQuery === '' && <HeroCarousel pages={pages} />}
-
-                {/* 4. FILTER BAR */}
-                <FilterBar
-                    filters={[
-                        { id: 'All', text: 'All' },
-                        ...ALLOWED_TAGS.map(tag => ({ id: tag, text: tag }))
-                    ]}
-                    activeFilter={activeFilter}
-                    onSelect={setActiveFilter}
-                />
-
-                {/* 5. FEED */}
-                <SiftFeed
-                    pages={filteredPages as any}
-                    onPin={handlePin}
-                    onArchive={handleArchive}
-                    onDeleteForever={handleDeleteForever}
-                    onEditTags={handleEditTagsTrigger}
-                    loading={loading}
-                />
-
-                {filteredPages.length === 0 && !loading && (
-                    <EmptyState
-                        type={searchQuery ? 'no-results' : 'no-sifts'}
-                        title={searchQuery ? "No sifts found" : "Time to Sift"}
-                        description={searchQuery ? `We couldn't find any results for "${searchQuery}"` : "Paste a link above or scan a photo to start building your library."}
-                        actionLabel={searchQuery ? "Clear Search" : "Browse Categories"}
-                        onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
-                    />
-                )}
-
-                {/* ERROR STATE */}
-                {!(pages.length > 0) && !loading && (filteredPages.length === 0) && (
-                    <View style={{ padding: 20 }}>
-                        <Typography variant="caption" color="stone" style={{ textAlign: 'center' }}>
-                            If your items are missing, check your connection or try restarting the app.
-                        </Typography>
-                    </View>
-                )}
-            </ScrollView>
+            )}
 
             {/* 6. MODALS */}
             <QuickTagEditor

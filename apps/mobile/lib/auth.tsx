@@ -79,10 +79,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .single();
 
             if (!error && data) {
+                console.log('[Auth] Profile fetched successfully for:', actingUser.id);
                 setProfile(data);
                 setTier(data.tier as any || 'free');
             } else {
-                console.log('[Auth] Profile fetch error/not found, using defaults:', error?.message);
+                console.warn('[Auth] Profile fetch error/not found:', error?.message);
                 setTier('free');
                 setProfile({ tier: 'free' });
             }

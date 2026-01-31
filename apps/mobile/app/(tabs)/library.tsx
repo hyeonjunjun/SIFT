@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
@@ -13,8 +13,9 @@ import { useAuth } from '../../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import SiftFeed from '../../components/SiftFeed';
 import { QuickTagEditor } from '../../components/QuickTagEditor';
+import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -42,6 +43,10 @@ const CATEGORIES = [
     { name: 'PROFESSIONAL', icon: 'Professional' },
 ];
 
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+
+const PAGE_SIZE = 20;
+
 export default function LibraryScreen() {
     const { colors, isDark } = useTheme();
     const { user } = useAuth();
@@ -50,6 +55,7 @@ export default function LibraryScreen() {
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
     // Quick Tag Modal State
@@ -57,17 +63,25 @@ export default function LibraryScreen() {
     const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
     const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
 
-    const { data: pages = [], isLoading: loading, refetch } = useQuery({
+    const {
+        data,
+        isLoading: loading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        refetch
+    } = useInfiniteQuery({
         queryKey: ['pages', user?.id],
-        queryFn: async () => {
+        queryFn: async ({ pageParam = 0 }) => {
             if (!user?.id) return [];
-            console.log(`[Fetch] Fetching pages for user: ${user.id}`);
+            console.log(`[Fetch] Fetching pages for user: ${user.id}, offset: ${pageParam}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
                 .eq('user_id', user.id)
                 .eq('is_archived', false)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .range(pageParam, pageParam + PAGE_SIZE - 1);
 
             if (error) {
                 console.error('Error fetching sifts:', error);
@@ -75,8 +89,23 @@ export default function LibraryScreen() {
             }
             return (data || []) as SiftItem[];
         },
+        getNextPageParam: (lastPage, allPages) => {
+            if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
+            return allPages.length * PAGE_SIZE;
+        },
+        initialPageParam: 0,
         enabled: !!user?.id,
     });
+
+    const pages = useMemo(() => {
+        return data?.pages.flat() || [];
+    }, [data]);
+
+    const handleLoadMore = useCallback(() => {
+        if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Tab Bar Reset Logic
     React.useEffect(() => {
@@ -90,6 +119,20 @@ export default function LibraryScreen() {
 
         return unsubscribe;
     }, [navigation, activeCategory]);
+
+    useEffect(() => {
+        const subscription = supabase
+            .channel('library_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
+                console.log('[Library Realtime] Update received:', payload.eventType);
+                queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+            })
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [user?.id, queryClient]);
 
     const handleEditTagsTrigger = (id: string, currentTags: string[]) => {
         setSelectedSiftId(id);
@@ -108,7 +151,7 @@ export default function LibraryScreen() {
                 .eq('id', selectedSiftId);
 
             if (error) throw error;
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            queryClient.resetQueries({ queryKey: ['pages', user?.id] });
         } catch (error: any) {
             console.error("Error updating tags:", error);
             Alert.alert("Error", "Failed to update tags");
@@ -123,7 +166,7 @@ export default function LibraryScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
         setRefreshing(false);
     };
 
@@ -155,8 +198,8 @@ export default function LibraryScreen() {
     }, [pages, activeCategory]);
 
     const filteredCategories = categoryData.filter(cat => {
-        if (!searchQuery.trim()) return true;
-        return cat.name.toLowerCase().includes(searchQuery.toLowerCase());
+        if (!debouncedSearchQuery.trim()) return true;
+        return cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     });
 
     if (loading && !refreshing) {
@@ -213,27 +256,38 @@ export default function LibraryScreen() {
             )}
 
             {/* 3. BENTO GRID or SIFT FEED */}
-            <ScrollView
-                contentContainerStyle={activeCategory ? styles.feedContainer : styles.gridContainer}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
-                }
-            >
-                {activeCategory ? (
-                    <View style={styles.feedWrapper}>
-                        <SiftFeed
-                            pages={activeCategoryPages as any}
-                            onEditTags={handleEditTagsTrigger}
-                            loading={loading}
-                        />
-                        {activeCategoryPages.length === 0 && (
-                            <View style={styles.emptyState}>
-                                <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
-                            </View>
-                        )}
-                    </View>
-                ) : (
+            {activeCategory ? (
+                <>
+                    <SiftFeed
+                        pages={activeCategoryPages as any}
+                        onEditTags={handleEditTagsTrigger}
+                        loading={loading}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
+                        }
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.5}
+                        contentContainerStyle={styles.feedContainer}
+                    />
+                    {isFetchingNextPage && (
+                        <View style={{ paddingVertical: 20 }}>
+                            <ActivityIndicator color={colors.ink} />
+                        </View>
+                    )}
+                    {activeCategoryPages.length === 0 && !loading && (
+                        <View style={styles.emptyState}>
+                            <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
+                        </View>
+                    )}
+                </>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={styles.gridContainer}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
+                    }
+                >
                     <View style={styles.bentoWrapper}>
                         {filteredCategories.map((cat) => (
                             <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
@@ -245,8 +299,8 @@ export default function LibraryScreen() {
                             </View>
                         )}
                     </View>
-                )}
-            </ScrollView>
+                </ScrollView>
+            )}
             <QuickTagEditor
                 visible={quickTagModalVisible}
                 onClose={() => setQuickTagModalVisible(false)}

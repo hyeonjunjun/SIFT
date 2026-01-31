@@ -68,6 +68,14 @@ export const Theme = {
             shadowRadius: 20,
             elevation: 5,
         },
+        medium: {
+            // Slightly more pronounced shadow for cards
+            shadowColor: "#5A5A50",
+            shadowOffset: { width: 0, height: 12 },
+            shadowOpacity: 0.08,
+            shadowRadius: 24,
+            elevation: 8,
+        },
         sharp: {
             // For smaller elements
             shadowColor: "#5A5A50",

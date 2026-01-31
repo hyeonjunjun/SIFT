@@ -50,7 +50,7 @@ export default function ArchiveScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await queryClient.invalidateQueries({ queryKey: ['pages', 'archived', user?.id] });
+        await queryClient.resetQueries({ queryKey: ['pages', 'archived', user?.id] });
         setRefreshing(false);
     };
 
@@ -65,7 +65,8 @@ export default function ArchiveScreen() {
 
             if (!response.ok) throw new Error('Failed');
 
-            queryClient.invalidateQueries({ queryKey: ['pages'] });
+            queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+            queryClient.resetQueries({ queryKey: ['pages', 'archived', user?.id] });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
             console.error(e);
@@ -87,7 +88,7 @@ export default function ArchiveScreen() {
                             const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user?.id}`;
                             const response = await fetch(apiUrl, { method: 'DELETE' });
                             if (!response.ok) throw new Error('Failed');
-                            queryClient.invalidateQueries({ queryKey: ['pages', 'archived', user?.id] });
+                            queryClient.resetQueries({ queryKey: ['pages', 'archived', user?.id] });
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         } catch (e) {
                             console.error(e);

@@ -3,6 +3,7 @@ import { Text, View, StyleSheet, Dimensions } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Check, WarningCircle } from 'phosphor-react-native';
 import { COLORS, BORDER, RADIUS } from '../lib/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface ToastProps {
     message: string;
@@ -21,6 +22,7 @@ interface ToastProps {
 }
 
 export function Toast({ message, visible, onHide, duration = 3000, type = 'success', action, secondaryAction }: ToastProps) {
+    const { colors, isDark } = useTheme();
     const progress = useSharedValue(0);
 
     const animatedStyle = useAnimatedStyle(() => {
@@ -57,30 +59,42 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
         <Animated.View
             entering={FadeInDown.duration(400).easing(Easing.out(Easing.cubic))}
             exiting={FadeOutDown.duration(300)}
-            style={[styles.container, styles.shadow]}
+            style={[
+                styles.container,
+                styles.shadow,
+                {
+                    backgroundColor: colors.paper,
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E5E5',
+                    shadowColor: "#000",
+                }
+            ]}
         >
             <View style={styles.content}>
                 <View style={styles.iconContainer}>
                     {type === 'success' ? (
-                        <Check size={16} color={COLORS.ink} weight="regular" />
+                        <Check size={16} color={colors.ink} weight="bold" />
                     ) : (
-                        <WarningCircle size={16} color={COLORS.danger} weight="bold" />
+                        <WarningCircle size={16} color={colors.danger} weight="bold" />
                     )}
                 </View>
-                <Text style={[styles.message, type === 'error' && { color: COLORS.danger }]}>
+                <Text style={[
+                    styles.message,
+                    { color: colors.ink },
+                    type === 'error' && { color: colors.danger }
+                ]}>
                     {message}
                 </Text>
             </View>
 
             {(action || secondaryAction) && (
-                <View style={styles.actions}>
+                <View style={[styles.actions, { borderLeftColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E5E5' }]}>
                     {secondaryAction && (
                         <Text
                             onPress={() => {
                                 secondaryAction.onPress();
                                 onHide();
                             }}
-                            style={styles.secondaryAction}
+                            style={[styles.secondaryAction, { color: colors.stone }]}
                         >
                             {secondaryAction.label}
                         </Text>
@@ -91,7 +105,7 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
                                 action.onPress();
                                 onHide();
                             }}
-                            style={styles.primaryAction}
+                            style={[styles.primaryAction, { color: colors.ink }]}
                         >
                             {action.label}
                         </Text>
@@ -103,7 +117,7 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
             {duration > 0 && (
                 <View style={styles.progressContainer}>
                     <Animated.View
-                        style={[styles.progressBar, animatedStyle]}
+                        style={[styles.progressBar, animatedStyle, { backgroundColor: colors.ink }]}
                     />
                 </View>
             )}
