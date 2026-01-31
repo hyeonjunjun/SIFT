@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "109",
+      "buildNumber": "111",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -45,10 +45,10 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/sift-logo.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FDFCF8"
       },
       "package": "com.hkjstudio.sift",
-      "versionCode": 110,
+      "versionCode": 112,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",

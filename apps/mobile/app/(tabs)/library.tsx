@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useCallback, useState, useMemo } from 'react';
-import { View, TextInput, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
@@ -133,8 +134,7 @@ export default function LibraryScreen() {
                 p.metadata?.category?.toUpperCase() === cat.name
             );
 
-            const isTall = Math.floor(index / 2) % 2 === 0; // Row 0 and Row 2 are tall
-            const height = isTall ? 220 : 160;
+            const height = 240; // Standard longer uniform height
 
             return {
                 ...cat,
@@ -267,59 +267,71 @@ interface CategoryData {
 }
 
 const Tile = ({ cat, colors, isDark, onPress }: { cat: CategoryData, colors: any, isDark: boolean, onPress: () => void }) => {
-    const isAnchor = cat.count > 0; // Use count to determine if we show contents
-
-    if (isAnchor) {
-        return (
-            <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={onPress}
-                style={[
-                    styles.tile,
-                    {
-                        height: cat.height,
-                        backgroundColor: colors.paper,
-                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'
-                    }
-                ]}
-            >
-                {cat.latestImage ? (
-                    <Image source={{ uri: cat.latestImage }} style={StyleSheet.absoluteFill} />
-                ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.subtle }]} />
-                )}
-                <LinearGradient
-                    colors={['transparent', isDark ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.8)']}
-                    style={StyleSheet.absoluteFill}
-                />
-                <View style={[styles.newTag, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.4)' }]}>
-                    <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-                    <Typography variant="label" color="white" style={styles.newTagText}>NEW</Typography>
-                </View>
-                <View style={styles.tileContent}>
-                    <Typography variant="label" color="white" style={styles.anchorLabel}>{cat.name}</Typography>
-                    <Typography variant="caption" color="rgba(255,255,255,0.7)" style={styles.issueCount}>{cat.count} ISSUES</Typography>
-                </View>
-            </TouchableOpacity>
-        );
-    }
+    const hasImage = cat.count > 0 && cat.latestImage;
 
     return (
         <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.9}
             onPress={onPress}
             style={[
                 styles.tile,
                 {
                     height: cat.height,
-                    backgroundColor: colors.paper,
-                    borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'
+                    backgroundColor: hasImage ? colors.subtle : (isDark ? 'rgba(255,255,255,0.03)' : colors.paper),
+                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    borderWidth: hasImage ? 0 : 1.5,
                 }
             ]}
         >
-            <View style={styles.emptyContent}>
-                <Typography variant="label" color="stone" style={styles.emptyLabel}>{cat.name}</Typography>
-                <Typography variant="body" color="stone" style={[styles.startSifting, { opacity: 0.5 }]}>Start Sifting</Typography>
+            {hasImage ? (
+                <>
+                    <Image
+                        source={{ uri: cat.latestImage }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        transition={300}
+                    />
+                    <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.4)', isDark ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.85)']}
+                        locations={[0, 0.5, 1]}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.newTag}>
+                        <View style={[styles.dot, { backgroundColor: colors.danger }]} />
+                        <Typography variant="label" color="white" style={styles.newTagText}>NEW</Typography>
+                    </View>
+                </>
+            ) : (
+                <View style={[StyleSheet.absoluteFill, { padding: 16, justifyContent: 'center', alignItems: 'center' }]}>
+                    <Typography
+                        variant="h1"
+                        style={{
+                            fontSize: 42,
+                            opacity: isDark ? 0.05 : 0.03,
+                            position: 'absolute',
+                            fontFamily: 'PlayfairDisplay_700Bold'
+                        }}
+                    >
+                        {cat.name.charAt(0)}
+                    </Typography>
+                </View>
+            )}
+
+            <View style={styles.tileContent}>
+                <Typography
+                    variant="label"
+                    color={hasImage ? "white" : colors.ink}
+                    style={[styles.anchorLabel, !hasImage && { opacity: 0.8 }]}
+                >
+                    {cat.name}
+                </Typography>
+                <Typography
+                    variant="caption"
+                    color={hasImage ? "rgba(255,255,255,0.7)" : colors.stone}
+                    style={styles.issueCount}
+                >
+                    {cat.count > 0 ? `${cat.count} ISSUES` : 'START SIFTING'}
+                </Typography>
             </View>
         </TouchableOpacity>
     );
@@ -438,6 +450,7 @@ const styles = StyleSheet.create({
     newTagText: {
         fontSize: 9,
         fontWeight: '700',
+        letterSpacing: 1,
     },
     emptyState: {
         width: '100%',

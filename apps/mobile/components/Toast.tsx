@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Text, View, StyleSheet, Dimensions } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Check } from 'phosphor-react-native';
+import { Check, WarningCircle } from 'phosphor-react-native';
 import { COLORS, BORDER, RADIUS } from '../lib/theme';
 
 interface ToastProps {
@@ -9,6 +9,7 @@ interface ToastProps {
     visible: boolean;
     onHide: () => void;
     duration?: number;
+    type?: 'success' | 'error';
     action?: {
         label: string;
         onPress: () => void;
@@ -19,7 +20,7 @@ interface ToastProps {
     };
 }
 
-export function Toast({ message, visible, onHide, duration = 3000, action, secondaryAction }: ToastProps) {
+export function Toast({ message, visible, onHide, duration = 3000, type = 'success', action, secondaryAction }: ToastProps) {
     const progress = useSharedValue(0);
 
     const animatedStyle = useAnimatedStyle(() => {
@@ -60,9 +61,13 @@ export function Toast({ message, visible, onHide, duration = 3000, action, secon
         >
             <View style={styles.content}>
                 <View style={styles.iconContainer}>
-                    <Check size={16} color={COLORS.ink} weight="regular" />
+                    {type === 'success' ? (
+                        <Check size={16} color={COLORS.ink} weight="regular" />
+                    ) : (
+                        <WarningCircle size={16} color={COLORS.danger} weight="bold" />
+                    )}
                 </View>
-                <Text style={styles.message}>
+                <Text style={[styles.message, type === 'error' && { color: COLORS.danger }]}>
                     {message}
                 </Text>
             </View>

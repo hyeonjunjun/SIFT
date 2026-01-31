@@ -49,7 +49,7 @@ export default function HomeScreen() {
     const [searchQuery, setSearchQuery] = useState("");
 
     const { data: pages = [], isLoading: loading, refetch } = useQuery({
-        queryKey: ['pages', user?.id, tier],
+        queryKey: ['pages', user?.id],
         queryFn: async () => {
             if (!user) return [];
             console.log(`[Fetch] Fetching pages for user: ${user.id}`);
@@ -78,6 +78,7 @@ export default function HomeScreen() {
     const [toastVisible, setToastVisible] = useState(false);
     const [toastAction, setToastAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
     const [toastSecondaryAction, setToastSecondaryAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
+    const [toastType, setToastType] = useState<'success' | 'error'>('success');
     const [manualUrl, setManualUrl] = useState("");
     const lastCheckedUrl = useRef<string | null>(null);
     const processingUrls = useRef<Set<string>>(new Set());
@@ -163,9 +164,10 @@ export default function HomeScreen() {
 
     const [toastDuration, setToastDuration] = useState(3000);
 
-    const showToast = (message: string, duration = 3000, action?: { label: string, onPress: () => void }, secondaryAction?: { label: string, onPress: () => void }) => {
+    const showToast = (message: string, duration = 3000, type: 'success' | 'error' = 'success', action?: { label: string, onPress: () => void }, secondaryAction?: { label: string, onPress: () => void }) => {
         setToastMessage(message);
         setToastDuration(duration);
+        setToastType(type);
         setToastAction(action);
         setToastSecondaryAction(secondaryAction);
         setToastVisible(true);
@@ -404,7 +406,16 @@ export default function HomeScreen() {
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
-                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+
+                    // Optimization: Only invalidate if status becomes 'completed' or major flags change
+                    const statusChanged = newRecord.metadata?.status === 'completed' && oldRecord.metadata?.status !== 'completed';
+                    const pinnedChanged = newRecord.is_pinned !== oldRecord.is_pinned;
+                    const archivedChanged = newRecord.is_archived !== oldRecord.is_archived;
+
+                    if (statusChanged || pinnedChanged || archivedChanged) {
+                        console.log(`[Realtime] Significant update detected, refreshing feed.`);
+                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                    }
                 } else if (payload.eventType === 'DELETE') {
                     if (!oldRecord || !oldRecord.id) return;
                     queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
@@ -740,8 +751,9 @@ export default function HomeScreen() {
             <Toast
                 message={toastMessage}
                 visible={toastVisible}
-                duration={toastDuration}
+                type={toastType}
                 onHide={() => setToastVisible(false)}
+                duration={toastDuration}
                 action={toastAction}
                 secondaryAction={toastSecondaryAction}
             />

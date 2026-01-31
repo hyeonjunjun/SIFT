@@ -189,7 +189,7 @@ function RootLayoutNav() {
             }
         }, 6000);
 
-        if (appReady && fontsLoaded && splashAnimationFinished && !authLoading) {
+        if (appReady && fontsLoaded && splashAnimationFinished) {
             setSplashDismissed(true);
             try {
                 SplashScreenIs.hideAsync().catch(() => { });

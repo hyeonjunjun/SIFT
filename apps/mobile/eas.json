@@ -37,7 +37,7 @@
                 "resourceClass": "m1-medium"
             },
             "android": {
-                "resourceClass": "large"
+                "resourceClass": "medium"
             }
         }
     },

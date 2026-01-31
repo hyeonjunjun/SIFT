@@ -40,6 +40,7 @@ type AuthContextType = {
     profile: Profile | null;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
+    updateProfileLocally: (newProfile: Profile) => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -50,6 +51,7 @@ const AuthContext = createContext<AuthContextType>({
     profile: null,
     signOut: async () => { },
     refreshProfile: async () => { },
+    updateProfileLocally: () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -151,8 +153,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, []);
 
+    const updateProfileLocally = (newProfile: Profile) => {
+        setProfile(prev => ({ ...prev, ...newProfile }));
+        if (newProfile.tier) setTier(newProfile.tier);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, session, loading, tier, profile, signOut, refreshProfile }}>
+        <AuthContext.Provider value={{ user, session, loading, tier, profile, signOut, refreshProfile, updateProfileLocally }}>
             {children}
         </AuthContext.Provider>
     );

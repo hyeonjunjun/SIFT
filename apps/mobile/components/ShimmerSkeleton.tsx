@@ -14,9 +14,10 @@ interface Props {
     height?: DimensionValue;
     style?: ViewStyle;
     borderRadius?: number;
+    backgroundColor?: string;
 }
 
-export function ShimmerSkeleton({ width = '100%', height = 20, style, borderRadius = 4 }: Props) {
+export function ShimmerSkeleton({ width = '100%', height = 20, style, borderRadius = 4, backgroundColor }: Props) {
     const opacity = useSharedValue(0.3);
 
     useEffect(() => {
@@ -41,7 +42,7 @@ export function ShimmerSkeleton({ width = '100%', height = 20, style, borderRadi
                 {
                     width,
                     height,
-                    backgroundColor: '#E5E5EA', // System Gray 5 (Subtle)
+                    backgroundColor: backgroundColor || '#E5E5EA', // Fallback
                     borderRadius,
                 },
                 animatedStyle,

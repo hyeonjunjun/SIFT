@@ -13,7 +13,7 @@ import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
 export default function IdentityScreen() {
-    const { user, profile, refreshProfile } = useAuth();
+    const { user, profile, refreshProfile, updateProfileLocally } = useAuth();
     const router = useRouter();
     const [displayName, setDisplayName] = useState(profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || '');
     const [username, setUsername] = useState(profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || '');
@@ -106,6 +106,14 @@ export default function IdentityScreen() {
                 .eq('id', user?.id);
 
             if (profileError) throw profileError;
+
+            updateProfileLocally({
+                display_name: displayName,
+                username: username,
+                bio: bio,
+                interests: interests,
+                avatar_url: avatarUrl
+            });
 
             await refreshProfile();
             Alert.alert('Success', 'Profile updated successfully.');

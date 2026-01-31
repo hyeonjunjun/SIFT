@@ -272,6 +272,19 @@ export async function POST(request: Request) {
 
         if (openai && (scrapedData.description || scrapedData.transcript || body.image_base64)) {
             try {
+                // If it's a direct image sift, we should host the image so it shows up on the card
+                if (body.image_base64 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                    try {
+                        const buffer = Buffer.from(body.image_base64, 'base64');
+                        const fileName = `uploads/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+                        await supabaseAdmin.storage.from('sift-assets').upload(fileName, buffer, { contentType: 'image/jpeg' });
+                        const { data: { publicUrl } } = supabaseAdmin.storage.from('sift-assets').getPublicUrl(fileName);
+                        ogImage = publicUrl;
+                    } catch (storageError) {
+                        console.error('[SIFT] Image storage failed:', storageError);
+                    }
+                }
+
                 const messages: any[] = [
                     { role: "system", content: SYSTEM_PROMPT }
                 ];
@@ -289,7 +302,7 @@ export async function POST(request: Request) {
                 }
 
                 const completion = await openai.chat.completions.create({
-                    model: "gpt-4o",
+                    model: "gpt-4o-mini",
                     messages,
                     response_format: { type: "json_object" }
                 });
@@ -310,15 +323,23 @@ export async function POST(request: Request) {
         // 4. STORAGE (Re-host image to avoid hotlinking Protections)
         if (ogImage && process.env.SUPABASE_SERVICE_ROLE_KEY) {
             try {
-                const imgResponse = await fetch(ogImage);
-                if (imgResponse.ok) {
-                    const imgBlob = await imgResponse.arrayBuffer();
-                    const fileName = `covers/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-                    await supabaseAdmin.storage.from('sift-assets').upload(fileName, imgBlob, { contentType: 'image/jpeg' });
-                    const { data: { publicUrl } } = supabaseAdmin.storage.from('sift-assets').getPublicUrl(fileName);
-                    ogImage = publicUrl;
+                // Optimization: Don't re-host if it's already on a high-availability CDN
+                const reliableDomains = ['supabase.co', 'cloudfront.net', 'imgix.net', 'fbcdn.net', 'static.xx.fbcdn.net'];
+                const isReliable = reliableDomains.some(d => ogImage!.includes(d));
+
+                if (!isReliable) {
+                    const imgResponse = await fetch(ogImage);
+                    if (imgResponse.ok) {
+                        const imgBlob = await imgResponse.arrayBuffer();
+                        const fileName = `covers/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+                        await supabaseAdmin.storage.from('sift-assets').upload(fileName, imgBlob, { contentType: 'image/jpeg' });
+                        const { data: { publicUrl } } = supabaseAdmin.storage.from('sift-assets').getPublicUrl(fileName);
+                        ogImage = publicUrl;
+                    }
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.error('[SIFT] Storage error:', e);
+            }
         }
 
         // 5. FINAL SAVE (Insert or Update if optimistic ID provided)
@@ -369,7 +390,7 @@ export async function POST(request: Request) {
 
         // ULTIMATE FALLBACK: Save even if everything exploded
         try {
-            const domain = new URL(urlForCapture).hostname.replace('www.', '');
+            const domain = urlForCapture ? new URL(urlForCapture).hostname.replace('www.', '') : 'Unknown';
             const fallbackData = {
                 user_id: userIdForCapture,
                 url: urlForCapture,
@@ -385,10 +406,6 @@ export async function POST(request: Request) {
             };
 
             let data;
-            // Handle body parsing if possible, otherwise use captures
-            if (!body.id) {
-                body = await request.clone().json().catch(() => ({}));
-            }
             if (body.id) {
                 const { data: updateData } = await supabaseAdmin
                     .from('pages')
