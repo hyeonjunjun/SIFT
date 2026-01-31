@@ -318,9 +318,9 @@ export default function HomeScreen() {
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
 
-        // PHASE 2: Sequential Processing (Series)
-        for (const task of tasks) {
-            if (!task.pendingId) continue;
+        // PHASE 2: Parallel Processing
+        await Promise.all(tasks.map(async (task) => {
+            if (!task.pendingId) return;
             try {
                 console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
                 await safeSift(task.url, user!.id, task.pendingId, tier);
@@ -328,7 +328,6 @@ export default function HomeScreen() {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
             } finally {
                 processingUrls.current.delete(task.url);
-                // Ensure the database knows we are no longer processing if we didn't get success
                 try {
                     const { data: checkData } = await supabase.from('pages').select('metadata').eq('id', task.pendingId).single();
                     if (checkData?.metadata?.status === 'pending') {
@@ -338,10 +337,10 @@ export default function HomeScreen() {
                     }
                 } catch (e) { }
             }
-        }
+        }));
 
         setIsProcessingQueue(false);
-    }, [queue, isProcessingQueue, user?.id]);
+    }, [queue, isProcessingQueue, user?.id, tier]);
 
     useEffect(() => {
         const shareIntent = intent as any;

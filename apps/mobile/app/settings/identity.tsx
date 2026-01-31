@@ -80,8 +80,16 @@ export default function IdentityScreen() {
     };
 
     const handleSave = async () => {
+        if (!user?.id) {
+            Alert.alert('Error', 'No authenticated user found.');
+            return;
+        }
+
         setLoading(true);
+        console.log('[Identity] Starting profile save...');
         try {
+            // 1. Update User Metadata (Auth)
+            console.log('[Identity] Updating auth user metadata...');
             const { error: authError } = await supabase.auth.updateUser({
                 data: {
                     display_name: displayName,
@@ -91,9 +99,13 @@ export default function IdentityScreen() {
                     avatar_url: avatarUrl
                 }
             });
-            if (authError) throw authError;
+            if (authError) {
+                console.error('[Identity] Auth update error:', authError);
+                throw new Error(`Auth Update Failed: ${authError.message}`);
+            }
 
-            // Dual write to profiles table
+            // 2. Update Profiles Table (Public Schema)
+            console.log('[Identity] Updating profiles table...');
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({
@@ -103,9 +115,14 @@ export default function IdentityScreen() {
                     interests: interests,
                     avatar_url: avatarUrl
                 })
-                .eq('id', user?.id);
+                .eq('id', user.id);
 
-            if (profileError) throw profileError;
+            if (profileError) {
+                console.error('[Identity] Profile table error:', profileError);
+                throw new Error(`Profile table update failed: ${profileError.message}`);
+            }
+
+            console.log('[Identity] Database updates complete. Updating local state...');
 
             updateProfileLocally({
                 display_name: displayName,
@@ -115,12 +132,17 @@ export default function IdentityScreen() {
                 avatar_url: avatarUrl
             });
 
+            // 3. Refresh AuthContext for full synchronization
             await refreshProfile();
+
+            console.log('[Identity] Save successful!');
             Alert.alert('Success', 'Profile updated successfully.');
             router.back();
         } catch (error: any) {
-            Alert.alert('Update Failed', error.message);
+            console.error('[Identity] handleSave terminal error:', error);
+            Alert.alert('Update Failed', error.message || 'An unexpected error occurred.');
         } finally {
+            console.log('[Identity] handleSave finished.');
             setLoading(false);
         }
     };
