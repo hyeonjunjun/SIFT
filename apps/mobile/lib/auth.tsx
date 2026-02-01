@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         try {
-            console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
+            // console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .maybeSingle();
 
             if (!error && data) {
-                console.log('[Auth] Profile fetched successfully for:', actingUser.id);
+                // console.log('[Auth] Profile fetched successfully for:', actingUser.id);
                 setProfile(data);
                 setUser(actingUser); // Ensure user is in sync
                 setTier(data.tier as any || 'free');
@@ -129,7 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         fetchInitialState();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            console.log('Auth state change:', _event);
+            // console.log('Auth state change:', _event);
 
             if (isMounted) {
                 const currentUser = session?.user ?? null;

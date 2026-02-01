@@ -55,12 +55,13 @@ export default function HomeScreen() {
     const {
         data: pages = [],
         isLoading: loading,
+        fetchStatus,
         refetch
     } = useQuery({
         queryKey: ['pages', user?.id],
         queryFn: async () => {
             if (!user) return [];
-            console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
+            // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
@@ -70,7 +71,7 @@ export default function HomeScreen() {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('[Fetch] Supabase Error:', error);
+                // console.error('[Fetch] Supabase Error:', error);
                 throw error;
             }
             return (data || []) as Page[];
@@ -213,12 +214,12 @@ export default function HomeScreen() {
             const cleanUrl = url.trim();
             // 1. Proactive check if already sifting this url in this session
             if (processingUrls.current.has(cleanUrl)) {
-                console.log(`[QUEUE] Skipping duplicate: ${cleanUrl}`);
+                // console.log(`[QUEUE] Skipping duplicate: ${cleanUrl}`);
                 continue;
             }
 
             const currentUserId = user?.id;
-            console.log(`[QUEUE] Adding URL: ${cleanUrl} (User: ${currentUserId || 'GUEST'})`);
+            // console.log(`[QUEUE] Adding URL: ${cleanUrl} (User: ${currentUserId || 'GUEST'})`);
             setQueue(prev => [...prev, cleanUrl]);
             lastCheckedUrl.current = cleanUrl;
         }
@@ -242,7 +243,7 @@ export default function HomeScreen() {
             // 2. Must not be the same as the last one we automatically grabbed
             // 3. Must not be currently processing
             if (isUrl && content !== lastCheckedUrl.current && !processingUrls.current.has(content)) {
-                console.log(`[Clipboard] Auto-detected URL: ${content}`);
+                // console.log(`[Clipboard] Auto-detected URL: ${content}`);
                 lastCheckedUrl.current = content;
 
                 // UX FIX: Simply fill the input, do NOT auto-submit immediately to avoid "double popup" fatigue
@@ -291,7 +292,7 @@ export default function HomeScreen() {
             showToast("Sifting...", 1500);
         }
 
-        console.log(`[OPTIMISTIC] Processing ${count} urls in parallel`);
+        // console.log(`[OPTIMISTIC] Processing ${count} urls in parallel`);
 
         // PHASE 1: Batch Optimistic Inserts (Parallel)
         const tasks: { url: string; pendingId?: string }[] = [];
@@ -334,7 +335,7 @@ export default function HomeScreen() {
         await Promise.all(tasks.map(async (task) => {
             if (!task.pendingId) return;
             try {
-                console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
+                // console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
                 await safeSift(task.url, user!.id, task.pendingId, tier);
             } catch (error: any) {
                 console.error(`[QUEUE] Error sifting ${task.url}:`, error);
@@ -413,7 +414,7 @@ export default function HomeScreen() {
                 const newRecord = payload.new as any;
                 const oldRecord = payload.old as any;
 
-                console.log(`[Realtime] ${payload.eventType} received:`, newRecord?.id || oldRecord?.id);
+                // console.log(`[Realtime] ${payload.eventType} received:`, newRecord?.id || oldRecord?.id);
 
                 if (payload.eventType === 'INSERT') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
@@ -428,7 +429,7 @@ export default function HomeScreen() {
                     const archivedChanged = newRecord.is_archived !== oldRecord.is_archived;
 
                     if (statusChanged || pinnedChanged || archivedChanged) {
-                        console.log(`[Realtime] Significant update detected, refreshing feed.`);
+                        // console.log(`[Realtime] Significant update detected, refreshing feed.`);
                         await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
                     }
                 } else if (payload.eventType === 'DELETE') {
@@ -749,7 +750,7 @@ export default function HomeScreen() {
                 onArchive={handleArchive}
                 onDeleteForever={handleDeleteForever}
                 onEditTags={handleEditTagsTrigger}
-                loading={loading}
+                loading={loading && fetchStatus !== 'paused'}
                 ListHeaderComponent={HomeHeader}
                 ListEmptyComponent={HomeEmptyState}
                 onScroll={onScroll}

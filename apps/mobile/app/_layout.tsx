@@ -178,25 +178,25 @@ function RootLayoutNav() {
     // Splash Dismissal Logic
     useEffect(() => {
         // Safety timeout: Force hide splash after 6 seconds regardless of state
+        // Runs once on mount to ensure we never get stuck
         const safetyTimer = setTimeout(() => {
-            if (!splashDismissed) {
-                console.warn("[Splash] Safety timer triggered. Forcing dismissal.");
-                setSplashDismissed(true);
-                setSplashAnimationFinished(true); // Ensure component doesn't re-render splash
-                try {
-                    SplashScreenIs.hideAsync().catch(() => { });
-                } catch (e) { }
-            }
+            console.warn("[Splash] Safety timer triggered. Forcing dismissal.");
+            setSplashDismissed(true);
+            setSplashAnimationFinished(true);
+            try {
+                SplashScreenIs.hideAsync().catch(() => { });
+            } catch (e) { }
         }, 6000);
+        return () => clearTimeout(safetyTimer);
+    }, []);
 
-        if (appReady && fontsLoaded && splashAnimationFinished) {
+    useEffect(() => {
+        if (appReady && fontsLoaded && splashAnimationFinished && !authLoading) {
             setSplashDismissed(true);
             try {
                 SplashScreenIs.hideAsync().catch(() => { });
             } catch (e) { }
         }
-
-        return () => clearTimeout(safetyTimer);
     }, [appReady, fontsLoaded, splashAnimationFinished, authLoading]);
 
     // Auth Redirection Logic

@@ -42,7 +42,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
                 duration: 600,
                 easing: Easing.bezier(0.45, 0, 0.55, 1)
             }, (finished) => {
-                if (finished && onFinish) {
+                if (onFinish) {
                     runOnJS(onFinish)();
                 }
             });

@@ -43,12 +43,15 @@ export const useImageSifter = (onSuccess?: () => void) => {
 
                 if (!manipulated.base64) throw new Error("Failed to generate image base64");
 
-                // 3. Create optimistic record in Supabase
+                // 3. Create consistent URL
+                const scanUrl = 'image://scan-' + Date.now() + '-' + Math.random().toString(36).substring(7);
+
+                // 4. Create optimistic record in Supabase
                 const { data: pendingData, error: pendingError } = await supabase
                     .from('pages')
                     .insert({
                         user_id: user.id,
-                        url: 'image://scan-' + Date.now() + '-' + Math.random().toString(36).substring(7),
+                        url: scanUrl,
                         title: 'Sifting Image...',
                         summary: 'Extracting data with AI...',
                         tags: ['Lifestyle'],
@@ -59,12 +62,12 @@ export const useImageSifter = (onSuccess?: () => void) => {
 
                 if (pendingError) throw pendingError;
 
-                // 4. Call Unified AI Sift API with base64
+                // 5. Call Unified AI Sift API with base64
                 const response = await fetch(`${API_URL}/api/sift`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        url: 'image://' + Date.now(),
+                        url: scanUrl,
                         user_id: user.id,
                         id: pendingData.id,
                         image_base64: manipulated.base64

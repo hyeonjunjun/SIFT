@@ -61,7 +61,7 @@ export default function PageDetail() {
                 .select('id')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
-                .limit(50); // Limit to recent context
+                .limit(300); // Limit to recent context (Increased from 50 to 300 to allow deeper navigation)
 
             if (contextType === 'archive') {
                 query = query.eq('is_archived', true);

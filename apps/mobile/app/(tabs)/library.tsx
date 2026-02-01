@@ -65,12 +65,13 @@ export default function LibraryScreen() {
     const {
         data: pages = [],
         isLoading: loading,
+        fetchStatus,
         refetch
     } = useQuery({
         queryKey: ['pages', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
+            // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
@@ -105,7 +106,7 @@ export default function LibraryScreen() {
         const subscription = supabase
             .channel('library_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
-                console.log('[Library Realtime] Update received:', payload.eventType);
+                // console.log('[Library Realtime] Update received:', payload.eventType);
                 queryClient.resetQueries({ queryKey: ['pages', user?.id] });
             })
             .subscribe();
@@ -183,7 +184,7 @@ export default function LibraryScreen() {
         return cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     });
 
-    if (loading && !refreshing) {
+    if (loading && !refreshing && fetchStatus !== 'paused') {
         return (
             <View style={[styles.loaderContainer, { backgroundColor: colors.canvas }]}>
                 <ActivityIndicator color={colors.ink} />
@@ -242,7 +243,7 @@ export default function LibraryScreen() {
                     <SiftFeed
                         pages={activeCategoryPages as any}
                         onEditTags={handleEditTagsTrigger}
-                        loading={loading}
+                        loading={loading && fetchStatus !== 'paused'}
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                         }
