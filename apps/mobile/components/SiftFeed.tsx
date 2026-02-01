@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform, Dimensions } from 'react-native';
+import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS, TRANSITIONS } from '../lib/theme';
@@ -45,11 +45,21 @@ interface SiftFeedProps {
     onEndReachedThreshold?: number;
 }
 
-const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
 const GRID_GAP = 15;
-// Exact same math as library.tsx
-const TILE_WIDTH = (width - (GRID_PADDING * 2) - GRID_GAP) / 2;
+
+const getLayoutInfo = (screenWidth: number) => {
+    const isWeb = Platform.OS === 'web';
+    const maxAppWidth = isWeb ? 800 : screenWidth;
+    const effectiveWidth = Math.min(screenWidth, maxAppWidth);
+
+    let numColumns = 2;
+    if (isWeb && screenWidth > 600) numColumns = 3;
+    if (isWeb && screenWidth > 900) numColumns = 4;
+
+    const columnWidth = (effectiveWidth - (GRID_PADDING * 2) - (GRID_GAP * (numColumns - 1))) / numColumns;
+    return { numColumns, columnWidth };
+};
 
 const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
     item: Page,
@@ -166,12 +176,15 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
         return null;
     }
 
+    const { width } = useWindowDimensions();
+    const [isHovered, setIsHovered] = React.useState(false);
+    const { columnWidth } = getLayoutInfo(width);
+
     if (item.status === 'pending') {
         return (
             <View style={{
-                width: TILE_WIDTH,
+                width: columnWidth,
                 marginBottom: GRID_GAP,
-                // Natural flow, no forced margins
             }}>
                 <SiftCardSkeleton />
             </View>
@@ -183,8 +196,9 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
             entering={FadeIn.duration(400).easing(Easing.out(Easing.quad))}
             exiting={FadeOut.duration(200)}
             style={{
-                width: TILE_WIDTH,
+                width: columnWidth,
                 marginBottom: GRID_GAP,
+                transform: Platform.OS === 'web' ? [{ scale: isHovered ? 1.02 : 1 }] : [],
             }}
         >
             <Pressable
@@ -192,6 +206,8 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                 onPress={handlePress}
                 onLongPress={handleLongPress}
                 delayLongPress={300}
+                onHoverIn={() => setIsHovered(true)}
+                onHoverOut={() => setIsHovered(false)}
             >
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
@@ -257,16 +273,19 @@ export default function SiftFeed({
 }: SiftFeedProps) {
     const { colors, isDark } = useTheme();
 
+    const { width } = useWindowDimensions();
+    const { numColumns, columnWidth } = getLayoutInfo(width);
+
     if (loading) {
         return (
             <FlashList
                 data={[1, 2, 3, 4, 5, 6]}
-                numColumns={2}
+                numColumns={numColumns}
                 extraData={true}
                 renderItem={({ index }) => {
                     return (
                         <View style={{
-                            width: TILE_WIDTH,
+                            width: columnWidth,
                             marginBottom: GRID_GAP,
                         }}>
                             <SiftCardSkeleton />
@@ -288,7 +307,7 @@ export default function SiftFeed({
         <FlashList
             data={pages}
             keyExtractor={(item) => item.id}
-            numColumns={2}
+            numColumns={numColumns}
             extraData={isDark} // Minimal extraData to prevent unnecessary re-renders
             // @ts-ignore
             estimatedItemSize={250}

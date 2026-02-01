@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Dimensions, NativeModules, Switch } from 'react-native';
+import { ActionSheetIOS, Platform, View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, ScrollView, Pressable, NativeModules, Dimensions, Switch } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { AppleLogo, GoogleLogo } from 'phosphor-react-native';
+import Constants from 'expo-constants';
 
 // Native modules handled conditionally below
 let statusCodes: any = {};
@@ -75,6 +76,23 @@ export default function LoginScreen() {
     const handleGoogleSignIn = async () => {
         setLoading(true);
         try {
+            if (Platform.OS === 'web') {
+                const redirectTo = window.location.origin + '/';
+                console.log(`[Google Auth] Web Redirect URL: ${redirectTo}`);
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo,
+                        queryParams: {
+                            access_type: 'offline',
+                            prompt: 'consent',
+                        },
+                    },
+                });
+                if (error) throw error;
+                return;
+            }
+
             const isAvailable = !!NativeModules.RNGoogleSignin;
             if (!isAvailable) {
                 Alert.alert('Google Auth', 'Google Sign-In is not supported in this environment (e.g. Expo Go). Please use a development build.');
@@ -133,6 +151,19 @@ export default function LoginScreen() {
     const handleAppleSignIn = async () => {
         if (loading) return;
         try {
+            if (Platform.OS === 'web') {
+                const redirectTo = window.location.origin + '/';
+                console.log(`[Apple Auth] Web Redirect URL: ${redirectTo}`);
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'apple',
+                    options: {
+                        redirectTo,
+                    },
+                });
+                if (error) throw error;
+                return;
+            }
+
             const rawNonce = Math.random().toString(36).substring(2, 11);
             const hashedNonce = await Crypto.digestStringAsync(
                 Crypto.CryptoDigestAlgorithm.SHA256,
@@ -254,22 +285,31 @@ export default function LoginScreen() {
 
                 {/* Social Auth */}
                 <View style={styles.socialContainer}>
-                    <TouchableOpacity
-                        style={styles.socialButtonApple}
+                    <Pressable
                         onPress={handleAppleSignIn}
+                        disabled={loading}
+                        style={({ hovered }: any) => [
+                            styles.socialButtonApple,
+                            loading && { opacity: 0.5 },
+                            hovered && Platform.OS === 'web' && { opacity: 0.8, transform: [{ scale: 1.01 }] }
+                        ]}
                     >
                         <AppleLogo size={20} color={COLORS.paper} weight="fill" />
                         <Typography variant="label" style={{ color: COLORS.paper, marginLeft: 10 }}>CONTINUE WITH APPLE</Typography>
-                    </TouchableOpacity>
+                    </Pressable>
 
-                    <TouchableOpacity
-                        style={styles.socialButtonGoogle}
+                    <Pressable
                         onPress={handleGoogleSignIn}
                         disabled={loading}
+                        style={({ hovered }: any) => [
+                            styles.socialButtonGoogle,
+                            loading && { opacity: 0.5 },
+                            hovered && Platform.OS === 'web' && { backgroundColor: COLORS.subtle, transform: [{ scale: 1.01 }] }
+                        ]}
                     >
                         <GoogleLogo size={20} color={COLORS.ink} weight="bold" />
                         <Typography variant="label" style={{ color: COLORS.ink, marginLeft: 10 }}>CONTINUE WITH GOOGLE</Typography>
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
 
                 {/* Footer */}
@@ -286,7 +326,7 @@ export default function LoginScreen() {
     );
 }
 
-import { Platform } from 'react-native';
+
 
 const styles = StyleSheet.create({
     container: {

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Animated as RNAnimated, SafeAreaView } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Animated as RNAnimated, SafeAreaView, Platform } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -10,13 +10,15 @@ import Animated, {
     Easing
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as SecureStore from 'expo-secure-store';
 import { Typography } from './design-system/Typography';
 import { COLORS, RADIUS } from '../lib/theme';
 import { router } from 'expo-router';
-import { ShareNetwork, Funnel, CheckCircle } from 'phosphor-react-native';
+import { ShareNetwork, Funnel, CheckCircle, CaretRight, X } from 'phosphor-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
+const VISUAL_SIZE = isWeb ? Math.min(width * 0.4, 400) : 250;
 
 interface OnboardingProps {
     onComplete: () => void;
@@ -43,6 +45,7 @@ const SLIDES = [
 export default function Onboarding({ onComplete }: OnboardingProps) {
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollX = useRef(new RNAnimated.Value(0)).current;
+    const scrollViewRef = useRef<ScrollView>(null);
 
     const handleScroll = RNAnimated.event(
         [{ nativeEvent: { contentOffset: { x: scrollX } } }],
@@ -54,9 +57,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         setActiveIndex(index);
     };
 
+    const scrollToIndex = (index: number) => {
+        scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
+        setActiveIndex(index);
+    };
+
     const finishOnboarding = async () => {
         try {
-            await SecureStore.setItemAsync('has_launched', 'true');
+            await AsyncStorage.setItem('has_launched', 'true');
             onComplete();
         } catch (e) {
             console.error("Failed to save onboarding state", e);
@@ -66,8 +74,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
     return (
         <SafeAreaView style={styles.container}>
+            {/* Skip Button */}
+            <TouchableOpacity
+                style={styles.skipButton}
+                onPress={finishOnboarding}
+                activeOpacity={0.7}
+            >
+                <Typography variant="caption" style={{ color: COLORS.stone }}>Skip</Typography>
+            </TouchableOpacity>
+
             <View style={{ flex: 3 }}>
                 <ScrollView
+                    ref={scrollViewRef}
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
@@ -105,24 +123,40 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                             extrapolate: 'clamp',
                         });
                         return (
-                            <RNAnimated.View
-                                key={i}
-                                style={[styles.dot, { opacity, backgroundColor: COLORS.accent }]}
-                            />
+                            <TouchableOpacity key={i} onPress={() => scrollToIndex(i)} activeOpacity={0.7}>
+                                <RNAnimated.View
+                                    style={[styles.dot, { opacity, backgroundColor: COLORS.accent }]}
+                                />
+                            </TouchableOpacity>
                         );
                     })}
                 </View>
 
-                {activeIndex === SLIDES.length - 1 ? (
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: COLORS.accent }]}
-                        onPress={finishOnboarding}
-                    >
-                        <Typography variant="h3" className="text-white font-bold">Get Started</Typography>
-                    </TouchableOpacity>
-                ) : (
-                    <View style={{ height: 50 }} /> // Spacer
-                )}
+                <View style={styles.buttonContainer}>
+                    {activeIndex === SLIDES.length - 1 ? (
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: COLORS.accent }]}
+                            onPress={finishOnboarding}
+                            activeOpacity={0.8}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Typography variant="h3" className="text-white font-bold mr-2">Get Started</Typography>
+                                <CheckCircle size={20} color="#FFF" />
+                            </View>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.separator }]}
+                            onPress={() => scrollToIndex(activeIndex + 1)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Typography variant="h3" style={{ color: COLORS.ink, fontWeight: '600', marginRight: 8 }}>Next</Typography>
+                                <CaretRight size={20} color={COLORS.ink} />
+                            </View>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -240,16 +274,29 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingBottom: 20,
+        paddingBottom: 40,
+    },
+    skipButton: {
+        position: 'absolute',
+        top: 60,
+        right: 30,
+        zIndex: 10,
+        padding: 10,
+    },
+    buttonContainer: {
+        height: 60,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     visualContainer: {
-        width: 250,
-        height: 250,
+        width: VISUAL_SIZE,
+        height: VISUAL_SIZE,
         borderRadius: RADIUS.l + 20, // More rounded for visual area
         backgroundColor: COLORS.paper,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20,
+        marginBottom: 30,
         // Soft shadow
         shadowColor: COLORS.ink,
         shadowOffset: { width: 0, height: 10 },

@@ -27,9 +27,9 @@ async function checkRecentPages() {
     console.log("Checking recent pages in Supabase...");
     const { data, error } = await supabase
         .from('pages')
-        .select('id, title, url, user_id, created_at, tags, summary')
+        .select('id, title, url, user_id, created_at, tags, summary, metadata')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
     if (error) {
         console.error("Error fetching pages:", error.message);
@@ -42,9 +42,11 @@ async function checkRecentPages() {
         data.forEach(page => {
             console.log(`- [${page.created_at}] ID: ${page.id}`);
             console.log(`  Title: ${page.title}`);
+            console.log(`  URL: ${page.url}`);
             console.log(`  User: ${page.user_id}`);
-            console.log(`  Tags: ${JSON.stringify(page.tags)}`);
-            console.log(`  Summary: ${page.summary?.substring(0, 50)}...`);
+            console.log(`  Status: ${page.metadata?.status}`);
+            console.log(`  Error: ${page.metadata?.error}`);
+            console.log(`  Debug Info: ${page.metadata?.debug_info}`);
             console.log('---');
         });
     }

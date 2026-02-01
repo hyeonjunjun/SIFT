@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Switch, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Switch, TouchableOpacity, StyleSheet, Pressable, Platform } from 'react-native';
 import { Typography } from './Typography';
 import { COLORS, SPACING } from '../../lib/theme';
-
 import { useTheme } from '../../context/ThemeContext';
 
 interface SettingsRowProps {
@@ -26,8 +25,11 @@ export function SettingsRow({
 }: SettingsRowProps) {
     const { colors } = useTheme();
 
-    const content = (
-        <View style={styles.container}>
+    const renderContent = (hovered = false) => (
+        <View style={[
+            styles.container,
+            hovered && Platform.OS === 'web' && { backgroundColor: colors.subtle }
+        ]}>
             {icon && <View style={styles.iconContainer}>{icon}</View>}
             <View style={styles.textContainer}>
                 <Typography variant="body" color={colors.ink}>{label}</Typography>
@@ -48,18 +50,26 @@ export function SettingsRow({
         </View>
     );
 
-    if (type === 'button') {
+    if (type === 'button' || type === 'toggle' || onPress) {
         return (
-            <TouchableOpacity
-                style={[styles.wrapper, { backgroundColor: colors.paper, borderBottomColor: colors.separator }]}
+            <Pressable
+                style={({ hovered }: any) => [
+                    styles.wrapper,
+                    { backgroundColor: colors.paper, borderBottomColor: colors.separator },
+                    hovered && Platform.OS === 'web' && { backgroundColor: colors.subtle }
+                ]}
                 onPress={onPress}
             >
-                {content}
-            </TouchableOpacity>
+                {({ hovered }: any) => renderContent(hovered)}
+            </Pressable>
         );
     }
 
-    return <View style={[styles.wrapper, { backgroundColor: colors.paper, borderBottomColor: colors.separator }]}>{content}</View>;
+    return (
+        <View style={[styles.wrapper, { backgroundColor: colors.paper, borderBottomColor: colors.separator }]}>
+            {renderContent()}
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({

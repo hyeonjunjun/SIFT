@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -32,8 +32,15 @@ export default function ScreenWrapper({ children, style, contentStyle, edges = [
         paddingRight: edges.includes('right') ? insets.right : 0,
     };
 
+    const isWeb = Platform.OS === 'web';
+
     return (
-        <View style={[styles.container, { backgroundColor: colors.canvas }, style]}>
+        <View style={[
+            styles.container,
+            { backgroundColor: colors.canvas },
+            isWeb && { maxWidth: 800, alignSelf: 'center', width: '100%' },
+            style
+        ]}>
             <View style={[styles.content, safeStyle, contentStyle]}>
                 {children}
             </View>
