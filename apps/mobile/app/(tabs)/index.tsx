@@ -456,8 +456,18 @@ export default function HomeScreen() {
     const onRefresh = useCallback(async () => {
         triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
         setRefreshing(true);
-        await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
-        setRefreshing(false);
+        // Don't let a network hang block the UI forever.
+        // We race the refetch against a 5s timeout.
+        try {
+            await Promise.race([
+                queryClient.resetQueries({ queryKey: ['pages', user?.id] }),
+                new Promise(resolve => setTimeout(resolve, 5000))
+            ]);
+        } catch (e) {
+            console.warn('[Home] Refresh failed:', e);
+        } finally {
+            setRefreshing(false);
+        }
     }, [user?.id, queryClient, triggerHaptic]);
 
     const handleArchive = async (id: string) => {

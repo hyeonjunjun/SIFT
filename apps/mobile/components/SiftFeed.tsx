@@ -179,7 +179,11 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                 delayLongPress={300}
             >
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
-                    {isFallback ? (
+                    {item.status === 'failed' ? (
+                        <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
+                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold' }}>FAILED</Typography>
+                        </View>
+                    ) : isFallback ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.paper }]}>
                             {(item.category?.toLowerCase?.()?.includes('video') ||
                                 item.source?.toLowerCase?.()?.includes('tiktok') ||
