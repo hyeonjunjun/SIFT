@@ -58,7 +58,7 @@ export default function HomeScreen() {
         fetchStatus,
         refetch
     } = useQuery({
-        queryKey: ['pages', user?.id],
+        queryKey: ['pages', user?.id, tier],
         queryFn: async () => {
             if (!user) return [];
             // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
@@ -293,14 +293,14 @@ export default function HomeScreen() {
         }
 
 
-        for (const url of urlsToProcess) {
-            if (processingUrls.current.has(url)) continue;
+        // PHASE 1: Optimistic Inserts (Parallel)
+        const tasks = await Promise.all(urlsToProcess.map(async (url) => {
+            if (processingUrls.current.has(url)) return null;
             processingUrls.current.add(url);
 
             try {
-                // 1. Optimistic Insert (One by One)
                 const domain = getDomain(url);
-                const { data: pendingData } = await supabase
+                const { data: pendingData, error } = await supabase
                     .from('pages')
                     .insert({
                         user_id: user?.id,
@@ -313,30 +313,39 @@ export default function HomeScreen() {
                     .select()
                     .single();
 
-                if (pendingData?.id) {
-                    // 2. Call API (Wait for it)
-                    try {
-                        await safeSift(url, user!.id, pendingData.id, tier);
-                    } catch (apiError: any) {
-                        console.error(`[QUEUE] API Error for ${url}:`, apiError);
-                        // Update DB to Failed
-                        if (__DEV__) Alert.alert("Sift Failed", apiError.message);
-
-                        await supabase.from('pages').update({
-                            metadata: { ...pendingData.metadata, status: 'failed', error: apiError.message }
-                        }).eq('id', pendingData.id);
-                    }
-                }
+                if (error) throw error;
+                return { url, id: pendingData.id };
             } catch (e) {
                 console.error(`[QUEUE] Insert failed for ${url}:`, e);
-            } finally {
                 processingUrls.current.delete(url);
+                return null;
             }
-        }
+        }));
+
+        // PHASE 2: API Processing (Parallel)
+        const validTasks = tasks.filter((t): t is { url: string; id: string } => t !== null);
+
+        await Promise.all(validTasks.map(async (task) => {
+            try {
+                await safeSift(task.url, user!.id, task.id, tier);
+            } catch (apiError: any) {
+                console.error(`[QUEUE] API Error for ${task.url}:`, apiError);
+                await supabase.from('pages').update({
+                    metadata: { status: 'failed', error: apiError.message }
+                }).eq('id', task.id);
+            } finally {
+                processingUrls.current.delete(task.url);
+            }
+        }));
+
+        // Apple-grade Reactivity: Refetch Home screen data immediately
+        console.log('[QUEUE] All processing complete. Invalidating cache...');
+        queryClient.invalidateQueries({ queryKey: ['pages'] });
+        queryClient.invalidateQueries({ queryKey: ['saved-pages'] });
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         setIsProcessingQueue(false);
-    }, [queue, isProcessingQueue, user?.id, tier, triggerHaptic, showToast]);
+    }, [queue, isProcessingQueue, user?.id, tier, triggerHaptic, showToast, queryClient]);
 
     useEffect(() => {
         const shareIntent = intent as any;

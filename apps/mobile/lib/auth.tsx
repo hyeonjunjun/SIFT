@@ -65,33 +65,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const refreshProfile = async (targetUser?: User | null) => {
         const actingUser = targetUser ?? user;
         if (!actingUser?.id) {
-            console.log('[Auth] No user ID available for profile refresh');
             setProfile(null);
             setTier('free');
-            return; // No change needed here, as the original code already returns void.
+            return;
         }
 
         try {
-            // console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
-            const { data, error } = await supabase
+            console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
+
+            // Apple-grade resilience: 15s timeout for profile fetch
+            const fetchPromise = supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', actingUser.id)
-                .maybeSingle();
+                .single();
+
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
+            );
+
+            const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+            const { data, error } = result;
 
             if (!error && data) {
-                // console.log('[Auth] Profile fetched successfully for:', actingUser.id);
+                console.log('[Auth] Profile refreshed successfully');
                 setProfile(data);
                 setUser(actingUser); // Ensure user is in sync
                 setTier(data.tier as any || 'free');
             } else {
-                console.warn('[Auth] Profile fetch error/not found:', error?.message);
-                setTier('free');
-                setProfile({ tier: 'free' });
+                console.log('[Auth] Profile fetch error/not found:', error?.message);
+                // Keep existing profile if it's just a transient error
+                if (!profile) {
+                    setTier('free');
+                    setProfile({ tier: 'free' });
+                }
             }
-        } catch (e) {
-            console.error('[Auth] Failed to refresh profile:', e);
-            setTier('free');
+        } catch (e: any) {
+            console.error('[Auth] Failed to refresh profile:', e.message);
+            if (!profile) setTier('free');
         }
     };
 
@@ -100,6 +111,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (error) console.error('Error signing out:', error);
         setTier('free');
         setProfile(null);
+        setSession(null);
+        setUser(null);
     };
 
     useEffect(() => {
@@ -129,7 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         fetchInitialState();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            // console.log('Auth state change:', _event);
+            console.log('Auth state change:', _event);
 
             if (isMounted) {
                 const currentUser = session?.user ?? null;
@@ -137,9 +150,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setUser(currentUser);
 
                 try {
-                    if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+                    if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
                         setLoading(true);
-                        refreshProfile(currentUser).finally(() => setLoading(false));
+                        await refreshProfile(currentUser);
+                    } else if (_event === 'USER_UPDATED') {
+                        // For metadata/profile updates, refresh but don't show full-screen loader if possible
+                        await refreshProfile(currentUser);
                     } else if (_event === 'SIGNED_OUT') {
                         setProfile(null);
                         setTier('free');
@@ -147,7 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 } catch (err) {
                     console.error('[Auth] Event handler error:', err);
                 } finally {
-                    setLoading(false);
+                    if (isMounted) setLoading(false);
                 }
             }
         });
