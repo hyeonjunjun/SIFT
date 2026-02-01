@@ -69,7 +69,7 @@ export const safeSift = async <T = any>(
 
     } catch (error: any) {
         // Handle fetch/network exceptions
-        if (retryCount < MAX_RETRIES - 1 && (error.message.includes('Network request failed') || error.name === 'AbortError')) {
+        if (retryCount < MAX_RETRIES - 1 && (error.message.includes('Network request failed') || error.message.toLowerCase().includes('timed out') || error.name === 'AbortError')) {
             const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
             console.warn(`[SafeSift] Network error, retrying in ${backoff}ms...`, error.message);
             await new Promise(resolve => setTimeout(resolve, backoff));
