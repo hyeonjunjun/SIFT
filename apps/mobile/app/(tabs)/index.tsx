@@ -330,6 +330,21 @@ export default function HomeScreen() {
                 await safeSift(task.url, user!.id, task.id, tier);
             } catch (apiError: any) {
                 console.error(`[QUEUE] API Error for ${task.url}:`, apiError);
+
+                if (apiError.status === 'limit_reached') {
+                    Alert.alert(
+                        "Limit Reached",
+                        apiError.message,
+                        [
+                            { text: "Later", style: "cancel" },
+                            {
+                                text: "Upgrade",
+                                onPress: () => router.push('/settings/subscription')
+                            }
+                        ]
+                    );
+                }
+
                 await supabase.from('pages').update({
                     metadata: { status: 'failed', error: apiError.message }
                 }).eq('id', task.id);

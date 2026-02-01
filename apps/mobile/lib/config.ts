@@ -5,12 +5,14 @@ const getApiUrl = () => {
     if (__DEV__) {
         const debuggerHost = Constants.expoConfig?.hostUri;
         const localhost = debuggerHost?.split(':')[0] || 'localhost';
-        return `http://${localhost}:3000`;
+        const url = `http://${localhost}:3000`;
+        console.log(`[Config] API_URL (DEV): ${url} (hostUri: ${debuggerHost})`);
+        return url;
     }
 
-    // 2. Production (FORCE CORRECT URL)
-    // We prefer EXPO_PUBLIC_API_URL if set in EAS secrets, but fallback to known good.
-    return process.env.EXPO_PUBLIC_API_URL || 'https://sift-rho.vercel.app';
+    const url = process.env.EXPO_PUBLIC_API_URL || 'https://sift-rho.vercel.app';
+    console.log(`[Config] API_URL (PROD): ${url}`);
+    return url;
 };
 
 export const API_URL = getApiUrl();

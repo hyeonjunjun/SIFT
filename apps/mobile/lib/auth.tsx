@@ -90,14 +90,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (!error && data) {
                 console.log('[Auth] Profile refreshed successfully');
                 setProfile(data);
-                setUser(actingUser); // Ensure user is in sync
+                setUser(actingUser);
                 setTier(data.tier as any || 'free');
             } else {
-                console.log('[Auth] Profile fetch error/not found:', error?.message);
-                // Keep existing profile if it's just a transient error
-                if (!profile) {
+                console.log('[Auth] Profile fetch error/not found, attempting JIT creation:', error?.message);
+
+                // If profile is missing, create it proactively (JIT Creation)
+                const { data: newProfile, error: insertError } = await supabase
+                    .from('profiles')
+                    .insert({
+                        id: actingUser.id,
+                        display_name: actingUser.user_metadata?.display_name || actingUser.email?.split('@')[0],
+                        tier: 'free'
+                    })
+                    .select()
+                    .single();
+
+                if (!insertError && newProfile) {
+                    console.log('[Auth] JIT Profile created successfully');
+                    setProfile(newProfile);
                     setTier('free');
-                    setProfile({ tier: 'free' });
+                } else {
+                    console.error('[Auth] JIT Profile creation failed:', insertError?.message);
+                    // Fallback to local state if DB insert fails
+                    if (!profile) {
+                        setTier('free');
+                        setProfile({ tier: 'free' });
+                    }
                 }
             }
         } catch (e: any) {

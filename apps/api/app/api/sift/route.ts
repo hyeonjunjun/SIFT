@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
@@ -199,9 +198,13 @@ export async function POST(request: Request) {
         const hasApifyToken = process.env.APIFY_API_TOKEN || process.env.apify;
         if (hasApifyToken) {
             try {
+                console.log(`[SIFT] Calling Apify Actor: ${actorId} with URL ${url}`);
                 const run = await apifyClient.actor(actorId!).call(input);
+                console.log(`[SIFT] Apify Run Finished: ${run.id} (Status: ${run.status})`);
+
                 const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
                 const rawItem = items[0] as any;
+                console.log(`[SIFT] Apify Item Received: ${rawItem ? 'YES' : 'EMPTY'}`);
 
                 if (rawItem) {
                     // Standardized Output Mapping
@@ -213,9 +216,9 @@ export async function POST(request: Request) {
                         };
                     } else if (domain.includes('instagram.com') || domain.includes('instagr.am')) {
                         scrapedData = {
-                            title: rawItem.caption?.substring(0, 50) || rawItem.alt || "Instagram Post",
+                            title: rawItem.caption?.substring(0, 70) || rawItem.alt || "Instagram Post",
                             description: rawItem.caption,
-                            imageUrl: rawItem.displayUrl || rawItem.displayUrlSrc
+                            imageUrl: rawItem.displayUrl || rawItem.displayUrlSrc || rawItem.childPosts?.[0]?.displayUrl
                         };
                     } else if (domain.includes('youtube.com')) {
                         scrapedData = {
@@ -233,14 +236,15 @@ export async function POST(request: Request) {
                         };
                     }
                     ogImage = scrapedData.imageUrl;
-                    debugInfoSnippet += `Scraper: Success (${domain}). `;
+                    debugInfoSnippet += `Scraper: Success (${domain}, Item found). `;
+                    console.log(`[SIFT] Scraped Title: ${scrapedData.title}`);
                 } else {
+                    console.warn(`[SIFT] No items returned for ${url}`);
                     throw new Error("Empty items from Apify");
                 }
             } catch (e: any) {
                 console.error('[SIFT] Scraper Failed:', e.message);
-                // DETAILED ERROR CAPTURE
-                debugInfoSnippet += `Scraper Failed: ${e.message} (Stack: ${e.stack ? e.stack.substring(0, 100) : 'N/A'}). `;
+                debugInfoSnippet += `Scraper Failed: ${e.message} (Actor: ${actorId}). `;
             }
         }
 
