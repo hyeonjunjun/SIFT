@@ -24,6 +24,8 @@ import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import Fuse from "fuse.js";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SiftLimitTracker } from "../../components/SiftLimitTracker";
+import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 
 interface Page {
     id: string;
@@ -131,6 +133,9 @@ export default function HomeScreen() {
         else if (type === 'impact') Haptics.impactAsync(style as Haptics.ImpactFeedbackStyle || Haptics.ImpactFeedbackStyle.Light);
         else if (type === 'notification') Haptics.notificationAsync(style as Haptics.NotificationFeedbackType || Haptics.NotificationFeedbackType.Success);
     }, [hapticsEnabled]);
+
+    const [limitReachedVisible, setLimitReachedVisible] = useState(false);
+    const [upgradeUrl, setUpgradeUrl] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         if (params.siftUrl) {
@@ -332,22 +337,18 @@ export default function HomeScreen() {
                 console.error(`[QUEUE] API Error for ${task.url}:`, apiError);
 
                 if (apiError.status === 'limit_reached') {
-                    Alert.alert(
-                        "Limit Reached",
-                        apiError.message,
-                        [
-                            { text: "Later", style: "cancel" },
-                            {
-                                text: "Upgrade",
-                                onPress: () => router.push('/settings/subscription')
-                            }
-                        ]
-                    );
+                    setUpgradeUrl(apiError.upgrade_url);
+                    setLimitReachedVisible(true);
+                    triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
+                } else {
+                    await supabase.from('pages').update({
+                        metadata: { status: 'failed', error: apiError.message }
+                    }).eq('id', task.id);
+                    setToastType('error');
+                    setToastMessage(apiError.message || "Sift failed");
+                    setToastVisible(true);
+                    triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
                 }
-
-                await supabase.from('pages').update({
-                    metadata: { status: 'failed', error: apiError.message }
-                }).eq('id', task.id);
             } finally {
                 processingUrls.current.delete(task.url);
             }
@@ -731,6 +732,11 @@ export default function HomeScreen() {
                     onSelect={setActiveFilter}
                 />
             </View>
+
+            {/* 5. SIFT LIMIT TRACKER */}
+            <View style={{ paddingHorizontal: SPACING.m }}>
+                <SiftLimitTracker />
+            </View>
         </View>
     ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage]);
 
@@ -777,6 +783,12 @@ export default function HomeScreen() {
                 onClose={() => setQuickTagModalVisible(false)}
                 initialTags={selectedSiftTags}
                 onSave={handleSaveTags}
+            />
+
+            <LimitReachedModal
+                visible={limitReachedVisible}
+                onClose={() => setLimitReachedVisible(false)}
+                upgradeUrl={upgradeUrl}
             />
 
             <Toast
