@@ -83,7 +83,13 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
 
     const handlePress = () => {
         Haptics.selectionAsync();
-        router.push(`/page/${item.id}`);
+        router.push({
+            pathname: `/page/${item.id}`,
+            params: {
+                contextType: mode === 'feed' ? 'feed' : 'archive', // simple context for now
+                // We'll need to enhance this dynamically for tags/search later if needed
+            }
+        });
     };
 
     const handleLongPress = () => {
@@ -138,20 +144,19 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
         }
     };
 
-    const isFallback = !item.image;
-
-    // Determine column position for explicit margins (Full Bleed Container)
+    // Container Padding Strategy:
+    // Container has 20px padding.
+    // Items naturally fill the space. Gap is handled by TILE_WIDTH logic.
     const isLeftColumn = index % 2 === 0;
-    const marginLeft = isLeftColumn ? 20 : 7.5;
-    const marginRight = isLeftColumn ? 7.5 : 20;
+
+    const isFallback = !item.image;
 
     if (item.status === 'pending') {
         return (
             <View style={{
                 width: TILE_WIDTH,
                 marginBottom: GRID_GAP,
-                marginLeft,
-                marginRight,
+                // Natural flow, no forced margins
             }}>
                 <SiftCardSkeleton />
             </View>
@@ -165,8 +170,6 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
             style={{
                 width: TILE_WIDTH,
                 marginBottom: GRID_GAP,
-                marginLeft,
-                marginRight,
             }}
         >
             <Pressable
@@ -238,15 +241,12 @@ export default function SiftFeed({
             <FlashList
                 data={[1, 2, 3, 4, 5, 6]}
                 numColumns={2}
-                extraData={true} // Trigger masonry
+                extraData={true}
                 renderItem={({ index }) => {
-                    const isLeft = index % 2 === 0;
                     return (
                         <View style={{
                             width: TILE_WIDTH,
                             marginBottom: GRID_GAP,
-                            marginLeft: isLeft ? 20 : 7.5,
-                            marginRight: isLeft ? 7.5 : 20,
                         }}>
                             <SiftCardSkeleton />
                         </View>
@@ -255,7 +255,7 @@ export default function SiftFeed({
                 // @ts-ignore
                 estimatedItemSize={250}
                 contentContainerStyle={{
-                    paddingHorizontal: 0, // Full bleed, margins handled by items
+                    paddingHorizontal: 20, // Inherited Alignment
                     paddingBottom: 40,
                     ...contentContainerStyle
                 }}
@@ -288,7 +288,7 @@ export default function SiftFeed({
             refreshControl={refreshControl}
             scrollEventThrottle={16}
             contentContainerStyle={{
-                paddingHorizontal: 0, // Full bleed, margins handled by items
+                paddingHorizontal: 20, // Padded Container governs alignment
                 paddingBottom: 40,
                 ...contentContainerStyle
             }}

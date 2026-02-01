@@ -685,7 +685,7 @@ export default function HomeScreen() {
             {/* 2. SEARCH BAR */}
             <View style={styles.searchContainer}>
                 <View style={[styles.searchInputWrapper, { borderRadius: RADIUS.l }]}>
-                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
+                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" style={{ marginRight: 10 }} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Find a sift..."
@@ -704,17 +704,21 @@ export default function HomeScreen() {
             </View>
 
             {/* 3. HERO CAROUSEL */}
-            {activeFilter === 'All' && searchQuery === '' && <HeroCarousel pages={pages} />}
+            <View style={{ marginHorizontal: -20 }}>
+                {activeFilter === 'All' && searchQuery === '' && <HeroCarousel pages={pages} />}
+            </View>
 
             {/* 4. FILTER BAR */}
-            <FilterBar
-                filters={[
-                    { id: 'All', text: 'All' },
-                    ...ALLOWED_TAGS.map(tag => ({ id: tag, text: tag }))
-                ]}
-                activeFilter={activeFilter}
-                onSelect={setActiveFilter}
-            />
+            <View style={{ marginHorizontal: -20 }}>
+                <FilterBar
+                    filters={[
+                        { id: 'All', text: 'All' },
+                        ...ALLOWED_TAGS.map(tag => ({ id: tag, text: tag }))
+                    ]}
+                    activeFilter={activeFilter}
+                    onSelect={setActiveFilter}
+                />
+            </View>
         </View>
     ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage]);
 
@@ -778,7 +782,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
     bentoContainer: {
-        paddingHorizontal: 20,
+        // paddingHorizontal: 20, // Inherited from SiftFeed (standardized)
         marginTop: SPACING.m,
         marginBottom: SPACING.l,
     },
@@ -816,7 +820,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     searchContainer: {
-        paddingHorizontal: 20,
+        // paddingHorizontal: 20, // Inherited from SiftFeed (standardized)
         marginBottom: SPACING.l,
     },
     searchInputWrapper: {
