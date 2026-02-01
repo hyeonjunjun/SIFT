@@ -44,7 +44,7 @@ import { useAuth } from "../../lib/auth";
 import { useDebounce } from "../../hooks/useDebounce";
 
 export default function HomeScreen() {
-    const { user, tier, profile, loading: authLoading } = useAuth(); // Get authenticated user
+    const { user, tier, profile, loading: authLoading, refreshProfile } = useAuth(); // Get authenticated user
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -292,16 +292,13 @@ export default function HomeScreen() {
             showToast("Sifting...", 1500);
         }
 
-        // console.log(`[OPTIMISTIC] Processing ${count} urls in parallel`);
 
-        // PHASE 1: Batch Optimistic Inserts (Parallel)
-        const tasks: { url: string; pendingId?: string }[] = [];
-
-        await Promise.all(urlsToProcess.map(async (url) => {
-            if (processingUrls.current.has(url)) return;
+        for (const url of urlsToProcess) {
+            if (processingUrls.current.has(url)) continue;
             processingUrls.current.add(url);
 
             try {
+                // 1. Optimistic Insert (One by One)
                 const domain = getDomain(url);
                 const { data: pendingData } = await supabase
                     .from('pages')
@@ -317,45 +314,27 @@ export default function HomeScreen() {
                     .single();
 
                 if (pendingData?.id) {
-                    tasks.push({ url, pendingId: pendingData.id });
-                } else {
-                    processingUrls.current.delete(url);
+                    // 2. Call API (Wait for it)
+                    try {
+                        await safeSift(url, user!.id, pendingData.id, tier);
+                    } catch (apiError: any) {
+                        console.error(`[QUEUE] API Error for ${url}:`, apiError);
+                        // Update DB to Failed
+                        if (__DEV__) Alert.alert("Sift Failed", apiError.message);
+
+                        await supabase.from('pages').update({
+                            metadata: { ...pendingData.metadata, status: 'failed', error: apiError.message }
+                        }).eq('id', pendingData.id);
+                    }
                 }
             } catch (e) {
                 console.error(`[QUEUE] Insert failed for ${url}:`, e);
+            } finally {
                 processingUrls.current.delete(url);
             }
-        }));
+        }
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
-
-        // PHASE 2: Parallel Sifting with safeSift
-        // We use Promise.all to process all tasks concurrently.
-        // If one fails, it doesn't stop others because we catch inside the map.
-        await Promise.all(tasks.map(async (task) => {
-            if (!task.pendingId) return;
-            try {
-                // console.log(`[QUEUE] Processing: ${task.url} (ID: ${task.pendingId})`);
-                await safeSift(task.url, user!.id, task.pendingId, tier);
-            } catch (error: any) {
-                console.error(`[QUEUE] Error sifting ${task.url}:`, error);
-
-                // Ensure the database knows we failed if we didn't get success
-                try {
-                    const { data: checkData } = await supabase.from('pages').select('metadata').eq('id', task.pendingId).single();
-                    if (checkData?.metadata?.status === 'pending') {
-                        await supabase.from('pages').update({
-                            metadata: { ...checkData.metadata, status: 'failed', error: error.message }
-                        }).eq('id', task.pendingId);
-                    }
-                } catch (e) {
-                    console.error(`[QUEUE] Cleanup update failed for ${task.pendingId}:`, e);
-                }
-            } finally {
-                processingUrls.current.delete(task.url);
-            }
-        }));
-
         setIsProcessingQueue(false);
     }, [queue, isProcessingQueue, user?.id, tier, triggerHaptic, showToast]);
 
@@ -454,21 +433,19 @@ export default function HomeScreen() {
     }, [triggerHaptic]);
 
     const onRefresh = useCallback(async () => {
-        triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
         setRefreshing(true);
-        // Don't let a network hang block the UI forever.
-        // We race the refetch against a 5s timeout.
+        triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
+
         try {
-            await Promise.race([
-                queryClient.resetQueries({ queryKey: ['pages', user?.id] }),
-                new Promise(resolve => setTimeout(resolve, 5000))
-            ]);
+            await queryClient.invalidateQueries({ queryKey: ['pages'] });
+            await refreshProfile();
         } catch (e) {
             console.warn('[Home] Refresh failed:', e);
         } finally {
             setRefreshing(false);
+            triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         }
-    }, [user?.id, queryClient, triggerHaptic]);
+    }, [queryClient, triggerHaptic, refreshProfile]);
 
     const handleArchive = async (id: string) => {
         if (!user?.id) {

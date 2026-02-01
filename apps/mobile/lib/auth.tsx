@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 try {
                     if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
                         setLoading(true);
-                        await refreshProfile(currentUser);
+                        refreshProfile(currentUser).finally(() => setLoading(false));
                     } else if (_event === 'SIGNED_OUT') {
                         setProfile(null);
                         setTier('free');

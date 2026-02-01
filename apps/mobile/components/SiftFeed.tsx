@@ -151,6 +151,21 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
 
     const isFallback = !item.image;
 
+    // STALE CHECK: If pending for > 5 mins, show as FAILED or HIDE
+    const isStale = useMemo(() => {
+        if (item.status !== 'pending') return false;
+        try {
+            const created = new Date(page.created_at).getTime();
+            const now = Date.now();
+            return (now - created) > (5 * 60 * 1000); // 5 minutes
+        } catch { return false; }
+    }, [item.status, page.created_at]);
+
+    // CLEANUP: If failed or stale (timed out), do not render.
+    if (item.status === 'failed' || isStale) {
+        return null;
+    }
+
     if (item.status === 'pending') {
         return (
             <View style={{
@@ -179,9 +194,11 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                 delayLongPress={300}
             >
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
-                    {item.status === 'failed' ? (
+                    {(item.status === 'failed' || isStale) ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
-                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold' }}>FAILED</Typography>
+                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold' }}>
+                                {isStale ? "TIMED OUT" : "FAILED"}
+                            </Typography>
                         </View>
                     ) : isFallback ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.paper }]}>

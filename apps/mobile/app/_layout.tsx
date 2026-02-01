@@ -184,7 +184,7 @@ function RootLayoutNav() {
             setSplashDismissed(true);
             setSplashAnimationFinished(true);
             try {
-                SplashScreenIs.hideAsync().catch(() => { });
+                SplashScreenIs.hideAsync().catch(() => { /* Benign: Already hidden */ });
             } catch (e) { }
         }, 6000);
         return () => clearTimeout(safetyTimer);
@@ -194,7 +194,8 @@ function RootLayoutNav() {
         if (appReady && fontsLoaded && splashAnimationFinished && !authLoading) {
             setSplashDismissed(true);
             try {
-                SplashScreenIs.hideAsync().catch(() => { });
+                // Ensure this call doesn't throw unhandled promise rejection
+                SplashScreenIs.hideAsync().catch(() => { /* Benign: Already hidden */ });
             } catch (e) { }
         }
     }, [appReady, fontsLoaded, splashAnimationFinished, authLoading]);

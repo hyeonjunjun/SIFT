@@ -14,19 +14,19 @@ export interface TierCapabilities {
 
 const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     free: {
-        maxImagesPerSift: 1,
+        maxImagesPerSift: 99,
         maxSiftsTotal: 10,
         price: '$0',
-        description: 'Basic Sifting',
+        description: 'Starter',
         canUseSmartExtraction: true,
         canUseVideoComprehension: true,
         hasPriorityProcessing: true,
     },
     plus: {
-        maxImagesPerSift: 5,
+        maxImagesPerSift: 99,
         maxSiftsTotal: 30,
         price: '$9.99',
-        description: 'Advanced Curation',
+        description: 'Curator',
         canUseSmartExtraction: true,
         canUseVideoComprehension: true,
         hasPriorityProcessing: true,

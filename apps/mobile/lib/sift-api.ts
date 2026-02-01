@@ -13,7 +13,7 @@ const INITIAL_BACKOFF = 1000; // 1s
 export const safeSift = async <T = any>(
     originalUrl: string,
     userId?: string,
-    pendingId?: string,
+    pendingId?: string | undefined,
     userTier?: string,
     retryCount = 0
 ): Promise<T | null> => {
@@ -29,7 +29,7 @@ export const safeSift = async <T = any>(
         };
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 Minutes
 
         const res = await fetch(apiUrl, {
             method: 'POST',
