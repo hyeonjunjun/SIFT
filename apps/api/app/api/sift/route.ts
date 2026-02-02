@@ -198,9 +198,9 @@ export async function POST(request: Request) {
         const hasApifyToken = process.env.APIFY_API_TOKEN || process.env.apify;
         if (hasApifyToken) {
             try {
-                console.log(`[SIFT] Calling Apify Actor: ${actorId} with URL ${url}`);
-                const run = await apifyClient.actor(actorId!).call(input);
-                console.log(`[SIFT] Apify Run Finished: ${run.id} (Status: ${run.status})`);
+                console.log(`[SIFT] Calling Apify Actor: ${actorId} with URL ${url} (Requested Memory: 2048MB)`);
+                const run = await apifyClient.actor(actorId!).call(input, { memory: 2048 });
+                console.log(`[SIFT] Apify Run Finished: ${run.id} (Status: ${run.status}, Memory: ${run.options.memoryMbytes}MB)`);
 
                 const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
                 const rawItem = items[0] as any;

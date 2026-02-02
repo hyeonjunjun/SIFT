@@ -110,9 +110,9 @@ export default function LoginScreen() {
             const { GoogleSignin } = require('@react-native-google-signin/google-signin');
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-            // Pass the hashed nonce to Google Sign-In
+            // Pass the hashed nonce to Google Sign-In (iOS only for nonce support)
             const response = await GoogleSignin.signIn({
-                nonce: hashedNonce,
+                ...(Platform.OS === 'ios' ? { nonce: hashedNonce } : {}),
             });
 
             // Native library structure differs slightly by version
@@ -122,7 +122,7 @@ export default function LoginScreen() {
                 const { error } = await supabase.auth.signInWithIdToken({
                     provider: 'google',
                     token: idToken,
-                    nonce: rawNonce, // Pass the raw (unhashed) nonce to Supabase
+                    ...(Platform.OS === 'ios' ? { nonce: rawNonce } : {}),
                 });
                 if (error) throw error;
             } else {

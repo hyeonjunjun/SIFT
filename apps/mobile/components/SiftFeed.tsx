@@ -171,14 +171,14 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
         } catch { return false; }
     }, [item.status, page.created_at]);
 
+    const { width } = useWindowDimensions();
+    const [isHovered, setIsHovered] = React.useState(false);
+    const { columnWidth } = getLayoutInfo(width);
+
     // CLEANUP: If failed or stale (timed out), do not render.
     if (item.status === 'failed' || isStale) {
         return null;
     }
-
-    const { width } = useWindowDimensions();
-    const [isHovered, setIsHovered] = React.useState(false);
-    const { columnWidth } = getLayoutInfo(width);
 
     if (item.status === 'pending') {
         return (
