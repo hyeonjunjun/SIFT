@@ -6,7 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 // Force Redeploy: 2026-01-19 18:40
 
 // Vercel Timeout Fix: Increase max duration for long-running social media scrapes
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // Initialize clients safely
 const apifyClient = new ApifyClient({
@@ -18,55 +18,49 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     : null;
 
 const SYSTEM_PROMPT = `
-    You are an expert curator and archivist.
-    Your goal is to read the provided web content, video transcripts, or image OCR data and synthesize it into a structured JSON response.
+    You are an expert curator and archivist for "SIFT", a premium knowledge management app.
+    Your goal is to synthesize provide web content into a high-end, structured JSON response.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
     {
-        "title": "A short, catchy title",
+        "title": "A short, catchy, and professional title",
         "category": "Cooking, Tech, Design, Health, Fashion, News, or Random",
         "tags": ["Tag1", "Tag2"],
-        "summary": "The full formatted content in Markdown",
+        "summary": "The full formatted content in Markdown. DO NOT BE BRIEF. If it is a recipe or a how-to guide, you MUST provide every single step and ingredient from your internal knowledge or the provided data. If the provided data is a TikTok/Reel with no transcript, use the title and caption to infer the complete high-quality recipe.",
         "smart_data": {
             "ingredients": ["item1"],
-            "price": "$0.00",
+            "preparation_time": "e.g. 30 mins",
             "extracted_text": "any specific raw text extracted",
             "video_insights": "key takeaways if it's a video"
         }
     }
 
-    **TAGGING RULES (STRICT):**
-    - You must select tags **ONLY** from this list: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"].
-    - **DO NOT** create new tags.
-    - If no tag fits, use "Lifestyle".
-    - Select exactly 2-3 tags.
+    **TAGGING RULES:**
+    - Choose 2-3 tags from: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"].
 
-    **CONTENT INSTRUCTIONS (for the 'summary' field):**
-    - **Voice**: Clean, concise, functional.
-    - **Structure**:
-      - Start with a 1-sentence synopsis.
-      - Use **H2 (##)** for headers.
-      - Use **Bold** for key items.
-      - Use **Bullet Points** for lists.
-    
-    **CRITICAL FOR RECIPES/HOW-TO:**
-    - If the content is a Recipe, you MUST extract the full **Ingredients** and **Preparation/Steps** verbatim into the markdown.
-    - Use headers: ## Ingredients, ## Preparation.
-
-    **CRITICAL FOR IMAGES (OCR):**
-    - If OCR data or image analysis is provided, focus on extracting structured data like prices, ingredients, dates, or key entities.
-
-    **CRITICAL FOR VIDEOS (Transcript):**
-    - Use the provided transcript to provide specific insights and a detailed summary of the video's content.
+    **CONTENT STRUCTURE (for the 'summary' field):**
+    - **Header**: Use ## (H2) for sections.
+    - **Formatting**: Use **Bold** for key ingredients and steps.
+    - **COMPLETENESS**: If this is a recipe for something like "Steak Bites", "Salmon Bites", or "Tacos", your summary MUST include:
+      ## Ingredients
+      (Full bulleted list)
+      ## Preparation
+      (Full numbered steps)
 `;
 
 function extractMetaTags(html: string) {
     const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
     const titleMatch = html.match(/<title>([^<]*)<\/title>/i) || html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+    const descMatch = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
+        html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+    const keywordsMatch = html.match(/<meta\s+name=["']keywords["']\s+content=["']([^"']+)["']/i);
+
     return {
         ogImage: ogImageMatch ? ogImageMatch[1] : null,
-        title: titleMatch ? titleMatch[1] : null
+        title: titleMatch ? titleMatch[1] : null,
+        description: descMatch ? descMatch[1] : null,
+        keywords: keywordsMatch ? keywordsMatch[1] : null
     };
 }
 
@@ -212,27 +206,31 @@ export async function POST(request: Request) {
                         scrapedData = {
                             title: rawItem.text || "TikTok Video",
                             description: rawItem.text,
-                            imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl
+                            imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl,
+                            raw: rawItem // PASS EVERYTHING TO AI
                         };
                     } else if (domain.includes('instagram.com') || domain.includes('instagr.am')) {
                         scrapedData = {
                             title: rawItem.caption?.substring(0, 70) || rawItem.alt || "Instagram Post",
                             description: rawItem.caption,
-                            imageUrl: rawItem.displayUrl || rawItem.displayUrlSrc || rawItem.childPosts?.[0]?.displayUrl
+                            imageUrl: rawItem.displayUrl || rawItem.displayUrlSrc || rawItem.childPosts?.[0]?.displayUrl,
+                            raw: rawItem // PASS EVERYTHING TO AI
                         };
                     } else if (domain.includes('youtube.com')) {
                         scrapedData = {
                             title: rawItem.title,
                             description: rawItem.description,
                             imageUrl: rawItem.thumbnailUrl,
-                            transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : ""
+                            transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "",
+                            raw: rawItem // PASS EVERYTHING TO AI
                         };
                     } else {
                         // General Web Crawler
                         scrapedData = {
                             title: rawItem.metadata?.title || rawItem.title,
                             description: rawItem.metadata?.description || rawItem.text,
-                            imageUrl: rawItem.metadata?.ogImage || rawItem.ogImage
+                            imageUrl: rawItem.metadata?.ogImage || rawItem.ogImage,
+                            raw: rawItem // PASS EVERYTHING TO AI
                         };
                     }
                     ogImage = scrapedData.imageUrl;
@@ -259,6 +257,7 @@ export async function POST(request: Request) {
                 const html = await response.text();
                 const meta = extractMetaTags(html);
                 scrapedData.title = meta.title || `Saved from ${domain}`;
+                scrapedData.description = meta.description || meta.keywords || "";
                 ogImage = ogImage || meta.ogImage;
                 debugInfoSnippet += "Fallback: Meta Capture. ";
             } catch (e) {
@@ -274,7 +273,7 @@ export async function POST(request: Request) {
         let finalCategory = "Random";
         let smartData = {};
 
-        if (openai && (scrapedData.description || scrapedData.transcript || body.image_base64)) {
+        if (openai && (scrapedData.title || scrapedData.description || scrapedData.transcript || body.image_base64)) {
             try {
                 // If it's a direct image sift, we should host the image so it shows up on the card
                 if (body.image_base64 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -318,9 +317,9 @@ export async function POST(request: Request) {
                 finalCategory = ai.category || finalCategory;
                 smartData = ai.smart_data || {};
                 debugInfoSnippet += "AI: Success. ";
-            } catch (e) {
-                console.error('[SIFT] AI Failed');
-                debugInfoSnippet += "AI: Failed. ";
+            } catch (e: any) {
+                console.error('[SIFT] AI Failed:', e.message);
+                debugInfoSnippet += `AI: Failed (${e.message.substring(0, 20)}). `;
             }
         }
 
