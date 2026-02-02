@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "124",
+      "buildNumber": "125",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
