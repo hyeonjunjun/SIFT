@@ -264,7 +264,7 @@ export default function IdentityScreen() {
                 <View style={[styles.inputGroup, { opacity: 0.5 }]}>
                     <Typography variant="label" style={styles.label}>EMAIL (READ-ONLY)</Typography>
                     <TextInput
-                        style={[styles.input, { backgroundColor: '#F0F0F0' }]}
+                        style={[styles.input, { backgroundColor: COLORS.subtle }]}
                         value={user?.email}
                         editable={false}
                     />

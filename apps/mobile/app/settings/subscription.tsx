@@ -1,70 +1,87 @@
 
 import * as React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { CaretLeft, Check, Crown, Star, ArrowsClockwise as InfinityIcon } from 'phosphor-react-native';
+import { CaretLeft, Check, Crown, Star, ArrowsClockwise as InfinityIcon, ArrowUpRight } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../context/ThemeContext';
 import { useSubscription, Tier } from '../../hooks/useSubscription';
+import { MotiView } from 'moti';
 
 export default function SubscriptionScreen() {
     const { tier: currentTier } = useAuth();
     const { colors, isDark } = useTheme();
     const router = useRouter();
+    const { maxSiftsTotal, currentCount } = useSubscription();
 
-    // Define tiers to display
-    const tiers: { id: Tier; name: string; icon: any; color: string }[] = [
-        { id: 'free', name: 'Free', icon: Star, color: colors.stone },
-        { id: 'plus', name: 'Pro', icon: Crown, color: colors.accent },
-        { id: 'unlimited', name: 'Unlimited', icon: InfinityIcon, color: colors.ink },
+    const tiers: { id: Tier; name: string; icon: any; sub: string; price: string }[] = [
+        { id: 'free', name: 'Starter', icon: Star, sub: 'For casual curators', price: 'Free' },
+        { id: 'plus', name: 'Pro', icon: Crown, sub: 'Power through noise', price: '$9.99/mo' },
+        { id: 'unlimited', name: 'Unlimited', icon: InfinityIcon, sub: 'Gems without limits', price: '$19.99/mo' },
     ];
 
     const handleUpgrade = (tierName: string) => {
         Alert.alert(
             "Upgrade to " + tierName,
-            "In-app purchases will be implemented in a future update. For now, contact support or use the web dashboard to upgrade.",
-            [{ text: "Heard" }]
+            "We are finalizing our secure payment connection through Apple/Google. Check back in a few days!",
+            [{ text: "Can't wait", style: 'default' }]
         );
     };
 
+    const handleRestore = () => {
+        Alert.alert("Restore", "Checking for previous purchases...");
+    };
+
     return (
-        <ScreenWrapper edges={['top']}>
+        <ScreenWrapper edges={['top']} style={{ backgroundColor: COLORS.canvas }}>
             <Stack.Screen options={{ headerShown: false }} />
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <CaretLeft size={28} color={colors.ink} />
+                    <CaretLeft size={28} color={COLORS.ink} weight="bold" />
                 </TouchableOpacity>
-                <Typography variant="h3">Membership</Typography>
+                <Typography variant="label" color={COLORS.ink} style={{ letterSpacing: 2 }}>Membership</Typography>
                 <View style={{ width: 28 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 <View style={styles.heroSection}>
                     <Typography variant="h1" style={styles.heroTitle}>Pick your power.</Typography>
-                    <Typography variant="body" color="stone" style={styles.heroSubtitle}>
-                        Enhance your curation with advanced AI and higher limits.
+                    <Typography variant="body" style={styles.heroSubtitle}>
+                        Your library, your rules. Enhance your curation with advanced AI and higher limits.
                     </Typography>
                 </View>
 
-                {tiers.map((tier) => (
+                {tiers.map((tier, index) => (
                     <TierCard
                         key={tier.id}
-                        tierId={tier.id}
-                        name={tier.name}
-                        icon={tier.icon}
-                        color={tier.color}
+                        tier={tier}
                         isCurrent={currentTier === tier.id}
                         onPress={() => tier.id !== currentTier && handleUpgrade(tier.name)}
+                        index={index}
                     />
                 ))}
 
-                <View style={styles.footerInfo}>
-                    <Typography variant="caption" color="stone" style={{ textAlign: 'center' }}>
-                        Subscription tiers help cover the costs of high-performance AI processing and content scraping.
+                <View style={styles.footerLinks}>
+                    <TouchableOpacity onPress={handleRestore}>
+                        <Typography variant="caption" color={COLORS.stone}>Restore Purchases</Typography>
+                    </TouchableOpacity>
+                    <View style={styles.dot} />
+                    <TouchableOpacity>
+                        <Typography variant="caption" color={COLORS.stone}>Terms</Typography>
+                    </TouchableOpacity>
+                    <View style={styles.dot} />
+                    <TouchableOpacity>
+                        <Typography variant="caption" color={COLORS.stone}>Privacy</Typography>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.legalInfo}>
+                    <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5 }}>
+                        Subscriptions are managed via the Apple App Store or Google Play Store. Cancel anytime in your account settings.
                     </Typography>
                 </View>
             </ScrollView>
@@ -72,82 +89,71 @@ export default function SubscriptionScreen() {
     );
 }
 
-function TierCard({ tierId, name, icon: Icon, color, isCurrent, onPress }: {
-    tierId: Tier;
-    name: string;
-    icon: any;
-    color: string;
+function TierCard({ tier, isCurrent, onPress, index }: {
+    tier: any;
     isCurrent: boolean;
     onPress: () => void;
+    index: number;
 }) {
-    const { colors, isDark } = useTheme();
-    // Use the hook to get specific capabilities for this tier
-    // We mock the hook call by passing a temporary tier object or just accessing TIER_LIMITS if exported
-    // For now, we'll manually define benefits based on the known plan
+    const { colors } = useTheme();
+    const Icon = tier.icon;
 
-    const benefits = [
-        "Social Link Support",
-        "Smart Data Extraction",
-        "Priority AI Processing"
-    ];
-
-    if (tierId === 'free') {
-        benefits.unshift("10 Total Sifts");
-    } else if (tierId === 'plus') {
-        benefits.unshift("30 Total Sifts", "Multiple Image Scan");
-    } else {
-        benefits.unshift("Unlimited Sifts", "Video Transcript Analysis");
-    }
-
-    const price = tierId === 'free' ? '$0' : tierId === 'plus' ? '$5.99' : '$12.99';
+    const benefits = tier.id === 'free'
+        ? ["10 Total Sifts", "Basic Link Support", "Social Integration"]
+        : tier.id === 'plus'
+            ? ["50 Total Sifts", "Smart Data Extraction", "Priority Processing", "Multiple Image Scan"]
+            : ["Unlimited Sifts", "Advanced Video Analysis", "Infinite History", "Early Beta Access"];
 
     return (
-        <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={onPress}
-            style={[
-                styles.card,
-                { backgroundColor: colors.paper, borderColor: isCurrent ? colors.ink : colors.separator },
-                isCurrent && { borderWidth: 2 }
-            ]}
+        <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 500, delay: 100 * index }}
         >
-            <View style={styles.cardHeader}>
-                <View style={[styles.iconBox, { backgroundColor: isDark ? colors.subtle : '#F9F9F7' }]}>
-                    {Icon ? (
-                        <Icon size={24} color={isCurrent ? colors.ink : colors.stone} weight={isCurrent ? "fill" : "regular"} />
-                    ) : (
-                        <View style={{ width: 24, height: 24 }} />
-                    )}
-                </View>
-                <View style={{ flex: 1 }}>
-                    <Typography variant="h3">{name}</Typography>
-                    <Typography variant="caption" color="stone">{tierId === 'free' ? 'Starter' : tierId === 'plus' ? 'Curation Pro' : 'Digital Archivist'}</Typography>
-                </View>
-                <View style={styles.priceBox}>
-                    <Typography variant="h3" style={{ fontSize: 20 }}>{price}</Typography>
-                    <Typography variant="caption" color="stone" style={{ fontSize: 10 }}>/MONTH</Typography>
-                </View>
-            </View>
-
-            <View style={styles.benefitsList}>
-                {benefits.map((benefit, i) => (
-                    <View key={i} style={styles.benefitRow}>
-                        <Check size={16} color={colors.success} weight="bold" />
-                        <Typography variant="body" style={styles.benefitText}>{benefit}</Typography>
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onPress}
+                style={[
+                    styles.card,
+                    { backgroundColor: COLORS.paper },
+                    isCurrent && { borderColor: COLORS.ink, borderWidth: 1 }
+                ]}
+            >
+                <View style={styles.cardTop}>
+                    <View style={styles.iconCircle}>
+                        <Icon size={24} color={COLORS.ink} weight={isCurrent ? "fill" : "regular"} />
                     </View>
-                ))}
-            </View>
+                    <View style={{ flex: 1 }}>
+                        <Typography variant="h3">{tier.name}</Typography>
+                        <Typography variant="caption" color={COLORS.stone}>{tier.sub}</Typography>
+                    </View>
+                    <View style={styles.priceContainer}>
+                        <Typography variant="h3">{tier.price}</Typography>
+                    </View>
+                </View>
 
-            {isCurrent ? (
-                <View style={[styles.statusBadge, { backgroundColor: colors.subtle }]}>
-                    <Typography variant="label" color="ink">YOUR CURRENT PLAN</Typography>
+                <View style={styles.cardMiddle}>
+                    {benefits.map((benefit, i) => (
+                        <View key={i} style={styles.benefitRow}>
+                            <Check size={14} color={COLORS.success} weight="bold" />
+                            <Typography variant="body" style={styles.benefitText}>{benefit}</Typography>
+                        </View>
+                    ))}
                 </View>
-            ) : (
-                <View style={[styles.actionButton, { backgroundColor: colors.ink }]}>
-                    <Typography variant="label" style={{ color: colors.paper }}>UPGRADE NOW</Typography>
+
+                <View style={[
+                    styles.cardAction,
+                    { backgroundColor: isCurrent ? COLORS.subtle : COLORS.ink }
+                ]}>
+                    <Typography
+                        variant="label"
+                        style={{ color: isCurrent ? COLORS.ink : COLORS.paper, fontSize: 12 }}
+                    >
+                        {isCurrent ? "ACTIVE PLAN" : "UPGRADE"}
+                    </Typography>
                 </View>
-            )}
-        </TouchableOpacity>
+            </TouchableOpacity>
+        </MotiView>
     );
 }
 
@@ -158,6 +164,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 12,
+        backgroundColor: 'transparent',
     },
     backButton: {
         padding: 4,
@@ -167,69 +174,77 @@ const styles = StyleSheet.create({
         paddingBottom: 60,
     },
     heroSection: {
-        marginBottom: 32,
+        marginBottom: 40,
         alignItems: 'center',
     },
     heroTitle: {
-        fontSize: 32,
-        marginBottom: 8,
+        fontSize: 36,
+        marginBottom: 12,
         textAlign: 'center',
     },
     heroSubtitle: {
         textAlign: 'center',
-        paddingHorizontal: 40,
-        lineHeight: 20,
+        paddingHorizontal: 30,
+        lineHeight: 22,
+        color: COLORS.stone,
     },
     card: {
         borderRadius: RADIUS.l,
         padding: 24,
         marginBottom: 20,
-        borderWidth: 1,
-        ...Theme.shadows.soft,
+        ...Theme.shadows.medium,
     },
-    cardHeader: {
+    cardTop: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
     },
-    iconBox: {
+    iconCircle: {
         width: 48,
         height: 48,
-        borderRadius: 12,
+        borderRadius: 24,
+        backgroundColor: COLORS.canvas,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
     },
-    priceBox: {
+    priceContainer: {
         alignItems: 'flex-end',
     },
-    benefitsList: {
+    cardMiddle: {
         marginBottom: 24,
     },
     benefitRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 10,
     },
     benefitText: {
         marginLeft: 12,
         fontSize: 15,
+        color: COLORS.ink,
     },
-    statusBadge: {
-        height: 48,
-        borderRadius: RADIUS.pill,
+    cardAction: {
+        height: 52,
+        borderRadius: RADIUS.m,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    actionButton: {
-        height: 48,
-        borderRadius: RADIUS.pill,
+    footerLinks: {
+        flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        ...Theme.shadows.soft,
+        marginTop: 20,
+        gap: 12,
     },
-    footerInfo: {
-        marginTop: 12,
-        paddingHorizontal: 40,
+    dot: {
+        width: 3,
+        height: 3,
+        borderRadius: 2,
+        backgroundColor: COLORS.separator,
+    },
+    legalInfo: {
+        marginTop: 32,
+        paddingHorizontal: 30,
     }
 });

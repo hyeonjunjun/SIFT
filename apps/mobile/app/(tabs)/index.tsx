@@ -649,8 +649,8 @@ export default function HomeScreen() {
                         delayLongPress={2000}
                         style={styles.greetingBox}
                     >
-                        <Typography variant="label" style={{ fontFamily: 'System', fontWeight: '500', color: COLORS.stone }}>{getGreeting()},</Typography>
-                        <Typography variant="h1" numberOfLines={1} style={{ fontFamily: 'PlayfairDisplay', fontWeight: '400', fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
+                        <Typography variant="label" color={COLORS.stone}>{getGreeting()},</Typography>
+                        <Typography variant="h1" numberOfLines={1} style={{ fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
                     </TouchableOpacity>
                 </View>
 

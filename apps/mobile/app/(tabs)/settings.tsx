@@ -13,12 +13,9 @@ import { SettingsRow } from "../../components/design-system/SettingsRow";
 import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { UsageTracker } from "../../components/UsageTracker";
 import { useTheme } from "../../context/ThemeContext";
 import { useQueryClient } from '@tanstack/react-query';
-
-
-
-
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -141,6 +138,9 @@ export default function ProfileScreen() {
                         )}
                     </View>
                 </View>
+
+                {/* USAGE TRACKER (Tier-Aware) */}
+                <UsageTracker />
 
                 {/* 2. ACCOUNT SECTION */}
                 <View style={styles.sectionHeader}>

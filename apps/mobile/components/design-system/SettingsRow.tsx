@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
-        minHeight: 64,
+        paddingVertical: 20,
+        minHeight: 72,
     },
     iconContainer: {
         marginRight: 16,

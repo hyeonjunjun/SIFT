@@ -1,52 +1,36 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Typography } from './design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../lib/theme';
-import { useAuth } from '../lib/auth';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
+import { useSubscription } from '../hooks/useSubscription';
 import { Books } from 'phosphor-react-native';
 
 export const SiftLimitTracker = () => {
-    const { user, tier } = useAuth();
+    const { currentCount, maxSiftsTotal, isUnlimited, loadingCount } = useSubscription();
 
-    const { data: count = 0 } = useQuery({
-        queryKey: ['sift-count', user?.id],
-        queryFn: async () => {
-            if (!user) return 0;
-            const { count, error } = await supabase
-                .from('pages')
-                .select('id', { count: 'exact', head: true })
-                .eq('user_id', user.id);
-            if (error) throw error;
-            return count || 0;
-        },
-        enabled: !!user,
-    });
+    if (isUnlimited || loadingCount) return null;
 
-    if (!user || tier === 'admin' || tier === 'unlimited') return null;
-
-    const limit = 10;
-    const remaining = Math.max(0, limit - count);
-    const progress = Math.min(1, count / limit);
+    const progress = Math.min(1, currentCount / maxSiftsTotal);
 
     return (
         <View style={styles.container}>
             <View style={styles.content}>
                 <View style={styles.iconContainer}>
-                    <Books size={16} color={COLORS.stone} weight="duotone" />
+                    <Books size={18} color={COLORS.ink} weight="regular" />
                 </View>
                 <View style={styles.textContainer}>
-                    <Typography variant="caption" color="secondary">
-                        {count} / {limit} sifts used
-                    </Typography>
-                    <Typography variant="label" color="tertiary">
-                        {remaining} remaining this month
+                    <Typography variant="label" color={COLORS.ink}>
+                        Usage: {currentCount} / {maxSiftsTotal} sifts
                     </Typography>
                 </View>
             </View>
             <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                <View
+                    style={[
+                        styles.progressFill,
+                        { width: `${progress * 100}%`, backgroundColor: progress > 0.9 ? COLORS.danger : COLORS.ink }
+                    ]}
+                />
             </View>
         </View>
     );
@@ -54,40 +38,39 @@ export const SiftLimitTracker = () => {
 
 const styles = StyleSheet.create({
     container: {
-        padding: SPACING.m,
+        padding: 16,
         backgroundColor: COLORS.paper,
         borderRadius: RADIUS.m,
         marginBottom: SPACING.m,
-        ...Theme.shadows.sharp,
-        borderWidth: 1,
+        ...Theme.shadows.soft,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.separator,
     },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: SPACING.s,
+        marginBottom: 12,
     },
     iconContainer: {
         width: 32,
         height: 32,
-        borderRadius: RADIUS.s,
+        borderRadius: 8,
         backgroundColor: COLORS.subtle,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: SPACING.s,
+        marginRight: 12,
     },
     textContainer: {
         flex: 1,
     },
     progressBar: {
-        height: 4,
+        height: 6,
         backgroundColor: COLORS.subtle,
         borderRadius: RADIUS.pill,
         overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        backgroundColor: COLORS.stone,
         borderRadius: RADIUS.pill,
     },
 });

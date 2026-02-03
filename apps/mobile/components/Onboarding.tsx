@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from './design-system/Typography';
-import { COLORS, RADIUS } from '../lib/theme';
+import { COLORS, RADIUS, Theme } from '../lib/theme';
 import { router } from 'expo-router';
 import { ShareNetwork, Funnel, CheckCircle, CaretRight, X } from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -102,10 +102,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                 {index === 2 && <ActionVisual isActive={activeIndex === 2} />}
                             </View>
 
-                            <Typography variant="h1" className="text-3xl font-bold text-center mt-8 mb-2 text-ink">
+                            <Typography variant="h1" style={{ textAlign: 'center', marginTop: 32, marginBottom: 8 }}>
                                 {slide.title}
                             </Typography>
-                            <Typography variant="body" className="text-center text-ink-secondary px-8">
+                            <Typography variant="body" style={{ textAlign: 'center', color: COLORS.stone, paddingHorizontal: 32 }}>
                                 {slide.subtitle}
                             </Typography>
                         </View>
@@ -125,7 +125,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         return (
                             <TouchableOpacity key={i} onPress={() => scrollToIndex(i)} activeOpacity={0.7}>
                                 <RNAnimated.View
-                                    style={[styles.dot, { opacity, backgroundColor: COLORS.accent }]}
+                                    style={[styles.dot, { opacity, backgroundColor: COLORS.ink }]}
                                 />
                             </TouchableOpacity>
                         );
@@ -140,8 +140,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                             activeOpacity={0.8}
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Typography variant="h3" className="text-white font-bold mr-2">Get Started</Typography>
-                                <CheckCircle size={20} color="#FFF" />
+                                <Typography variant="h3" style={{ color: COLORS.paper, fontWeight: '700', marginRight: 8 }}>Get Started</Typography>
+                                <CheckCircle size={20} color={COLORS.paper} weight="bold" />
                             </View>
                         </TouchableOpacity>
                     ) : (
@@ -152,7 +152,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Typography variant="h3" style={{ color: COLORS.ink, fontWeight: '600', marginRight: 8 }}>Next</Typography>
-                                <CaretRight size={20} color={COLORS.ink} />
+                                <CaretRight size={20} color={COLORS.ink} weight="bold" />
                             </View>
                         </TouchableOpacity>
                     )}
@@ -292,18 +292,14 @@ const styles = StyleSheet.create({
     visualContainer: {
         width: VISUAL_SIZE,
         height: VISUAL_SIZE,
-        borderRadius: RADIUS.l + 20, // More rounded for visual area
+        borderRadius: RADIUS.l,
         backgroundColor: COLORS.paper,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 30,
-        // Soft shadow
-        shadowColor: COLORS.ink,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)'
+        ...Theme.shadows.soft,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
     },
     visualInner: {
         flex: 1,
@@ -324,13 +320,10 @@ const styles = StyleSheet.create({
         marginHorizontal: 5,
     },
     button: {
-        paddingVertical: 15,
-        paddingHorizontal: 40,
-        borderRadius: 30,
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        paddingVertical: 16,
+        paddingHorizontal: 48,
+        borderRadius: RADIUS.pill,
+        ...Theme.shadows.medium,
     },
     gem: {
         width: 80,

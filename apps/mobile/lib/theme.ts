@@ -2,15 +2,15 @@ import { Platform, StyleSheet } from "react-native";
 
 // Cozy Design System (Digital Hygge)
 export const LIGHT_COLORS = {
-    ink: '#333330',       // Soft Charcoal (Primary Text)
-    paper: '#FFFFFF',     // Pure White (Cards/Surfaces)
-    canvas: '#FAFAF9',    // Warm Stone/Oatmeal (Backgrounds)
-    stone: '#8E8E8A',     // Warm Grey (Secondary Text)
-    separator: '#E5E5E0', // Organic Grey (Dividers)
-    subtle: '#F2F2F0',    // Soft Highlight
-    accent: '#6E7C94',    // Slate Blue
-    danger: '#C47F65',    // Clay Red
-    success: '#8DA399',   // Sage Green
+    ink: '#1A1A18',       // High-Contrast Deep Matte Ink
+    paper: '#FFFFFF',     // Pure White
+    canvas: '#FAFAF8',    // Refined Warm Oatmeal
+    stone: '#8E8E8A',     // Warm Grey
+    separator: '#E8E8E3', // Subtle Organic Divider
+    subtle: '#F4F4F0',    // Soft Background Highlight
+    accent: '#6E7C94',    // Muted Slate
+    danger: '#B56E56',    // Clay Red
+    success: '#7D9389',   // Sage Green
 };
 
 export const DARK_COLORS = {
@@ -38,11 +38,11 @@ export const SPACING = {
 
 export const RADIUS = {
     xs: 4,
-    s: 8,
-    m: 16,
-    l: 24,       // Pebble Card
-    xl: 32,      // Bottom Sheet
-    pill: 100,   // Buttons
+    s: 10,
+    m: 20,
+    l: 32,       // Lush Pebble Card
+    xl: 44,      // Bottom Sheet Large
+    pill: 100,   // Rounded Buttons
     continuous: 0,
 };
 
@@ -61,28 +61,28 @@ export const TRANSITIONS = {
 export const Theme = {
     shadows: {
         soft: {
-            // Ambient Occlusion Shadow (Soft Cloud)
-            shadowColor: "#5A5A50",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.05,
-            shadowRadius: 20,
-            elevation: 5,
+            // Precise Ambient Occlusion
+            shadowColor: "#1A1A18",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.04,
+            shadowRadius: 12,
+            elevation: 2,
         },
         medium: {
-            // Slightly more pronounced shadow for cards
-            shadowColor: "#5A5A50",
-            shadowOffset: { width: 0, height: 12 },
-            shadowOpacity: 0.08,
-            shadowRadius: 24,
-            elevation: 8,
+            // Elevated Card Shadow
+            shadowColor: "#1A1A18",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.06,
+            shadowRadius: 20,
+            elevation: 4,
         },
         sharp: {
-            // For smaller elements
-            shadowColor: "#5A5A50",
-            shadowOffset: { width: 0, height: 2 },
+            // Crisp Definition
+            shadowColor: "#1A1A18",
+            shadowOffset: { width: 0, height: 1 },
             shadowOpacity: 0.08,
-            shadowRadius: 4,
-            elevation: 2,
+            shadowRadius: 2,
+            elevation: 1,
         }
     }
 } as const;

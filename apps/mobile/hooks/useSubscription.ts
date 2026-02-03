@@ -1,4 +1,6 @@
 import { useAuth } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+import { useQuery } from '@tanstack/react-query';
 
 export type Tier = 'free' | 'plus' | 'unlimited' | 'admin';
 
@@ -24,7 +26,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     },
     plus: {
         maxImagesPerSift: 99,
-        maxSiftsTotal: 30,
+        maxSiftsTotal: 50, // Increased for Pro
         price: '$9.99',
         description: 'Curator',
         canUseSmartExtraction: true,
@@ -32,7 +34,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
         hasPriorityProcessing: true,
     },
     unlimited: {
-        maxImagesPerSift: 10,
+        maxImagesPerSift: 999,
         maxSiftsTotal: 999999,
         price: '$19.99',
         description: 'Ultimate Power',
@@ -41,7 +43,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
         hasPriorityProcessing: true,
     },
     admin: {
-        maxImagesPerSift: 99,
+        maxImagesPerSift: 999,
         maxSiftsTotal: 999999,
         price: '$0',
         description: 'System Administrator',
@@ -52,15 +54,35 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
 };
 
 export const useSubscription = () => {
-    const { tier } = useAuth();
+    const { user, tier } = useAuth();
+
+    // Fetch actual count from DB
+    const { data: currentCount = 0, isLoading: loadingCount, refetch: refreshCount } = useQuery({
+        queryKey: ['sift-count', user?.id],
+        queryFn: async () => {
+            if (!user) return 0;
+            const { count, error } = await supabase
+                .from('pages')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            return count || 0;
+        },
+        enabled: !!user,
+    });
 
     const capabilities = TIER_LIMITS[tier] || TIER_LIMITS.free;
 
     return {
         tier,
+        currentCount,
+        loadingCount,
+        refreshCount,
         ...capabilities,
         isPlus: tier === 'plus' || tier === 'unlimited' || tier === 'admin',
         isUnlimited: tier === 'unlimited' || tier === 'admin',
         isAdmin: tier === 'admin',
+        isOverLimit: tier !== 'unlimited' && tier !== 'admin' && currentCount >= capabilities.maxSiftsTotal,
     };
 };
