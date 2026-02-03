@@ -5,27 +5,23 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkLatestSifts() {
+async function checkAllRecentSifts() {
     const { data: pages, error } = await supabase
         .from('pages')
-        .select('*')
-        .eq('user_id', '96abac6c-000c-4b62-a87c-2d87c062a27c')
+        .select('created_at, url, title, metadata')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(20);
 
     if (error) {
         console.error('Error fetching pages:', error);
         return;
     }
 
+    console.log(`Checking latest 20 sifts across all users...`);
     pages.forEach((page, i) => {
-        console.log(`\n--- SIFT ${i + 1} ---`);
-        console.log(`ID: ${page.id}`);
-        console.log(`URL: ${page.url}`);
-        console.log(`Title: ${page.title}`);
-        console.log(`Summary (first 100): ${page.summary?.substring(0, 100)}...`);
-        console.log(`Metadata: ${JSON.stringify(page.metadata)}`);
+        const status = page.metadata?.status || 'unknown';
+        console.log(`${i + 1}. [${page.created_at}] [${status}] ${page.url.substring(0, 30)}... - ${page.title}`);
     });
 }
 
-checkLatestSifts();
+checkAllRecentSifts();
