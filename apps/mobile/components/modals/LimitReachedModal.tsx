@@ -42,11 +42,11 @@ export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReached
                     </Typography>
 
                     <Typography variant="body" color="secondary" style={styles.description}>
-                        You've used all 10 free sifts for this month. Upgrade to SIFT Plus for unlimited sifting and advanced AI summaries.
+                        You've used all 10 free sifts for this month. Upgrade to SIFT Pro for unlimited sifting and advanced AI summaries.
                     </Typography>
 
                     <Button
-                        label="Upgrade to Plus"
+                        label="Upgrade to Pro"
                         onPress={handleUpgrade}
                         variant="primary"
                         style={styles.upgradeButton}

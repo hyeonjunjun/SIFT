@@ -10,7 +10,14 @@ const getApiUrl = () => {
         return url;
     }
 
-    const url = process.env.EXPO_PUBLIC_API_URL || 'https://sift-rho.vercel.app';
+    let url = process.env.EXPO_PUBLIC_API_URL || 'https://sift-rho.vercel.app';
+
+    // 2. Production Safety: If the URL is a known stale preview URL, force fallback
+    if (!__DEV__ && url.includes('sift-8azyad')) {
+        console.log(`[Config] Blocking stale preview URL: ${url}. Falling back to production.`);
+        url = 'https://sift-rho.vercel.app';
+    }
+
     console.log(`[Config] API_URL (PROD): ${url}`);
     return url;
 };

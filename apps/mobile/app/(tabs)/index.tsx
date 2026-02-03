@@ -620,9 +620,10 @@ export default function HomeScreen() {
                     <TouchableOpacity
                         activeOpacity={1}
                         onLongPress={() => {
+                            const buildNum = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '102';
                             Alert.alert(
                                 "SIFT Diagnostics",
-                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: 102\nSifts: ${pages?.length || 0}`,
+                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: ${buildNum}\nSifts: ${pages?.length || 0}`,
                                 [
                                     { text: "OK" },
                                     {

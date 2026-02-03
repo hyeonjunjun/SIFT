@@ -99,7 +99,7 @@ function TierCard({ tierId, name, icon: Icon, color, isCurrent, onPress }: {
         benefits.unshift("Unlimited Sifts", "Video Transcript Analysis");
     }
 
-    const price = tierId === 'free' ? '$0' : tierId === 'plus' ? '$9.99' : '$19.99';
+    const price = tierId === 'free' ? '$0' : tierId === 'plus' ? '$5.99' : '$12.99';
 
     return (
         <TouchableOpacity
