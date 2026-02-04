@@ -633,7 +633,7 @@ export default function PageDetail() {
                 <Modal
                     visible={showDirectShare}
                     transparent
-                    animationType="slide"
+                    animationType="fade"
                     onRequestClose={() => setShowDirectShare(false)}
                 >
                     <View style={styles.modalOverlay}>

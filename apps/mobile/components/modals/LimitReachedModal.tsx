@@ -3,7 +3,8 @@ import { Modal, View, StyleSheet, TouchableOpacity, Linking, Platform } from 're
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
-import { Crown, X } from 'phosphor-react-native';
+import { Crown, X, Star } from 'phosphor-react-native';
+import { useSubscription } from '../../hooks/useSubscription';
 
 interface LimitReachedModalProps {
     visible: boolean;
@@ -12,6 +13,8 @@ interface LimitReachedModalProps {
 }
 
 export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReachedModalProps) => {
+    const { tier, maxSiftsTotal, description } = useSubscription();
+
     const handleUpgrade = () => {
         if (upgradeUrl) {
             Linking.openURL(upgradeUrl);
@@ -35,14 +38,18 @@ export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReached
                     </TouchableOpacity>
 
                     <View style={styles.iconContainer}>
-                        <Crown size={32} color={COLORS.ink} weight="duotone" />
+                        {tier === 'free' ? (
+                            <Star size={32} color={COLORS.stone} weight="duotone" />
+                        ) : (
+                            <Crown size={32} color={COLORS.ink} weight="duotone" />
+                        )}
                     </View>
                     <Typography variant="h3" style={styles.title}>
                         Sift Limit Reached
                     </Typography>
 
                     <Typography variant="body" color="secondary" style={styles.description}>
-                        You've used all 10 free sifts for this month. Upgrade to SIFT Pro for unlimited sifting and advanced AI summaries.
+                        You've used all {maxSiftsTotal} sifts included in your {description} plan. Upgrade for more storage and advanced AI.
                     </Typography>
 
                     <Button

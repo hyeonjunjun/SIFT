@@ -15,12 +15,14 @@ import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UsageTracker } from "../../components/UsageTracker";
+import { useSubscription } from "../../hooks/useSubscription";
 import { useTheme } from "../../context/ThemeContext";
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
     const { user, tier, profile, refreshProfile, signOut } = useAuth();
+    const { description: tierName } = useSubscription();
     const router = useRouter();
     const { theme, setTheme, colors, isDark } = useTheme();
     const queryClient = useQueryClient();
@@ -69,9 +71,13 @@ export default function ProfileScreen() {
         }, [fetchSavedPages, loadSettings, refreshProfile])
     );
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        fetchSavedPages();
+        await Promise.all([
+            fetchSavedPages(),
+            refreshProfile()
+        ]);
+        setRefreshing(false);
     }
 
     const toggleHaptics = async (value: boolean) => {
@@ -135,7 +141,7 @@ export default function ProfileScreen() {
                     <View style={styles.profileInfo}>
                         <View style={[styles.tierBadge, (tier !== 'free') ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
                             <Typography variant="label" style={[styles.tierText, { color: (tier !== 'free') ? colors.paper : colors.stone }]}>
-                                {tier === 'unlimited' ? 'UNLIMITED MEMBER' : tier === 'plus' ? 'PRO MEMBER' : tier === 'admin' ? 'ADMIN' : 'FREE MEMBER'}
+                                {tier === 'admin' ? 'ADMIN' : `${tierName.toUpperCase()} MEMBER`}
                             </Typography>
                         </View>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
@@ -376,8 +382,8 @@ const styles = StyleSheet.create({
         marginTop: SPACING.s,
     },
     appearanceOption: {
-        paddingVertical: 14,
-        paddingHorizontal: 16,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     logoutButton: {

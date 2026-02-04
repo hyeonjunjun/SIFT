@@ -3,6 +3,7 @@ import { DeviceEventEmitter, View, Platform } from "react-native";
 import { House, Books, User, SquaresFour, UsersThree } from 'phosphor-react-native';
 import { useTheme } from "../../context/ThemeContext";
 import { COLORS } from "../../lib/theme";
+import * as Haptics from 'expo-haptics';
 
 export default function TabLayout() {
     const { colors, isDark } = useTheme();
@@ -36,6 +37,7 @@ export default function TabLayout() {
                 name="index"
                 listeners={({ navigation }) => ({
                     tabPress: (e: any) => {
+                        Haptics.selectionAsync();
                         if (navigation.isFocused()) {
                             e.preventDefault();
                             DeviceEventEmitter.emit('scrollToTopDashboard');
@@ -55,6 +57,11 @@ export default function TabLayout() {
             />
             <Tabs.Screen
                 name="library"
+                listeners={() => ({
+                    tabPress: () => {
+                        Haptics.selectionAsync();
+                    },
+                })}
                 options={{
                     title: "LIBRARY",
                     tabBarIcon: ({ color, focused }) => (
@@ -68,6 +75,11 @@ export default function TabLayout() {
             />
             <Tabs.Screen
                 name="social"
+                listeners={() => ({
+                    tabPress: () => {
+                        Haptics.selectionAsync();
+                    },
+                })}
                 options={{
                     title: "SOCIAL",
                     tabBarIcon: ({ color, focused }) => (
@@ -81,6 +93,11 @@ export default function TabLayout() {
             />
             <Tabs.Screen
                 name="settings"
+                listeners={() => ({
+                    tabPress: () => {
+                        Haptics.selectionAsync();
+                    },
+                })}
                 options={{
                     title: "PROFILE",
                     tabBarIcon: ({ color, focused }) => (

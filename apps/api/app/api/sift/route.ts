@@ -131,7 +131,7 @@ export async function POST(request: Request) {
         const userTier = body.user_tier || 'free';
         const tierLimits: Record<string, number> = {
             'free': 10,
-            'plus': 30,
+            'plus': 50,
             'unlimited': 999999,
             'admin': 999999
         };

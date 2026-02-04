@@ -6,7 +6,7 @@ import { COLORS, RADIUS, TRANSITIONS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { Article, Video } from 'phosphor-react-native';
-import Animated, { FadeIn, FadeOut, Layout, Easing } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, Layout, Easing, useSharedValue, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
@@ -181,13 +181,27 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
     }
 
     if (item.status === 'pending') {
+        const opacity = useSharedValue(1);
+
+        React.useEffect(() => {
+            opacity.value = withRepeat(
+                withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+                -1,
+                true
+            );
+        }, []);
+
+        const animatedStyle = useAnimatedStyle(() => ({
+            opacity: opacity.value,
+        }));
+
         return (
-            <View style={{
+            <Animated.View style={[{
                 width: columnWidth,
                 marginBottom: GRID_GAP,
-            }}>
+            }, animatedStyle]}>
                 <SiftCardSkeleton />
-            </View>
+            </Animated.View>
         );
     }
 
@@ -359,8 +373,8 @@ const styles = StyleSheet.create({
         height: '100%',
     },
     meta: {
-        marginTop: 10,
-        gap: 2,
+        marginTop: 12,
+        gap: 4,
         // paddingHorizontal: 4, // Removed to align text with image edge
     },
     metadata: {

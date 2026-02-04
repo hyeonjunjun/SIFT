@@ -74,14 +74,14 @@ export function SettingsRow({
 
 const styles = StyleSheet.create({
     wrapper: {
-        paddingHorizontal: 20,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 20,
-        minHeight: 72,
+        paddingHorizontal: 24,
+        paddingVertical: 18,
+        minHeight: 64,
     },
     iconContainer: {
         marginRight: 16,

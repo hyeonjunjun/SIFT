@@ -3,7 +3,7 @@ import { View, StyleSheet, Dimensions } from 'react-native';
 import { Typography } from './Typography';
 import { COLORS, SPACING, RADIUS } from '../../lib/theme';
 import { MagnifyingGlass, PlusCircle, SelectionBackground } from 'phosphor-react-native';
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, Easing } from 'react-native-reanimated';
 import { Button } from './Button';
 
 interface EmptyStateProps {
@@ -20,7 +20,7 @@ export const EmptyState = ({ title, description, type, onAction, actionLabel }: 
     return (
         <View style={styles.container}>
             <Animated.View
-                entering={FadeInUp.duration(600).delay(200)}
+                entering={FadeIn.duration(400).easing(Easing.inOut(Easing.ease)).delay(200)}
                 style={styles.illustrationContainer}
             >
                 <View style={styles.iconCircle}>
@@ -31,13 +31,18 @@ export const EmptyState = ({ title, description, type, onAction, actionLabel }: 
                 <View style={[styles.decoration, { bottom: -15, left: -20, width: 40, height: 40, opacity: 0.05 }]} />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.textContainer}>
+            <Animated.View
+                entering={FadeIn.duration(400).easing(Easing.inOut(Easing.ease)).delay(400)}
+                style={styles.textContainer}
+            >
                 <Typography variant="h2" style={styles.title}>{title}</Typography>
                 <Typography style={styles.description}>{description}</Typography>
             </Animated.View>
 
             {onAction && actionLabel && (
-                <Animated.View entering={FadeInDown.duration(600).delay(600)}>
+                <Animated.View
+                    entering={FadeIn.duration(400).easing(Easing.inOut(Easing.ease)).delay(600)}
+                >
                     <Button
                         label={actionLabel}
                         onPress={onAction}

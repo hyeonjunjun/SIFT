@@ -451,17 +451,20 @@ const styles = StyleSheet.create({
     },
     tileContent: {
         position: 'absolute',
-        bottom: 12,
-        left: 12,
+        bottom: 20,
+        left: 20,
+        right: 20,
     },
     anchorLabel: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '700',
-        letterSpacing: 0.5,
+        letterSpacing: 1,
+        marginBottom: 2,
     },
     issueCount: {
-        fontSize: 10,
-        marginTop: 2,
+        fontSize: 11,
+        marginTop: 4,
+        letterSpacing: 0.5,
     },
     emptyContent: {
         alignItems: 'center',

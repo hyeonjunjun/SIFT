@@ -52,7 +52,7 @@ export function QuickTagEditor({ visible, onClose, initialTags, onSave, title = 
     return (
         <Modal
             visible={visible}
-            animationType="slide"
+            animationType="fade"
             transparent={true}
             onRequestClose={onClose}
         >
