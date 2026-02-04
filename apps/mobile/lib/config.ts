@@ -1,12 +1,14 @@
 import Constants from 'expo-constants';
 
 const getApiUrl = () => {
-    // 1. Development (Localhost)
-    if (__DEV__) {
+    // 1. Development (Switch to true for local testing, false for prod testing)
+    const USE_LOCAL = false;
+
+    if (__DEV__ && USE_LOCAL) {
         const debuggerHost = Constants.expoConfig?.hostUri;
         const localhost = debuggerHost?.split(':')[0] || 'localhost';
         const url = `http://${localhost}:3000`;
-        console.log(`[Config] API_URL (DEV): ${url} (hostUri: ${debuggerHost})`);
+        console.log(`[Config] API_URL (DEV/LOCAL): ${url}`);
         return url;
     }
 
