@@ -15,6 +15,7 @@ import { COLORS, RADIUS, Theme } from '../lib/theme';
 import { router } from 'expo-router';
 import { ShareNetwork, Funnel, CheckCircle, CaretRight, X } from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View as MotiView } from 'moti';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -27,18 +28,18 @@ interface OnboardingProps {
 const SLIDES = [
     {
         id: 'chaos',
-        title: 'Too much noise.',
-        subtitle: 'The internet is overwhelming. Save only what matters.',
+        title: 'Calm the chaos.',
+        subtitle: 'The digital world is loud. Sift helps you capture only what truly resonates.',
     },
     {
         id: 'sift',
         title: 'Find the signal.',
-        subtitle: 'We organize your chaos into glowing gems of insight.',
+        subtitle: 'We distill your links and images into clean, actionable gems of insight.',
     },
     {
         id: 'action',
-        title: 'Just tap Share.',
-        subtitle: 'Sift works seamlessly from any app.',
+        title: 'Seamlessly Sift.',
+        subtitle: 'Just tap the Share button in any app to save to your library.',
     }
 ];
 
@@ -68,22 +69,23 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             onComplete();
         } catch (e) {
             console.error("Failed to save onboarding state", e);
-            onComplete(); // proceed anyway
+            onComplete();
         }
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Skip Button */}
-            <TouchableOpacity
-                style={styles.skipButton}
-                onPress={finishOnboarding}
-                activeOpacity={0.7}
-            >
-                <Typography variant="caption" style={{ color: COLORS.stone }}>Skip</Typography>
-            </TouchableOpacity>
+            <View style={styles.skipContainer}>
+                <TouchableOpacity
+                    style={styles.skipButton}
+                    onPress={finishOnboarding}
+                    activeOpacity={0.7}
+                >
+                    <Typography variant="label" color={COLORS.stone}>Skip</Typography>
+                </TouchableOpacity>
+            </View>
 
-            <View style={{ flex: 3 }}>
+            <View style={{ flex: 4 }}>
                 <ScrollView
                     ref={scrollViewRef}
                     horizontal
@@ -94,29 +96,43 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     scrollEventThrottle={16}
                 >
                     {SLIDES.map((slide, index) => (
-                        <View key={slide.id} style={{ width, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-                            {/* Visual Placeholder Area */}
-                            <View style={styles.visualContainer}>
+                        <View key={slide.id} style={{ width, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                            <MotiView
+                                from={{ opacity: 0, scale: 0.9, translateY: 20 }}
+                                animate={{
+                                    opacity: activeIndex === index ? 1 : 0,
+                                    scale: activeIndex === index ? 1 : 0.9,
+                                    translateY: activeIndex === index ? 0 : 20
+                                }}
+                                transition={{ type: 'timing', duration: 800 }}
+                                style={styles.visualContainer}
+                            >
                                 {index === 0 && <ChaosVisual isActive={activeIndex === 0} />}
                                 {index === 1 && <SiftVisual isActive={activeIndex === 1} />}
                                 {index === 2 && <ActionVisual isActive={activeIndex === 2} />}
-                            </View>
+                            </MotiView>
 
-                            <Typography variant="h1" style={{ textAlign: 'center', marginTop: 32, marginBottom: 8 }}>
-                                {slide.title}
-                            </Typography>
-                            <Typography variant="body" style={{ textAlign: 'center', color: COLORS.stone, paddingHorizontal: 32 }}>
-                                {slide.subtitle}
-                            </Typography>
+                            <View style={styles.textStack}>
+                                <Typography variant="h1" style={{ textAlign: 'center', marginBottom: 12, fontSize: 36 }}>
+                                    {slide.title}
+                                </Typography>
+                                <Typography variant="body" style={{ textAlign: 'center', color: COLORS.stone, lineHeight: 24 }}>
+                                    {slide.subtitle}
+                                </Typography>
+                            </View>
                         </View>
                     ))}
                 </ScrollView>
             </View>
 
-            {/* Pagination & Controls */}
             <View style={styles.footer}>
                 <View style={styles.pagination}>
                     {SLIDES.map((_, i) => {
+                        const widthAnim = scrollX.interpolate({
+                            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+                            outputRange: [8, 24, 8],
+                            extrapolate: 'clamp',
+                        });
                         const opacity = scrollX.interpolate({
                             inputRange: [(i - 1) * width, i * width, (i + 1) * width],
                             outputRange: [0.3, 1, 0.3],
@@ -125,7 +141,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         return (
                             <TouchableOpacity key={i} onPress={() => scrollToIndex(i)} activeOpacity={0.7}>
                                 <RNAnimated.View
-                                    style={[styles.dot, { opacity, backgroundColor: COLORS.ink }]}
+                                    style={[styles.dot, { opacity, width: widthAnim, backgroundColor: COLORS.ink }]}
                                 />
                             </TouchableOpacity>
                         );
@@ -135,24 +151,24 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <View style={styles.buttonContainer}>
                     {activeIndex === SLIDES.length - 1 ? (
                         <TouchableOpacity
-                            style={[styles.button, { backgroundColor: COLORS.accent }]}
+                            style={[styles.button, { backgroundColor: COLORS.ink }]}
                             onPress={finishOnboarding}
-                            activeOpacity={0.8}
+                            activeOpacity={0.9}
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Typography variant="h3" style={{ color: COLORS.paper, fontWeight: '700', marginRight: 8 }}>Get Started</Typography>
-                                <CheckCircle size={20} color={COLORS.paper} weight="bold" />
+                                <Typography variant="label" style={{ color: COLORS.paper, marginRight: 8 }}>GET STARTED</Typography>
+                                <CheckCircle size={18} color={COLORS.paper} weight="bold" />
                             </View>
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
-                            style={[styles.button, { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.separator }]}
+                            style={[styles.button, { backgroundColor: COLORS.subtle }]}
                             onPress={() => scrollToIndex(activeIndex + 1)}
-                            activeOpacity={0.7}
+                            activeOpacity={0.8}
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Typography variant="h3" style={{ color: COLORS.ink, fontWeight: '600', marginRight: 8 }}>Next</Typography>
-                                <CaretRight size={20} color={COLORS.ink} weight="bold" />
+                                <Typography variant="label" color={COLORS.ink} style={{ marginRight: 8 }}>CONTINUE</Typography>
+                                <CaretRight size={18} color={COLORS.ink} weight="bold" />
                             </View>
                         </TouchableOpacity>
                     )}
@@ -162,69 +178,69 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     );
 }
 
-// Custom Gentle Curve: Cubic Bezier (0.25, 0.1, 0.25, 1.0) - standard "ease" but smoother
 const GENTLE_EASING = Easing.bezier(0.25, 0.1, 0.25, 1.0);
 
 function ChaosVisual({ isActive }: { isActive: boolean }) {
-    // Random abstract shapes
     return (
         <View style={styles.visualInner}>
-            {/* Shapes simulating noise/chaos - using Theme colors */}
-            <AnimatedShape delay={0} x={-40} y={-30} size={40} color={COLORS.stone} />
-            <AnimatedShape delay={200} x={40} y={20} size={60} color={COLORS.subtle} />
-            <AnimatedShape delay={400} x={-20} y={50} size={30} color={COLORS.accent} />
-            <AnimatedShape delay={600} x={30} y={-40} size={50} color="#34C759" />
+            <AnimatedShape delay={0} x={-50} y={-40} size={50} color={COLORS.stone} opacity={0.2} />
+            <AnimatedShape delay={200} x={50} y={30} size={70} color={COLORS.subtle} opacity={0.4} />
+            <AnimatedShape delay={400} x={-30} y={60} size={40} color={COLORS.ink} opacity={0.1} />
+            <AnimatedShape delay={600} x={40} y={-50} size={60} color={COLORS.separator} opacity={0.6} />
+            <ShareNetwork size={60} color={COLORS.ink} weight="thin" />
         </View>
     );
 }
 
-function AnimatedShape({ delay, x, y, size, color }: { delay: number; x: number; y: number; size: number; color: string }) {
+function AnimatedShape({ delay, x, y, size, color, opacity }: { delay: number; x: number; y: number; size: number; color: string; opacity?: number }) {
     const sv = useSharedValue(0);
     React.useEffect(() => {
         sv.value = withDelay(delay, withRepeat(
             withSequence(
-                withTiming(1, { duration: 1500, easing: GENTLE_EASING }),
-                withTiming(0, { duration: 1500, easing: GENTLE_EASING })
+                withTiming(1, { duration: 2500, easing: GENTLE_EASING }),
+                withTiming(0, { duration: 2500, easing: GENTLE_EASING })
             ), -1, true
         ));
     }, []);
 
-    const style = useAnimatedStyle(() => {
-        return {
-            transform: [
-                { translateX: x },
-                { translateY: y },
-                { scale: sv.value }
-            ],
-            opacity: sv.value
-        } as any;
-    });
+    const style = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: x },
+            { translateY: y },
+            { scale: 0.8 + sv.value * 0.4 }
+        ] as any,
+        opacity: (opacity || 0.3) * sv.value
+    }));
 
     return <Animated.View style={[style, { position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }]} />;
 }
 
 function SiftVisual({ isActive }: { isActive: boolean }) {
-    // Chaos funneling into a gem
     const gemScale = useSharedValue(0);
 
     React.useEffect(() => {
         if (isActive) {
-            // Easing instead of Spring
-            gemScale.value = withTiming(1, { duration: 800, easing: GENTLE_EASING });
+            gemScale.value = withTiming(1, { duration: 1000, easing: GENTLE_EASING });
         } else {
             gemScale.value = withTiming(0, { duration: 500 });
         }
     }, [isActive]);
 
     const gemStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: gemScale.value }]
+        transform: [
+            { scale: gemScale.value },
+            { rotate: `${gemScale.value * 15}deg` }
+        ] as any,
+        opacity: gemScale.value
     }));
 
     return (
         <View style={styles.visualInner}>
-            <Funnel size={60} color={COLORS.stone} style={{ marginBottom: 20 }} />
+            <View style={{ opacity: 0.1, transform: [{ scale: 1.5 }] }}>
+                <Funnel size={100} color={COLORS.ink} weight="thin" />
+            </View>
             <Animated.View style={[gemStyle, styles.gem]}>
-                <CheckCircle size={50} color={COLORS.paper} />
+                <CheckCircle size={40} color={COLORS.paper} weight="bold" />
             </Animated.View>
         </View>
     );
@@ -237,8 +253,8 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
         if (isActive) {
             tapScale.value = withRepeat(
                 withSequence(
-                    withTiming(0.9, { duration: 500, easing: GENTLE_EASING }),
-                    withTiming(1, { duration: 500, easing: GENTLE_EASING })
+                    withTiming(0.95, { duration: 800, easing: GENTLE_EASING }),
+                    withTiming(1, { duration: 800, easing: GENTLE_EASING })
                 ),
                 -1, true
             );
@@ -253,38 +269,46 @@ function ActionVisual({ isActive }: { isActive: boolean }) {
 
     return (
         <View style={styles.visualInner}>
-            <View style={styles.mockPhone}>
-                <ShareNetwork size={30} color={COLORS.accent} />
-            </View>
-            <Animated.View style={[tapStyle, styles.fingerTap]} />
-            <Typography variant="caption" style={{ color: COLORS.stone, marginTop: 16 }}>
-                Tap 'Share' in any app
+            <Animated.View style={[tapStyle, styles.mockPhone]}>
+                <LinearGradient
+                    colors={[COLORS.paper, COLORS.canvas]}
+                    style={StyleSheet.absoluteFill}
+                />
+                <ShareNetwork size={32} color={COLORS.ink} weight="regular" />
+            </Animated.View>
+            <Typography variant="label" color={COLORS.stone} style={{ marginTop: 20 }}>
+                TAP SHARE ANYWHERE
             </Typography>
         </View>
     );
 }
-
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.canvas,
     },
-    footer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingBottom: 40,
+    skipContainer: {
+        paddingHorizontal: 30,
+        paddingTop: 20,
+        alignItems: 'flex-end',
     },
     skipButton: {
-        position: 'absolute',
-        top: 60,
-        right: 30,
-        zIndex: 10,
         padding: 10,
     },
+    footer: {
+        flex: 1.5,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingBottom: 60,
+    },
+    textStack: {
+        marginTop: 40,
+        paddingHorizontal: 40,
+        alignItems: 'center',
+    },
     buttonContainer: {
-        height: 60,
+        height: 80,
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
@@ -292,12 +316,11 @@ const styles = StyleSheet.create({
     visualContainer: {
         width: VISUAL_SIZE,
         height: VISUAL_SIZE,
-        borderRadius: RADIUS.l,
+        borderRadius: 40,
         backgroundColor: COLORS.paper,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 30,
-        ...Theme.shadows.soft,
+        ...Theme.shadows.medium,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.separator,
     },
@@ -309,50 +332,42 @@ const styles = StyleSheet.create({
     },
     pagination: {
         flexDirection: 'row',
-        height: 40,
+        height: 20,
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 30,
     },
     dot: {
-        width: 8,
         height: 8,
         borderRadius: 4,
-        marginHorizontal: 5,
+        marginHorizontal: 4,
     },
     button: {
-        paddingVertical: 16,
-        paddingHorizontal: 48,
+        height: 56,
+        paddingHorizontal: 40,
         borderRadius: RADIUS.pill,
+        justifyContent: 'center',
+        alignItems: 'center',
         ...Theme.shadows.medium,
     },
     gem: {
         width: 80,
         height: 80,
-        borderRadius: 20,
-        backgroundColor: COLORS.accent,
+        borderRadius: 24,
+        backgroundColor: COLORS.ink,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: COLORS.accent,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.4,
-        shadowRadius: 15,
+        ...Theme.shadows.medium,
+        position: 'absolute',
     },
     mockPhone: {
-        width: 140,
-        height: 80,
-        borderRadius: RADIUS.l,
-        borderWidth: 2,
-        borderColor: COLORS.subtle,
+        width: 160,
+        height: 90,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.separator,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 10,
-    },
-    fingerTap: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(88, 86, 214, 0.2)', // Primary color very light
-        position: 'absolute',
-        top: 80,
+        overflow: 'hidden',
+        ...Theme.shadows.soft,
     }
 });

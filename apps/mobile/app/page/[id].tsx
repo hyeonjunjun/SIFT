@@ -18,9 +18,10 @@ import {
 } from 'react-native';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import * as Haptics from 'expo-haptics';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { CaretLeft, DotsThree, Export, NotePencil, Trash } from 'phosphor-react-native';
+import { CaretLeft, DotsThree, Export, NotePencil, Trash, House, Users, PaperPlaneTilt } from 'phosphor-react-native';
+import { Modal, FlatList } from 'react-native';
 import { Theme, COLORS, SPACING, RADIUS } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
@@ -37,6 +38,7 @@ const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Profe
 
 export default function PageDetail() {
     const { colors, isDark } = useTheme();
+    const insets = useSafeAreaInsets();
     const { id, contextType } = useLocalSearchParams();
     const { user } = useAuth();
     const router = useRouter();
@@ -48,6 +50,7 @@ export default function PageDetail() {
     const [newTag, setNewTag] = useState('');
     const [editedTags, setEditedTags] = useState<string[]>([]);
     const [isShared, setIsShared] = useState(false);
+    const [showDirectShare, setShowDirectShare] = useState(false);
 
     // 1. Fetch Neighbor IDs for Navigation
     const { data: neighborIds } = useQuery({
@@ -148,6 +151,25 @@ export default function PageDetail() {
     // Helper for Worklets
     // (RunOnJS removed)
 
+
+    const { data: friends = [] } = useQuery({
+        queryKey: ['friendships', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            const { data, error } = await supabase
+                .from('friendships')
+                .select(`
+                    *,
+                    requester:user_id (id, username, display_name, avatar_url),
+                    receiver:friend_id (id, username, display_name, avatar_url)
+                `)
+                .eq('status', 'accepted')
+                .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+            if (error) throw error;
+            return data.map((f: any) => f.user_id === user.id ? f.receiver : f.requester);
+        },
+        enabled: !!user?.id && showDirectShare
+    });
 
     const { data: page, isLoading: loading, isError, refetch } = useQuery({
         queryKey: ['page', id],
@@ -292,11 +314,11 @@ export default function PageDetail() {
         if (!page) return;
         setSaving(true);
         try {
+            const { id: _, created_at: __, ...pageData } = page;
             const { data, error } = await supabase
                 .from('pages')
                 .insert([{
-                    ...page,
-                    id: undefined, // New ID
+                    ...pageData,
                     user_id: user?.id,
                     created_at: new Date().toISOString(),
                     is_pinned: false,
@@ -311,8 +333,13 @@ export default function PageDetail() {
                 .single();
 
             if (error) throw error;
-            Alert.alert('Success', 'Added to your library!');
-            router.replace(`/page/${data.id}`);
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // We don't use Alert.alert here for a smoother flow, just redirect to the NEW localized version
+            router.replace({
+                pathname: `/page/${data.id}`,
+                params: { contextType }
+            });
         } catch (error: any) {
             Alert.alert('Error', error.message);
         } finally {
@@ -333,6 +360,25 @@ export default function PageDetail() {
         }
     };
 
+
+
+    const handleDirectShare = async (friendId: string) => {
+        try {
+            const { error } = await supabase
+                .from('sift_shares')
+                .insert([{
+                    sift_id: id,
+                    sender_id: user?.id,
+                    receiver_id: friendId
+                }]);
+            if (error) throw error;
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setShowDirectShare(false);
+            Alert.alert("Sent!", "Sift shared with your friend.");
+        } catch (e: any) {
+            Alert.alert("Error", e.message);
+        }
+    };
     const handleSave = async () => {
         if (!page) return;
         setSaving(true);
@@ -386,6 +432,17 @@ export default function PageDetail() {
                             <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton}>
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
+                            {isShared && (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        router.replace('/(tabs)/');
+                                    }}
+                                    style={[styles.navButton, { marginLeft: 8 }]}
+                                >
+                                    <House size={28} color={colors.ink} />
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         <ScrollView
@@ -522,13 +579,22 @@ export default function PageDetail() {
                                     </Typography>
                                 </TouchableOpacity>
                                 {!isEditing && (
-                                    <TouchableOpacity
-                                        style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
-                                        onPress={handleShare}
-                                    >
-                                        <Export size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                        <Typography variant="label" color="stone">Share</Typography>
-                                    </TouchableOpacity>
+                                    <>
+                                        <TouchableOpacity
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            onPress={() => setShowDirectShare(true)}
+                                        >
+                                            <PaperPlaneTilt size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
+                                            <Typography variant="label" color="stone">Send</Typography>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            onPress={handleShare}
+                                        >
+                                            <Export size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
+                                            <Typography variant="label" color="stone">Share</Typography>
+                                        </TouchableOpacity>
+                                    </>
                                 )}
                                 {isEditing && (
                                     <TouchableOpacity
@@ -563,6 +629,47 @@ export default function PageDetail() {
                         </ScrollView>
                     </Animated.View>
                 </ScreenWrapper>
+
+                <Modal
+                    visible={showDirectShare}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowDirectShare(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.modalContent, { backgroundColor: colors.paper, paddingBottom: insets.bottom + 20 }]}>
+                            <View style={styles.modalHeader}>
+                                <Typography variant="h3">Send to Friend</Typography>
+                                <TouchableOpacity onPress={() => setShowDirectShare(false)}>
+                                    <X size={24} color={colors.ink} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {friends.length === 0 ? (
+                                <View style={{ padding: 40, alignItems: 'center' }}>
+                                    <Typography variant="body" color="stone" style={{ textAlign: 'center' }}>
+                                        No friends found. Add friends in the Social tab to share sifts directly.
+                                    </Typography>
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={friends}
+                                    keyExtractor={(item: any) => item.id}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity
+                                            style={styles.friendSelectItem}
+                                            onPress={() => handleDirectShare(item.id)}
+                                        >
+                                            <Image source={item.avatar_url} style={styles.miniAvatar} />
+                                            <Typography variant="body" style={{ marginLeft: 12 }}>{item.display_name}</Typography>
+                                        </TouchableOpacity>
+                                    )}
+                                    contentContainerStyle={{ paddingBottom: 40 }}
+                                />
+                            )}
+                        </View>
+                    </View>
+                </Modal>
             </View>
         </GestureDetector>
     );
@@ -599,14 +706,15 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     bentoCard: {
-        borderRadius: 8,
-        padding: 20,
+        borderRadius: RADIUS.m,
+        padding: 24, // Increased for Hygge breath
         borderWidth: StyleSheet.hairlineWidth,
         // @ts-ignore
         cornerCurve: 'continuous',
+        ...Theme.shadows.soft,
     },
     imageWrapper: {
-        borderRadius: 8,
+        borderRadius: RADIUS.m,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
         // @ts-ignore
@@ -675,5 +783,34 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         fontSize: 14,
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        borderTopLeftRadius: RADIUS.xl,
+        borderTopRightRadius: RADIUS.xl,
+        padding: 24,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    friendSelectItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: COLORS.separator,
+    },
+    miniAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
     }
 });

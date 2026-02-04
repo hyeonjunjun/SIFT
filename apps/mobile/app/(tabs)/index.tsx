@@ -344,9 +344,18 @@ export default function HomeScreen() {
                     await supabase.from('pages').update({
                         metadata: { status: 'failed', error: apiError.message }
                     }).eq('id', task.id);
-                    setToastType('error');
-                    setToastMessage(apiError.message || "Sift failed");
-                    setToastVisible(true);
+
+                    const isTimeout = apiError.message.toLowerCase().includes('time') || apiError.message.toLowerCase().includes('deadline');
+                    const errorMsg = isTimeout
+                        ? "Sift taking longer than expected"
+                        : (apiError.message || "Sift failed");
+
+                    showToast(
+                        errorMsg,
+                        5000,
+                        'error',
+                        { label: 'Retry', onPress: () => addToQueue(task.url) }
+                    );
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
                 }
             } finally {

@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { Typography } from './design-system/Typography';
 import { useSubscription } from '../hooks/useSubscription';
-import { COLORS, RADIUS, SPACING } from '../lib/theme';
+import { COLORS, RADIUS, SPACING, Theme } from '../lib/theme';
 
 export function UsageTracker() {
     const { currentCount, maxSiftsTotal, isUnlimited, loadingCount } = useSubscription();
@@ -47,17 +47,23 @@ export function UsageTracker() {
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: 20,
+        padding: 20,
+        marginHorizontal: 20,
         marginVertical: SPACING.m,
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.m,
+        ...Theme.shadows.soft,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.separator,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'baseline',
-        marginBottom: 8,
+        marginBottom: 12,
     },
     track: {
-        height: 8,
+        height: 6,
         backgroundColor: COLORS.subtle,
         borderRadius: RADIUS.pill,
         overflow: 'hidden',

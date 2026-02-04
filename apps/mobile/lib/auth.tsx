@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { NativeModules, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Initialize Google Sign-In safely
 let GoogleSignin: any;
@@ -55,6 +56,27 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Caching Constants
+const PROFILE_CACHE_KEY = 'sift_user_profile';
+
+const cacheProfileLocally = async (profile: Profile) => {
+    try {
+        await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    } catch (e) {
+        console.error('[Auth] Failed to cache profile:', e);
+    }
+};
+
+const getCachedProfile = async (): Promise<Profile | null> => {
+    try {
+        const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+        return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+        console.error('[Auth] Failed to load cached profile:', e);
+        return null;
+    }
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
@@ -73,61 +95,115 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
 
-            // Apple-grade resilience: 15s timeout for profile fetch
-            const fetchPromise = supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', actingUser.id)
-                .single();
+            // Load from cache first for immediate UI update
+            if (!profile) {
+                const cached = await getCachedProfile();
+                if (cached) {
+                    console.log('[Auth] Loaded profile from cache (Early)');
+                    setProfile(cached);
+                    setTier(cached.tier || 'free');
+                }
+            }
 
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
-            );
+            // Apple-grade resilience: 30s timeout + Retry Strategy
+            const MAX_RETRIES = 2;
+            let lastError = null;
+            let data = null;
 
-            const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
-            const { data, error } = result;
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    if (attempt > 0) console.log(`[Auth] Retry attempt ${attempt}...`);
 
-            if (!error && data) {
+                    const fetchPromise = supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', actingUser.id)
+                        .single();
+
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
+                    );
+
+                    const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+                    if (result.error) throw result.error;
+                    data = result.data;
+                    break; // Success!
+                } catch (err: any) {
+                    lastError = err;
+                    console.warn(`[Auth] Attempt ${attempt} failed:`, err.message);
+                    if (attempt < MAX_RETRIES) {
+                        const backoff = Math.pow(2, attempt) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, backoff));
+                    }
+                }
+            }
+
+            if (data) {
                 console.log('[Auth] Profile refreshed successfully');
+                // Sync email if missing (for discovery)
+                if (!data.email && actingUser.email) {
+                    supabase.from('profiles').update({ email: actingUser.email }).eq('id', actingUser.id).then();
+                }
                 setProfile(data);
                 setUser(actingUser);
                 setTier(data.tier as any || 'free');
+                await cacheProfileLocally(data);
             } else {
-                console.log('[Auth] Profile fetch error/not found, attempting JIT creation:', error?.message);
+                console.log('[Auth] Profile fetch failed after retries, attempting JIT creation or fallback');
 
-                // If profile is missing, create it proactively (JIT Creation)
-                const { data: newProfile, error: insertError } = await supabase
-                    .from('profiles')
-                    .insert({
-                        id: actingUser.id,
-                        display_name: actingUser.user_metadata?.display_name || actingUser.email?.split('@')[0],
-                        tier: 'free'
-                    })
-                    .select()
-                    .single();
+                // If profiles don't exist yet, we try to create (JIT)
+                if (lastError?.code === 'PGRST116' || !lastError) { // Record not found
+                    const { data: newProfile, error: insertError } = await supabase
+                        .from('profiles')
+                        .insert({
+                            id: actingUser.id,
+                            display_name: actingUser.user_metadata?.display_name || actingUser.email?.split('@')[0],
+                            email: actingUser.email,
+                            tier: 'free'
+                        })
+                        .select()
+                        .single();
 
-                if (!insertError && newProfile) {
-                    console.log('[Auth] JIT Profile created successfully');
-                    setProfile(newProfile);
-                    setTier('free');
-                } else {
-                    console.error('[Auth] JIT Profile creation failed:', insertError?.message);
-                    // Fallback to local state if DB insert fails
-                    if (!profile) {
+                    if (!insertError && newProfile) {
+                        console.log('[Auth] JIT Profile created successfully');
+                        setProfile(newProfile);
                         setTier('free');
-                        setProfile({ tier: 'free' });
+                        await cacheProfileLocally(newProfile);
+                    }
+                }
+
+                // If still no profile, fallback to cache or default
+                if (!profile) {
+                    const cachedFallback = await getCachedProfile();
+                    if (cachedFallback) {
+                        setProfile(cachedFallback);
+                        setTier(cachedFallback.tier || 'free');
+                    } else {
+                        setTier('free');
+                        setProfile({ tier: 'free' } as Profile);
                     }
                 }
             }
         } catch (e: any) {
-            console.error('[Auth] Failed to refresh profile:', e.message);
-            if (!profile) setTier('free');
+            console.error('[Auth] Critical failure in refreshProfile:', e.message);
+            // If we timed out or failed, ensure we at least use the cache
+            if (!profile) {
+                const cachedFallback = await getCachedProfile();
+                if (cachedFallback) {
+                    console.log('[Auth] Falling back to cached profile after error');
+                    setProfile(cachedFallback);
+                    setTier(cachedFallback.tier || 'free');
+                } else {
+                    setTier('free');
+                }
+            }
         }
     };
 
     const signOut = async () => {
         const { error } = await supabase.auth.signOut();
         if (error) console.error('Error signing out:', error);
+        await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
         setTier('free');
         setProfile(null);
         setSession(null);
@@ -148,7 +224,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setUser(currentUser);
 
                     if (currentUser) {
-                        await refreshProfile(currentUser);
+                        // Optimistic: load cache before starting network refresh
+                        const cached = await getCachedProfile();
+                        if (cached) {
+                            setProfile(cached);
+                            setTier(cached.tier || 'free');
+                            // If we have a cache, we can unblock the UI sooner
+                            setLoading(false);
+                            refreshProfile(currentUser); // Background refresh
+                        } else {
+                            await refreshProfile(currentUser);
+                        }
                     }
                 }
             } catch (error) {
@@ -170,14 +256,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                 try {
                     if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-                        setLoading(true);
+                        // Only show full loader if we don't have a cached profile matching this user
+                        const cached = await getCachedProfile();
+                        if (!cached) setLoading(true);
+
                         await refreshProfile(currentUser);
                     } else if (_event === 'USER_UPDATED') {
-                        // For metadata/profile updates, refresh but don't show full-screen loader if possible
                         await refreshProfile(currentUser);
                     } else if (_event === 'SIGNED_OUT') {
                         setProfile(null);
                         setTier('free');
+                        await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
                     }
                 } catch (err) {
                     console.error('[Auth] Event handler error:', err);
@@ -194,7 +283,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const updateProfileLocally = (newProfile: Profile) => {
-        setProfile(prev => ({ ...prev, ...newProfile }));
+        setProfile(prev => {
+            const updated = { ...prev, ...newProfile };
+            cacheProfileLocally(updated); // Sync cache immediately
+            return updated;
+        });
         if (newProfile.tier) setTier(newProfile.tier);
     };
 

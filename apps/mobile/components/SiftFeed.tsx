@@ -327,6 +327,7 @@ export default function SiftFeed({
             onScroll={onScroll}
             refreshControl={refreshControl}
             scrollEventThrottle={16}
+            removeClippedSubviews={Platform.OS === 'android'}
             contentContainerStyle={{
                 paddingHorizontal: 20, // Padded Container governs alignment
                 paddingBottom: 40,

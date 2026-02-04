@@ -3,7 +3,8 @@ import { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
-import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown } from 'phosphor-react-native';
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork } from 'phosphor-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -96,6 +97,18 @@ export default function ProfileScreen() {
         }
     };
 
+    const shareSiftID = async () => {
+        if (!user?.id) return;
+        const deepLink = `sift://user/${user.id}`;
+        await Clipboard.setStringAsync(deepLink);
+        if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+            "Sift ID Copied",
+            `Share this link with friends:\n\n${deepLink}\n\nWhen they open it, they'll be prompted to connect!`,
+            [{ text: "Great" }]
+        );
+    };
+
     return (
         <ScreenWrapper edges={['top']}>
             <ScrollView
@@ -164,6 +177,12 @@ export default function ProfileScreen() {
                         description="Activity log and recent actions"
                         onPress={() => router.push('/settings/history')}
                         icon={<ClockCounterClockwise size={20} color={colors.ink} />}
+                    />
+                    <SettingsRow
+                        label="Share Sift ID"
+                        description={`sift://user/${user?.id?.slice(0, 12)}...`}
+                        onPress={shareSiftID}
+                        icon={<ShareNetwork size={20} color={colors.ink} />}
                     />
                 </View>
 

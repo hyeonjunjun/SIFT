@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Text, TextProps, StyleSheet, TextStyle } from 'react-native';
+import { Text, TextProps, StyleSheet, TextStyle, Platform } from 'react-native';
 import { TEXT } from '../../lib/typography';
 import { COLORS } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -19,10 +19,11 @@ export function Typography({ variant = 'body', style, children, color, weight, .
     const resolvedColor = (color && (colors as any)[color]) ? (colors as any)[color] : (color || colors.ink);
     const colorStyle = { color: resolvedColor };
     const weightStyle = weight ? { fontWeight: weight } : {};
+    const androidStyle = Platform.OS === 'android' ? { includeFontPadding: false } : {};
 
     return (
         <Text
-            style={[variantStyle, colorStyle, weightStyle, style]}
+            style={[variantStyle, colorStyle, weightStyle, androidStyle, style]}
             {...props}
         >
             {children}

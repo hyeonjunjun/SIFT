@@ -237,7 +237,11 @@ function RootLayoutNav() {
 
     return (
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
-            <StatusBar style={colors.canvas === '#0D0D0C' ? 'light' : 'dark'} />
+            <StatusBar
+                style={colors.canvas === '#0D0D0C' ? 'light' : 'dark'}
+                translucent
+                backgroundColor="transparent"
+            />
             <ImageBackground
                 source={require("../assets/noise.png")}
                 style={StyleSheet.absoluteFill}

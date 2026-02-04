@@ -161,18 +161,20 @@ export default function IdentityScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.avatarContainer}>
-                    <TouchableOpacity onPress={pickImage} style={styles.avatarCircle}>
-                        {avatarUrl ? (
-                            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-                        ) : (
-                            <Typography variant="h1" style={{ fontSize: 40, color: COLORS.stone }}>
-                                {(displayName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
-                            </Typography>
-                        )}
-                        <View style={styles.editBadge}>
-                            <Camera size={16} color={COLORS.paper} weight="bold" />
-                        </View>
-                    </TouchableOpacity>
+                    <View style={styles.avatarOuterWrapper}>
+                        <TouchableOpacity onPress={pickImage} style={styles.avatarCircle}>
+                            {avatarUrl ? (
+                                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+                            ) : (
+                                <Typography variant="h1" style={{ fontSize: 40, color: COLORS.stone }}>
+                                    {(displayName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
+                                </Typography>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={pickImage} style={styles.editBadge}>
+                            <Camera size={18} color={COLORS.paper} weight="bold" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <View style={styles.inputGroup}>
@@ -304,6 +306,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginVertical: 40,
     },
+    avatarOuterWrapper: {
+        width: 100,
+        height: 100,
+        position: 'relative',
+    },
     avatarCircle: {
         width: 100,
         height: 100,
@@ -312,6 +319,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: COLORS.separator,
         ...Theme.shadows.soft,
     },
     avatarImage: {
@@ -320,13 +329,15 @@ const styles = StyleSheet.create({
     },
     editBadge: {
         position: 'absolute',
-        bottom: 0,
-        right: 0,
+        bottom: -4,
+        right: -4,
         backgroundColor: COLORS.ink,
         padding: 8,
         borderRadius: 20,
-        borderWidth: 2,
-        borderColor: COLORS.paper,
+        borderWidth: 3,
+        borderColor: COLORS.canvas,
+        zIndex: 10,
+        ...Theme.shadows.soft,
     },
     inputGroup: {
         marginBottom: 24,

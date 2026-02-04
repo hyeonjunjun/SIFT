@@ -9,7 +9,7 @@ export interface SiftResponse<T = any> {
 }
 
 const MAX_RETRIES = 3;
-const INITIAL_BACKOFF = 1000; // 1s
+const INITIAL_BACKOFF = 2000;
 
 export const safeSift = async <T = any>(
     originalUrl: string,
@@ -18,10 +18,11 @@ export const safeSift = async <T = any>(
     userTier?: string,
     retryCount = 0
 ): Promise<T | null> => {
+    const startTime = Date.now();
     try {
         const apiUrl = `${API_URL}/api/sift`;
-        console.log(`[SafeSift] URL: ${apiUrl}`);
-        console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl} (Tier: ${userTier || 'free'})`);
+        console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl}`);
+
         const body = {
             url: originalUrl,
             platform: 'share_sheet',
@@ -31,10 +32,8 @@ export const safeSift = async <T = any>(
         };
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            console.warn(`[SafeSift] Triggering timeout (120s) for ${originalUrl}`);
-            controller.abort();
-        }, 120000); // 120s timeout (Social media scrapers are slow)
+        const TIMEOUT_MS = 45000; // 45s timeout
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
         const res = await fetch(apiUrl, {
             method: 'POST',
@@ -44,64 +43,39 @@ export const safeSift = async <T = any>(
         });
         clearTimeout(timeoutId);
 
-        // Parse JSON safely
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[SafeSift] Request resolved in ${duration}s with status ${res.status}`);
+
         let json: SiftResponse<T>;
         try {
             json = await res.json();
         } catch (e) {
-            console.error(`[SafeSift] JSON Parse Error:`, e);
-            json = {
-                status: "error",
-                message: "Invalid JSON response from server",
-                debug_info: `URL: ${apiUrl} | Status: ${res.status} | Error: ${String(e)}`
-            };
+            json = { status: "error", message: "Invalid JSON from server" };
         }
 
-        if (!res.ok || json.status === "error" || json.status === "limit_reached") {
-            const msg = json.message || "Unknown Server Error";
-            console.error(`[SafeSift] API Error (${res.status}): ${msg}`, json.debug_info);
-
-            // Special case: Tier Limit
+        if (!res.ok || json.status === "error") {
             if (json.status === "limit_reached" || res.status === 403) {
-                const limitErr = new Error(msg) as any;
-                limitErr.status = 'limit_reached';
-                limitErr.upgrade_url = json.upgrade_url;
-                throw limitErr;
+                const err = new Error(json.message || "Limit Reached") as any;
+                err.status = 'limit_reached';
+                throw err;
             }
 
-            // Should we retry? 5xx or specific network-like errors
-            if (retryCount < MAX_RETRIES - 1 && (res.status >= 500 || res.status === 429)) {
-                const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
-                console.warn(`[SafeSift] Retrying in ${backoff}ms... (${msg})`);
-                await new Promise(resolve => setTimeout(resolve, backoff));
+            if (retryCount < MAX_RETRIES - 1 && res.status >= 500) {
+                await new Promise(r => setTimeout(r, INITIAL_BACKOFF * (retryCount + 1)));
                 return safeSift(originalUrl, userId, pendingId, userTier, retryCount + 1);
             }
-
-            throw new Error(msg);
+            throw new Error(json.message || "Server Error");
         }
 
         return json.data || (json as any);
 
     } catch (error: any) {
-        // Handle fetch/network exceptions
-        const isTimeout = error.name === 'AbortError' || error.message.toLowerCase().includes('timed out');
-        const isNetworkError = error.message.includes('Network request failed');
-
-        console.error(`[SafeSift] Error for ${originalUrl}:`, {
-            name: error.name,
-            message: error.message,
-            isTimeout,
-            isNetworkError,
-            retryCount
-        });
-
-        if (retryCount < MAX_RETRIES - 1 && (isNetworkError || isTimeout)) {
-            const backoff = INITIAL_BACKOFF * Math.pow(2, retryCount);
-            console.warn(`[SafeSift] Recoverable error, retrying in ${backoff}ms...`);
-            await new Promise(resolve => setTimeout(resolve, backoff));
+        const isTimeout = error.name === 'AbortError' || error.message.includes('timed out');
+        if (retryCount < MAX_RETRIES - 1 && isTimeout) {
+            console.warn(`[SafeSift] Timeout, retrying...`);
+            await new Promise(r => setTimeout(r, INITIAL_BACKOFF));
             return safeSift(originalUrl, userId, pendingId, userTier, retryCount + 1);
         }
-
         throw error;
     }
 };

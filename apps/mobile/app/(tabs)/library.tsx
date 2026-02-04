@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     tile: {
         width: TILE_WIDTH,
         marginBottom: GRID_GAP,
-        borderRadius: 8,
+        borderRadius: RADIUS.l,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
         // @ts-ignore
