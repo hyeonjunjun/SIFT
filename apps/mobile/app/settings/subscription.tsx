@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Linking } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { CaretLeft, Check, Crown, Star, ArrowsClockwise as InfinityIcon, ArrowUpRight } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
@@ -12,10 +12,10 @@ import { useSubscription, Tier } from '../../hooks/useSubscription';
 import { MotiView } from 'moti';
 
 export default function SubscriptionScreen() {
-    const { tier: currentTier } = useAuth();
+    const { tier: currentTier, updateProfileInDB } = useAuth();
     const { colors, isDark } = useTheme();
     const router = useRouter();
-    const { maxSiftsTotal, currentCount } = useSubscription();
+    const { maxSiftsTotal, currentCount, refreshCount } = useSubscription();
 
     const tiers: { id: Tier; name: string; icon: any; sub: string; price: string }[] = [
         { id: 'free', name: 'Starter', icon: Star, sub: 'For casual curators', price: 'Free' },
@@ -29,6 +29,16 @@ export default function SubscriptionScreen() {
             "We are finalizing our secure payment connection through Apple/Google. Check back in a few days!",
             [{ text: "Can't wait", style: 'default' }]
         );
+    };
+
+    const handleSimulateUnlimited = async () => {
+        try {
+            await updateProfileInDB({ tier: 'unlimited' });
+            await refreshCount();
+            Alert.alert("Success", "You are now an Unlimited member (Simulation).");
+        } catch (e) {
+            Alert.alert("Error", "Failed to simulate upgrade.");
+        }
     };
 
     const handleRestore = () => {
@@ -59,8 +69,8 @@ export default function SubscriptionScreen() {
                     <TierCard
                         key={tier.id}
                         tier={tier}
-                        isCurrent={currentTier === tier.id}
-                        onPress={() => tier.id !== currentTier && handleUpgrade(tier.name)}
+                        isCurrent={currentTier === tier.id || (tier.id === 'unlimited' && currentTier === 'admin')}
+                        onPress={() => (tier.id !== currentTier && !(tier.id === 'unlimited' && currentTier === 'admin')) && handleUpgrade(tier.name)}
                         index={index}
                     />
                 ))}
@@ -74,10 +84,20 @@ export default function SubscriptionScreen() {
                         <Typography variant="caption" color={COLORS.stone}>Terms</Typography>
                     </TouchableOpacity>
                     <View style={styles.dot} />
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => Linking.openURL('https://sift.app/privacy')}>
                         <Typography variant="caption" color={COLORS.stone}>Privacy</Typography>
                     </TouchableOpacity>
                 </View>
+
+                {__DEV__ && (
+                    <TouchableOpacity
+                        style={[styles.simulateButton, { borderColor: colors.separator }]}
+                        onPress={handleSimulateUnlimited}
+                    >
+                        <Star size={18} color={COLORS.accent} weight="fill" />
+                        <Typography variant="label" style={{ marginLeft: 8, color: COLORS.accent }}>SIMULATE UNLIMITED (DEV ONLY)</Typography>
+                    </TouchableOpacity>
+                )}
 
                 <View style={styles.legalInfo}>
                     <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5 }}>
@@ -246,5 +266,15 @@ const styles = StyleSheet.create({
     legalInfo: {
         marginTop: 32,
         paddingHorizontal: 30,
+    },
+    simulateButton: {
+        marginTop: 40,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderWidth: 1,
+        borderRadius: RADIUS.m,
+        borderStyle: 'dashed',
     }
 });

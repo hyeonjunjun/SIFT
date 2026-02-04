@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { useCallback, useState, useMemo, useEffect } from 'react';
 import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
@@ -184,6 +186,15 @@ export default function LibraryScreen() {
         return cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     });
 
+    const swipeGesture = Gesture.Pan()
+        .onUpdate((event) => {
+            if (activeCategory && event.translationX > 80 && Math.abs(event.translationY) < 30) {
+                runOnJS(setActiveCategory)(null);
+                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+            }
+        })
+        .runOnJS(true);
+
     if (loading && !refreshing && fetchStatus !== 'paused') {
         return (
             <View style={[styles.loaderContainer, { backgroundColor: colors.canvas }]}>
@@ -193,96 +204,100 @@ export default function LibraryScreen() {
     }
 
     return (
-        <ScreenWrapper edges={['top']}>
-            {/* 1. EDITORIAL HEADER */}
-            <View style={styles.header}>
-                {activeCategory ? (
-                    <TouchableOpacity
-                        onPress={() => setActiveCategory(null)}
-                        style={styles.backButton}
-                    >
-                        <CaretLeft size={28} color={colors.ink} />
-                    </TouchableOpacity>
-                ) : null}
-                <View style={[styles.titleGroup, activeCategory ? { marginLeft: 12 } : {}]}>
-                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                        {activeCategory ? `CATEGORY / ${activeCategory}` : 'YOUR COLLECTION'}
-                    </Typography>
-                    <Typography variant="h1" style={styles.serifTitle}>
-                        {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
-                    </Typography>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <ScreenWrapper edges={['top']}>
+                {/* 1. EDITORIAL HEADER */}
+                <View style={styles.header}>
+                    {activeCategory ? (
+                        <TouchableOpacity
+                            onPress={() => setActiveCategory(null)}
+                            style={styles.backButton}
+                        >
+                            <CaretLeft size={28} color={colors.ink} />
+                        </TouchableOpacity>
+                    ) : null}
+                    <View style={[styles.titleGroup, activeCategory ? { marginLeft: 12 } : {}]}>
+                        <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
+                            {activeCategory ? `CATEGORY / ${activeCategory}` : 'YOUR COLLECTION'}
+                        </Typography>
+                        <Typography variant="h1" style={styles.serifTitle}>
+                            {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
+                        </Typography>
+                    </View>
+                    {activeCategory && (
+                        <TouchableOpacity
+                            style={styles.manageButton}
+                            onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
+                        >
+                            <DotsThree size={28} color={colors.ink} />
+                        </TouchableOpacity>
+                    )}
                 </View>
-                {activeCategory && (
-                    <TouchableOpacity
-                        style={styles.manageButton}
-                        onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
-                    >
-                        <DotsThree size={28} color={colors.ink} />
-                    </TouchableOpacity>
+
+                {/* 2. SEARCH INPUT (Only in main view) */}
+                {!activeCategory && (
+                    <View style={[styles.searchContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                        <MagnifyingGlass size={18} color={colors.stone} weight="regular" />
+                        <TextInput
+                            style={[styles.searchInput, { color: colors.ink }]}
+                            placeholder="Search your mind..."
+                            placeholderTextColor={colors.stone}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            autoCapitalize="none"
+                        />
+                    </View>
                 )}
-            </View>
 
-            {/* 2. SEARCH INPUT (Only in main view) */}
-            {!activeCategory && (
-                <View style={[styles.searchContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                    <MagnifyingGlass size={18} color={colors.stone} weight="regular" />
-                    <TextInput
-                        style={[styles.searchInput, { color: colors.ink }]}
-                        placeholder="Search your mind..."
-                        placeholderTextColor={colors.stone}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        autoCapitalize="none"
-                    />
-                </View>
-            )}
-
-            {/* 3. BENTO GRID or SIFT FEED */}
-            {activeCategory ? (
-                <>
-                    <SiftFeed
-                        pages={activeCategoryPages as any}
-                        onEditTags={handleEditTagsTrigger}
-                        loading={loading && fetchStatus !== 'paused'}
+                {/* 3. BENTO GRID or SIFT FEED */}
+                {activeCategory ? (
+                    <GestureDetector gesture={swipeGesture}>
+                        <View style={{ flex: 1 }}>
+                            <SiftFeed
+                                pages={activeCategoryPages as any}
+                                onEditTags={handleEditTagsTrigger}
+                                loading={loading && fetchStatus !== 'paused'}
+                                refreshControl={
+                                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
+                                }
+                                contentContainerStyle={styles.feedContainer}
+                            />
+                            {(!activeCategoryPages || activeCategoryPages.length === 0) && !loading && (
+                                <View style={styles.emptyState}>
+                                    <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
+                                </View>
+                            )}
+                        </View>
+                    </GestureDetector>
+                ) : (
+                    <ScrollView
+                        contentContainerStyle={styles.gridContainer}
+                        showsVerticalScrollIndicator={false}
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                         }
-                        contentContainerStyle={styles.feedContainer}
-                    />
-                    {(!activeCategoryPages || activeCategoryPages.length === 0) && !loading && (
-                        <View style={styles.emptyState}>
-                            <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
-                        </View>
-                    )}
-                </>
-            ) : (
-                <ScrollView
-                    contentContainerStyle={styles.gridContainer}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
-                    }
-                >
-                    <View style={styles.bentoWrapper}>
-                        {filteredCategories.map((cat) => (
-                            <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
-                        ))}
+                    >
+                        <View style={styles.bentoWrapper}>
+                            {filteredCategories.map((cat) => (
+                                <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
+                            ))}
 
-                        {(!filteredCategories || filteredCategories.length === 0) && (
-                            <View style={styles.emptyState}>
-                                <Typography variant="body" color="stone">No categories match your search.</Typography>
-                            </View>
-                        )}
-                    </View>
-                </ScrollView>
-            )}
-            <QuickTagEditor
-                visible={quickTagModalVisible}
-                onClose={() => setQuickTagModalVisible(false)}
-                initialTags={selectedSiftTags}
-                onSave={handleSaveTags}
-            />
-        </ScreenWrapper>
+                            {(!filteredCategories || filteredCategories.length === 0) && (
+                                <View style={styles.emptyState}>
+                                    <Typography variant="body" color="stone">No categories match your search.</Typography>
+                                </View>
+                            )}
+                        </View>
+                    </ScrollView>
+                )}
+                <QuickTagEditor
+                    visible={quickTagModalVisible}
+                    onClose={() => setQuickTagModalVisible(false)}
+                    initialTags={selectedSiftTags}
+                    onSave={handleSaveTags}
+                />
+            </ScreenWrapper>
+        </GestureHandlerRootView>
     );
 }
 

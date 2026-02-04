@@ -41,6 +41,7 @@ type AuthContextType = {
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
     updateProfileLocally: (newProfile: Profile) => void;
+    updateProfileInDB: (updates: Partial<Profile>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -52,6 +53,7 @@ const AuthContext = createContext<AuthContextType>({
     signOut: async () => { },
     refreshProfile: async () => { },
     updateProfileLocally: () => { },
+    updateProfileInDB: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -102,6 +104,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     console.log('[Auth] Loaded profile from cache (Early)');
                     setProfile(cached);
                     setTier(cached.tier || 'free');
+                    // Optimization: If we have a cache, we can unblock the UI immediately
+                    setLoading(false);
                 }
             }
 
@@ -229,10 +233,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         if (cached) {
                             setProfile(cached);
                             setTier(cached.tier || 'free');
-                            // If we have a cache, we can unblock the UI sooner
+                            // If we have a cache, we can unblock the UI immediately
                             setLoading(false);
-                            refreshProfile(currentUser); // Background refresh
+                            // Background refresh (won't block splash)
+                            refreshProfile(currentUser);
                         } else {
+                            // No cache: must wait for initial fetch to avoid empty UI
                             await refreshProfile(currentUser);
                         }
                     }
@@ -291,8 +297,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (newProfile.tier) setTier(newProfile.tier);
     };
 
+    const updateProfileInDB = async (updates: Partial<Profile>) => {
+        if (!user?.id) return;
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', user.id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            if (data) {
+                updateProfileLocally(data);
+            }
+        } catch (e) {
+            console.error('[Auth] Failed to update profile in DB:', e);
+            throw e;
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, session, loading, tier, profile, signOut, refreshProfile, updateProfileLocally }}>
+        <AuthContext.Provider value={{ user, session, loading, tier, profile, signOut, refreshProfile, updateProfileLocally, updateProfileInDB }}>
             {children}
         </AuthContext.Provider>
     );
