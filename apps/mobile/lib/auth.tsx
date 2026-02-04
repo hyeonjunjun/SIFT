@@ -58,8 +58,9 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Caching Constants
+// Auth Constants
 const PROFILE_CACHE_KEY = 'sift_user_profile';
+const ADMIN_EMAILS = ['rykjun@gmail.com'];
 
 const cacheProfileLocally = async (profile: Profile) => {
     try {
@@ -144,13 +145,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (data) {
                 console.log('[Auth] Profile refreshed successfully');
-                // Sync email if missing (for discovery)
-                if (!data.email && actingUser.email) {
-                    supabase.from('profiles').update({ email: actingUser.email }).eq('id', actingUser.id).then();
+
+                // ADMIN OVERRIDE: Check if user should be admin based on email
+                const isAdmin = ADMIN_EMAILS.includes(actingUser.email || '');
+                const resolvedTier = isAdmin ? 'admin' : (data.tier as any || 'free');
+
+                // Sync email or tier if missing/incorrect (for discovery and access)
+                const updates: any = {};
+                if (!data.email && actingUser.email) updates.email = actingUser.email;
+                if (isAdmin && data.tier !== 'admin') updates.tier = 'admin';
+
+                if (Object.keys(updates).length > 0) {
+                    supabase.from('profiles').update(updates).eq('id', actingUser.id).then();
+                    data.tier = resolvedTier;
+                    if (updates.email) data.email = actingUser.email;
                 }
+
                 setProfile(data);
                 setUser(actingUser);
-                setTier(data.tier as any || 'free');
+                setTier(resolvedTier);
                 await cacheProfileLocally(data);
             } else {
                 console.log('[Auth] Profile fetch failed after retries, attempting JIT creation or fallback');
@@ -163,7 +176,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                             id: actingUser.id,
                             display_name: actingUser.user_metadata?.display_name || actingUser.email?.split('@')[0],
                             email: actingUser.email,
-                            tier: 'free'
+                            tier: ADMIN_EMAILS.includes(actingUser.email || '') ? 'admin' : 'free'
                         })
                         .select()
                         .single();
