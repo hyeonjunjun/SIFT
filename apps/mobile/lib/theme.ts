@@ -4,7 +4,7 @@ import { Platform, StyleSheet } from "react-native";
 export const LIGHT_COLORS = {
     ink: '#1A1A18',       // High-Contrast Deep Matte Ink
     paper: '#FFFFFF',     // Pure White
-    canvas: '#FAFAF8',    // Refined Warm Oatmeal
+    canvas: '#FAF9F6',    // Refined Warm Oatmeal (Off-White)
     stone: '#8E8E8A',     // Warm Grey
     separator: '#E8E8E3', // Subtle Organic Divider
     subtle: '#F4F4F0',    // Soft Background Highlight
@@ -40,7 +40,7 @@ export const RADIUS = {
     xs: 4,
     s: 10,
     m: 20,
-    l: 32,       // Lush Pebble Card
+    l: 24,       // Softened from 32 to 24 for a more natural card feel
     xl: 44,      // Bottom Sheet Large
     pill: 100,   // Rounded Buttons
     continuous: 0,
@@ -61,12 +61,12 @@ export const TRANSITIONS = {
 export const Theme = {
     shadows: {
         soft: {
-            // Precise Ambient Occlusion
-            shadowColor: "#1A1A18",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.04,
-            shadowRadius: 12,
-            elevation: 2,
+            // "Soft Lift" - Airy and floating
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.05,
+            shadowRadius: 10,
+            elevation: 3,
         },
         medium: {
             // Elevated Card Shadow

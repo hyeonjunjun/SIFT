@@ -29,47 +29,56 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
     }
 
     const markdownStyles = {
-        body: { fontSize: 17, lineHeight: 26, color: colors.ink, fontFamily: 'System' },
-        heading1: { fontSize: 24, fontWeight: '700', marginTop: 24, marginBottom: 12, lineHeight: 30, color: colors.ink },
-        heading2: { fontSize: 20, fontWeight: '600', marginTop: 20, marginBottom: 10, color: colors.ink },
-        heading3: { fontSize: 17, fontWeight: '600', marginTop: 16, marginBottom: 8, color: colors.ink },
-        list_item: { marginBottom: 8 },
-        bullet_list: { marginBottom: 12 },
-        ordered_list: { marginBottom: 12 },
-        paragraph: { marginBottom: 16 },
+        body: { fontSize: 18, lineHeight: 30, color: colors.ink, fontFamily: 'Lora_400Regular' },
+        heading1: { fontSize: 28, fontFamily: 'PlayfairDisplay_700Bold', marginTop: 32, marginBottom: 16, lineHeight: 34, color: colors.ink },
+        heading2: { fontSize: 24, fontFamily: 'PlayfairDisplay_600SemiBold', marginTop: 24, marginBottom: 12, color: colors.ink },
+        heading3: { fontSize: 20, fontFamily: 'Lora_600SemiBold', marginTop: 20, marginBottom: 10, color: colors.ink },
+        list_item: { marginBottom: 12 },
+        bullet_list: { marginBottom: 16 },
+        ordered_list: { marginBottom: 16 },
+        paragraph: { marginBottom: 20 },
         link: { color: colors.accent, textDecorationLine: 'underline' },
         blockquote: {
             backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7',
             borderLeftWidth: 4,
             borderLeftColor: colors.stone,
             paddingHorizontal: 16,
-            paddingVertical: 8,
-            marginVertical: 12,
+            paddingVertical: 12,
+            marginVertical: 16,
             borderRadius: 4,
-        }
+        },
+        // We can try to style the bullet point if the library supports it via text props, 
+        // but typically react-native-markdown-display handles bullets internally.
+        // We focus on the typographic hierarchy here to address the "Raw HTML" feel.
     };
 
     const dynamicStyles = StyleSheet.create({
         container: { marginTop: 8 },
         markdownContainer: { flex: 1 },
-        bodyText: { fontSize: 17, lineHeight: 24, color: colors.ink, marginBottom: 16, fontFamily: 'System' },
+        bodyText: { fontSize: 18, lineHeight: 30, color: colors.ink, marginBottom: 16, fontFamily: 'Lora_400Regular' },
         placeholder: { color: colors.stone, fontStyle: 'italic', padding: 20 },
         section: { marginTop: 16, marginBottom: 8 },
         groupContainer: { marginBottom: 16 },
-        header: { fontSize: 20, fontWeight: '700', marginBottom: 12, color: colors.ink, fontFamily: 'System' },
-        subHeader: { fontSize: 13, fontWeight: '600', marginBottom: 8, color: colors.stone, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'System' },
+        header: { fontSize: 22, fontWeight: '700', marginBottom: 12, color: colors.ink, fontFamily: 'PlayfairDisplay_600SemiBold' },
+        subHeader: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.stone, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Inter_500Medium' },
         row: { flexDirection: 'row', marginBottom: 8, paddingRight: 16 },
         stepRow: { flexDirection: 'row', marginBottom: 16, paddingRight: 16 },
-        bullet: { marginRight: 8, fontSize: 18, color: colors.stone, lineHeight: 22 },
-        stepNum: { marginRight: 12, fontWeight: '700', color: colors.stone, fontSize: 16 },
-        listItem: { fontSize: 17, lineHeight: 24, color: colors.ink, flex: 1, fontFamily: 'System' },
+        bullet: { marginRight: 8, fontSize: 18, color: colors.stone, lineHeight: 30 },
+        stepNum: { marginRight: 12, fontWeight: '700', color: colors.stone, fontSize: 18, fontFamily: 'Lora_600SemiBold' },
+        listItem: { fontSize: 18, lineHeight: 30, color: colors.ink, flex: 1, fontFamily: 'Lora_400Regular' },
     });
 
     // 2. SCENARIO A: It is Plain Text / Markdown (Most Sifts)
     if (!isJson) {
         return (
             <View style={dynamicStyles.markdownContainer}>
-                <Markdown style={markdownStyles as any}>
+                <Markdown
+                    style={markdownStyles as any}
+                    rules={{
+                        // Custom renderer for ordered list items could go here if we want the circle number
+                        // For now we'll stick to clean typographic updates
+                    }}
+                >
                     {content}
                 </Markdown>
             </View>

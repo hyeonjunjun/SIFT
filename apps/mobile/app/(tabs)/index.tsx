@@ -66,7 +66,7 @@ export default function HomeScreen() {
             // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
-                .select('*')
+                .select('id, title, summary, tags, created_at, url, is_pinned, metadata') // OPTIMIZE: Exclude 'content'
                 .eq('user_id', user.id)
                 .neq('is_archived', true)
                 .order('is_pinned', { ascending: false })
@@ -658,8 +658,12 @@ export default function HomeScreen() {
                         delayLongPress={2000}
                         style={styles.greetingBox}
                     >
-                        <Typography variant="label" color={COLORS.stone}>{getGreeting()},</Typography>
-                        <Typography variant="h1" numberOfLines={1} style={{ fontSize: 32 }}>{(profile?.display_name || user?.email?.split('@')[0] || "guest").toLowerCase()}</Typography>
+                        <Typography variant="label" style={{ fontFamily: 'GeistMono_400Regular', textTransform: 'uppercase', letterSpacing: 2, fontSize: 11, color: COLORS.stone, marginBottom: 4 }}>
+                            {getGreeting()}
+                        </Typography>
+                        <Typography variant="h1" numberOfLines={1} style={{ fontSize: 36, fontFamily: 'PlayfairDisplay_600SemiBold', color: COLORS.ink }}>
+                            {(profile?.display_name || "Guest").split(' ')[0]}
+                        </Typography>
                     </TouchableOpacity>
                 </View>
 

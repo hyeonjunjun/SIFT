@@ -76,7 +76,7 @@ export default function LibraryScreen() {
             // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
-                .select('*')
+                .select('id, title, url, tags, created_at, metadata') // OPTIMIZE: Exclude 'content' and 'summary'
                 .eq('user_id', user.id)
                 .eq('is_archived', false)
                 .order('created_at', { ascending: false });

@@ -611,13 +611,17 @@ export default function PageDetail() {
                                 )}
                             </View>
 
-                            {/* Card 4: Content */}
-                            <View style={[styles.bentoCard, { minHeight: 400, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}>
+                            {/* Card 4: Editorial Content (Reader View) */}
+                            <View style={{
+                                minHeight: 400,
+                                paddingHorizontal: 4, // Allow text to breathe 
+                                paddingTop: 16
+                            }}>
                                 {!isEditing ? (
                                     <SafeContentRenderer content={content} />
                                 ) : (
                                     <TextInput
-                                        style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}
+                                        style={{ fontSize: 18, lineHeight: 30, color: colors.ink, fontFamily: 'Lora_400Regular' }}
                                         multiline
                                         scrollEnabled={false}
                                         value={content}
@@ -701,7 +705,7 @@ const styles = StyleSheet.create({
         fontSize: 20, // Smaller for detail page header to fit long titles
     },
     scrollContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 24, // Wider margins for editorial feel
         paddingBottom: 140,
         gap: 16,
     },

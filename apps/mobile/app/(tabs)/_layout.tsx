@@ -13,22 +13,16 @@ export default function TabLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: colors.canvas,
-                    borderTopWidth: 0.5,
-                    borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                    height: Platform.OS === 'ios' ? 95 : 70,
+                    backgroundColor: colors.canvas, // Global canvas color
+                    borderTopWidth: 0, // CLEANER LOOK (No border)
+                    // borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                    height: Platform.OS === 'ios' ? 90 : 70,
                     paddingTop: 12,
-                    paddingBottom: Platform.OS === 'ios' ? 35 : 12,
+                    paddingBottom: Platform.OS === 'ios' ? 30 : 12,
                     elevation: 0,
                     shadowOpacity: 0,
                 },
-                tabBarLabelStyle: {
-                    fontSize: 10,
-                    fontFamily: 'Inter_500Medium',
-                    letterSpacing: 1,
-                    marginTop: 4,
-                    textTransform: 'uppercase',
-                },
+                tabBarShowLabel: false, // HIDING LABELS for minimalist look
                 tabBarActiveTintColor: colors.ink,
                 tabBarInactiveTintColor: colors.stone,
             }}
@@ -48,7 +42,7 @@ export default function TabLayout() {
                     title: "DASHBOARD",
                     tabBarIcon: ({ color, focused }) => (
                         <SquaresFour
-                            size={24}
+                            size={28}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -66,7 +60,7 @@ export default function TabLayout() {
                     title: "LIBRARY",
                     tabBarIcon: ({ color, focused }) => (
                         <Books
-                            size={24}
+                            size={28}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -84,7 +78,7 @@ export default function TabLayout() {
                     title: "SOCIAL",
                     tabBarIcon: ({ color, focused }) => (
                         <UsersThree
-                            size={24}
+                            size={28}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -102,7 +96,7 @@ export default function TabLayout() {
                     title: "PROFILE",
                     tabBarIcon: ({ color, focused }) => (
                         <User
-                            size={24}
+                            size={28}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />

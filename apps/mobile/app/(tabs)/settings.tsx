@@ -38,7 +38,7 @@ export default function ProfileScreen() {
         try {
             const { data, error } = await supabase
                 .from('pages')
-                .select('*')
+                .select('id, title, summary, tags, created_at, url, is_pinned, metadata') // OPTIMIZE: Exclude 'content'
                 .eq('user_id', user?.id)
                 .eq('is_pinned', true)
                 .order('created_at', { ascending: false });
@@ -221,6 +221,22 @@ export default function ProfileScreen() {
                     />
                 </View>
 
+
+
+                {/* 3.5. UNIVERSAL DESIGN SECTION */}
+                {/* 3.5. UNIVERSAL DESIGN SECTION */}
+                <View style={styles.sectionHeader}>
+                    <Typography variant="label">Universal Design</Typography>
+                </View>
+                <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                    <SettingsRow
+                        label="Accessibility"
+                        description="Text scale, contrast, and motion"
+                        onPress={() => router.push('/settings/accessibility')}
+                        icon={<ShareNetwork size={20} color={colors.ink} />}
+                    />
+                </View>
+
                 {/* 4. APPEARANCE SECTION */}
                 <View style={styles.sectionHeader}>
                     <Typography variant="label">Appearance</Typography>
@@ -284,7 +300,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
 
             </ScrollView>
-        </ScreenWrapper>
+        </ScreenWrapper >
     );
 }
 

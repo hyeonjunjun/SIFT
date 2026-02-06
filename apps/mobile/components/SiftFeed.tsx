@@ -249,20 +249,32 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                             style={styles.image}
                         />
                     )}
-                </View>
 
-                <View style={styles.meta}>
-                    <Typography variant="h3" numberOfLines={2}>
-                        {item.title || 'Untitled'}
-                    </Typography>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography style={[styles.metadata, { color: colors.stone }]}>
-                            {(item.category || 'General').toUpperCase()} • {(item.source || 'Sift').toUpperCase()}
-                        </Typography>
-                        {item.is_pinned && (
-                            <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent }} />
-                        )}
-                    </View>
+                    {/* Gradient Overlay & Text (Now Inside) */}
+                    <Animated.View
+                        entering={FadeIn.duration(600)}
+                        style={StyleSheet.absoluteFill}
+                    >
+                        {/* @ts-ignore */}
+                        <LinearGradient
+                            colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
+                            locations={[0.4, 0.7, 1]}
+                            style={StyleSheet.absoluteFill}
+                        />
+                        <View style={styles.textOverlay}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                <Typography style={styles.overlayTag}>
+                                    {(item.category || 'General').toUpperCase()}
+                                </Typography>
+                                {item.is_pinned && (
+                                    <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: '#FFF' }} />
+                                )}
+                            </View>
+                            <Typography variant="h3" style={styles.overlayTitle} numberOfLines={2}>
+                                {item.title || 'Untitled'}
+                            </Typography>
+                        </View>
+                    </Animated.View>
                 </View>
             </Pressable>
         </Animated.View>
@@ -353,14 +365,21 @@ export default function SiftFeed({
     );
 }
 
+import { LinearGradient } from 'expo-linear-gradient';
+
+// ... (other imports)
+
 const styles = StyleSheet.create({
     cardContainer: {
         marginBottom: 8,
+        // Remove margin from image wrapper to card container if any
     },
     imageWrapper: {
-        aspectRatio: 16 / 9,
-        borderRadius: RADIUS.xl,
+        // "Delicious Mozzarella" getting lost suggests overlap.
+        aspectRatio: 1, // Let's go Square or 0.8 to give room for text
+        borderRadius: RADIUS.l,
         overflow: 'hidden',
+        position: 'relative'
     },
     fallbackContainer: {
         flex: 1,
@@ -372,16 +391,43 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
+    // OFF-IMAGE META (Removed/Commented out if not used anymore)
     meta: {
         marginTop: 12,
         gap: 4,
-        // paddingHorizontal: 4, // Removed to align text with image edge
     },
     metadata: {
         fontSize: 13,
         fontFamily: 'System',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    // NEW OVERLAY STYLES
+    textOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: 16,
+        paddingBottom: 20,
+        justifyContent: 'flex-end',
+    },
+    overlayTitle: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 4,
+        fontFamily: 'PlayfairDisplay_600SemiBold', // Use the new serif
+        lineHeight: 24,
+    },
+    overlayTag: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 11,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        fontFamily: 'Inter_500Medium',
     }
 });
 

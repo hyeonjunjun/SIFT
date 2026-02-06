@@ -68,25 +68,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     chip: {
-        paddingHorizontal: 16,
-        paddingVertical: 10, // Slightly taller for better touch target
+        paddingHorizontal: 20,
+        paddingVertical: 12,
         borderRadius: 100, // Pill shape
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
+        backgroundColor: '#F2F0E9', // Soft warm background (Stone-ish)
+        marginRight: 8,
+        // No border
         // @ts-ignore
         cornerCurve: 'continuous',
     },
     chipActive: {
-        backgroundColor: '#1A1A1A',
-        borderColor: '#1A1A1A',
+        backgroundColor: '#1A1A18', // Ink
     },
     text: {
-        fontSize: 13,
+        fontSize: 14,
         color: '#666',
         fontWeight: '500',
+        fontFamily: 'Inter_500Medium',
     },
     textActive: {
-        color: '#FFF',
+        color: '#FAF9F6', // Off-white
     },
 });
