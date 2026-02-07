@@ -10,6 +10,7 @@ import Animated, { FadeIn, FadeOut, Layout, Easing, useSharedValue, useAnimatedS
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
+import { FeedLoadingScreen } from './FeedLoadingScreen';
 import { useTheme } from '../context/ThemeContext';
 
 interface Page {
@@ -304,28 +305,10 @@ export default function SiftFeed({
 
     if (loading) {
         return (
-            <FlashList
-                data={[1, 2, 3, 4, 5, 6]}
-                numColumns={numColumns}
-                extraData={true}
-                renderItem={({ index }) => {
-                    return (
-                        <View style={{
-                            width: columnWidth,
-                            marginBottom: GRID_GAP,
-                        }}>
-                            <SiftCardSkeleton />
-                        </View>
-                    );
-                }}
-                // @ts-ignore
-                estimatedItemSize={250}
-                contentContainerStyle={{
-                    paddingHorizontal: 20, // Inherited Alignment
-                    paddingBottom: 40,
-                    ...contentContainerStyle
-                }}
-            />
+            <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+                {ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}
+                <FeedLoadingScreen message="Loading your sifts..." />
+            </View>
         );
     }
 
@@ -372,7 +355,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 const styles = StyleSheet.create({
     cardContainer: {
         marginBottom: 8,
-        // Remove margin from image wrapper to card container if any
+        // Soft Lift Shadow for floating effect
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
     },
     imageWrapper: {
         // "Delicious Mozzarella" getting lost suggests overlap.

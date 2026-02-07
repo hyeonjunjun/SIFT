@@ -70,6 +70,7 @@ export const useSubscription = () => {
             return count || 0;
         },
         enabled: !!user,
+        staleTime: 1000 * 60 * 5, // 5 minutes - prevents redundant re-fetches
     });
 
     const capabilities = TIER_LIMITS[tier] || TIER_LIMITS.free;

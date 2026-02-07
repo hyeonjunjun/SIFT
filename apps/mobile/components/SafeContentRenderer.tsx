@@ -29,27 +29,41 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
     }
 
     const markdownStyles = {
-        body: { fontSize: 18, lineHeight: 30, color: colors.ink, fontFamily: 'Lora_400Regular' },
-        heading1: { fontSize: 28, fontFamily: 'PlayfairDisplay_700Bold', marginTop: 32, marginBottom: 16, lineHeight: 34, color: colors.ink },
-        heading2: { fontSize: 24, fontFamily: 'PlayfairDisplay_600SemiBold', marginTop: 24, marginBottom: 12, color: colors.ink },
-        heading3: { fontSize: 20, fontFamily: 'Lora_600SemiBold', marginTop: 20, marginBottom: 10, color: colors.ink },
-        list_item: { marginBottom: 12 },
-        bullet_list: { marginBottom: 16 },
-        ordered_list: { marginBottom: 16 },
-        paragraph: { marginBottom: 20 },
+        body: { fontSize: 18, lineHeight: 34, color: colors.ink, fontFamily: 'Lora_400Regular' },
+        heading1: { fontSize: 28, fontFamily: 'PlayfairDisplay_700Bold', marginTop: 32, marginBottom: 16, lineHeight: 36, color: colors.ink },
+        heading2: { fontSize: 24, fontFamily: 'PlayfairDisplay_600SemiBold', marginTop: 28, marginBottom: 14, lineHeight: 30, color: colors.ink },
+        heading3: { fontSize: 20, fontFamily: 'Lora_600SemiBold', marginTop: 24, marginBottom: 12, lineHeight: 28, color: colors.ink },
+        list_item: { marginBottom: 16, lineHeight: 34 },
+        bullet_list: { marginBottom: 20 },
+        ordered_list: { marginBottom: 20 },
+        paragraph: { marginBottom: 24, lineHeight: 34 },
         link: { color: colors.accent, textDecorationLine: 'underline' },
         blockquote: {
             backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7',
             borderLeftWidth: 4,
             borderLeftColor: colors.stone,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            marginVertical: 16,
-            borderRadius: 4,
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            marginVertical: 20,
+            borderRadius: 8,
         },
-        // We can try to style the bullet point if the library supports it via text props, 
-        // but typically react-native-markdown-display handles bullets internally.
-        // We focus on the typographic hierarchy here to address the "Raw HTML" feel.
+        code_inline: {
+            fontFamily: 'GeistMono_400Regular',
+            backgroundColor: isDark ? '#222' : '#F4F4F0',
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: 4,
+            fontSize: 15,
+        },
+        fence: {
+            fontFamily: 'GeistMono_400Regular',
+            backgroundColor: isDark ? '#1C1C1E' : '#F4F4F0',
+            padding: 16,
+            borderRadius: 12,
+            marginVertical: 16,
+            fontSize: 14,
+            lineHeight: 22,
+        },
     };
 
     const dynamicStyles = StyleSheet.create({

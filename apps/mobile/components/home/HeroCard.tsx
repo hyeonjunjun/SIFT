@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Typography } from '../design-system/Typography';
 import { useRouter } from 'expo-router';
-import { COLORS, BORDER } from '../../lib/theme';
+import { COLORS, BORDER, Theme } from '../../lib/theme';
+import * as Haptics from 'expo-haptics';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
 interface HeroCardProps {
     id: string;
@@ -15,33 +17,55 @@ interface HeroCardProps {
 export const HeroCard = React.memo(({ id, title, tags = [], imageUrl }: HeroCardProps) => {
     const router = useRouter();
     const category = tags[0] || 'Uncategorized';
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const handlePressIn = () => {
+        scale.value = withTiming(0.97, { duration: 100, easing: Easing.out(Easing.quad) });
+    };
+
+    const handlePressOut = () => {
+        scale.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.back(1.5)) });
+    };
+
+    const handlePress = () => {
+        Haptics.selectionAsync();
+        router.push(`/page/${id}`);
+    };
 
     return (
-        <Pressable
-            onPress={() => router.push(`/page/${id}`)}
-            style={styles.container}
-        >
-            <View style={styles.imageContainer}>
-                {imageUrl ? (
-                    <Image
-                        source={imageUrl}
-                        style={styles.image}
-                        contentFit="cover"
-                        transition={500}
-                    />
-                ) : (
-                    <View style={styles.placeholder} />
-                )}
-            </View>
-            <View style={styles.textContainer}>
-                <Typography variant="label" style={styles.categoryText}>
-                    {category.toUpperCase()}
-                </Typography>
-                <Typography style={styles.heroTitle} numberOfLines={2}>
-                    {title}
-                </Typography>
-            </View>
-        </Pressable>
+        <Animated.View style={animatedStyle}>
+            <Pressable
+                onPress={handlePress}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={styles.container}
+            >
+                <View style={styles.imageContainer}>
+                    {imageUrl ? (
+                        <Image
+                            source={imageUrl}
+                            style={styles.image}
+                            contentFit="cover"
+                            transition={500}
+                        />
+                    ) : (
+                        <View style={styles.placeholder} />
+                    )}
+                </View>
+                <View style={styles.textContainer}>
+                    <Typography variant="label" style={styles.categoryText}>
+                        {category.toUpperCase()}
+                    </Typography>
+                    <Typography style={styles.heroTitle} numberOfLines={2}>
+                        {title}
+                    </Typography>
+                </View>
+            </Pressable>
+        </Animated.View>
     );
 });
 
@@ -53,11 +77,17 @@ const styles = StyleSheet.create({
     imageContainer: {
         width: 240,
         height: 140, // 16:9ish
-        borderRadius: 8,
+        borderRadius: 12,
         overflow: 'hidden',
         borderWidth: BORDER.hairline,
-        borderColor: 'rgba(0,0,0,0.1)',
+        borderColor: 'rgba(0,0,0,0.08)',
         backgroundColor: '#F2F2F7',
+        // Soft Lift Shadow
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 4,
         // @ts-ignore
         cornerCurve: 'continuous',
     },

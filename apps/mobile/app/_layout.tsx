@@ -18,6 +18,8 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
+import { Platform } from 'react-native';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -143,6 +145,15 @@ function RootLayoutNav() {
     const router = useRouter();
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
     const { colors } = useTheme();
+
+    // Android Navigation Bar Configuration for Edge-to-Edge
+    useEffect(() => {
+        if (Platform.OS === 'android') {
+            NavigationBar.setBackgroundColorAsync('transparent');
+            NavigationBar.setPositionAsync('absolute');
+            NavigationBar.setBehaviorAsync('overlay-swipe');
+        }
+    }, []);
 
     const [fontsLoaded] = useFonts({
         PlayfairDisplay_700Bold,
