@@ -39,14 +39,14 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         // 3. Exit Sequence
         const exitTimeout = setTimeout(() => {
             containerOpacity.value = withTiming(0, {
-                duration: 600,
+                duration: 300,
                 easing: Easing.bezier(0.45, 0, 0.55, 1)
             }, (finished) => {
                 if (onFinish) {
                     runOnJS(onFinish)();
                 }
             });
-        }, 1200);
+        }, 400);
 
         return () => clearTimeout(exitTimeout);
     }, []);

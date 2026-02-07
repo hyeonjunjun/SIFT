@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
-import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork } from 'phosphor-react-native';
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork, Eye, FilmSlate } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
@@ -33,6 +33,8 @@ export default function ProfileScreen() {
     // Settings State
     const [hapticsEnabled, setHapticsEnabled] = useState(true);
     const [autoClipboard, setAutoClipboard] = useState(true);
+    const [highContrast, setHighContrast] = useState(false);
+    const [reduceMotion, setReduceMotion] = useState(false);
 
     const fetchSavedPages = useCallback(async () => {
         try {
@@ -56,8 +58,12 @@ export default function ProfileScreen() {
         try {
             const h = await AsyncStorage.getItem('settings_haptics');
             const c = await AsyncStorage.getItem('settings_clipboard');
+            const hc = await AsyncStorage.getItem('settings_high_contrast');
+            const rm = await AsyncStorage.getItem('settings_reduce_motion');
             if (h !== null) setHapticsEnabled(h === 'true');
             if (c !== null) setAutoClipboard(c === 'true');
+            if (hc !== null) setHighContrast(hc === 'true');
+            if (rm !== null) setReduceMotion(rm === 'true');
         } catch (e) {
             console.error(e);
         }
@@ -89,6 +95,18 @@ export default function ProfileScreen() {
     const toggleClipboard = async (value: boolean) => {
         setAutoClipboard(value);
         await AsyncStorage.setItem('settings_clipboard', String(value));
+        if (hapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
+
+    const toggleHighContrast = async (value: boolean) => {
+        setHighContrast(value);
+        await AsyncStorage.setItem('settings_high_contrast', String(value));
+        if (hapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
+
+    const toggleReduceMotion = async (value: boolean) => {
+        setReduceMotion(value);
+        await AsyncStorage.setItem('settings_reduce_motion', String(value));
         if (hapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
@@ -219,23 +237,25 @@ export default function ProfileScreen() {
                         onPress={clearCache}
                         icon={<Trash size={20} color={colors.ink} />}
                     />
-                </View>
-
-
-
-                {/* 3.5. UNIVERSAL DESIGN SECTION */}
-                {/* 3.5. UNIVERSAL DESIGN SECTION */}
-                <View style={styles.sectionHeader}>
-                    <Typography variant="label">Universal Design</Typography>
-                </View>
-                <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                     <SettingsRow
-                        label="Accessibility"
-                        description="Text scale, contrast, and motion"
-                        onPress={() => router.push('/settings/accessibility')}
-                        icon={<ShareNetwork size={20} color={colors.ink} />}
+                        label="High Contrast"
+                        description="Increase legibility"
+                        type="toggle"
+                        value={highContrast}
+                        onValueChange={toggleHighContrast}
+                        icon={<Eye size={20} color={colors.ink} />}
+                    />
+                    <SettingsRow
+                        label="Reduce Motion"
+                        description="Minimize animations"
+                        type="toggle"
+                        value={reduceMotion}
+                        onValueChange={toggleReduceMotion}
+                        icon={<FilmSlate size={20} color={colors.ink} />}
                     />
                 </View>
+
+
 
                 {/* 4. APPEARANCE SECTION */}
                 <View style={styles.sectionHeader}>

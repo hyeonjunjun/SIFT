@@ -18,7 +18,7 @@ export const TEXT: Record<string, TextStyle> = {
         letterSpacing: -0.3,
     },
     h3: {
-        fontFamily: 'System',
+        fontFamily: 'Inter_600SemiBold',
         fontSize: 20,
         fontWeight: '600', // Apple Style Title 3
         color: COLORS.ink,
@@ -26,7 +26,7 @@ export const TEXT: Record<string, TextStyle> = {
 
     // Technical Labels (Sans-Serif)
     label: {
-        fontFamily: 'System',
+        fontFamily: 'Inter_500Medium',
         fontSize: 13,
         fontWeight: '600',
         color: COLORS.stone,
@@ -36,25 +36,26 @@ export const TEXT: Record<string, TextStyle> = {
 
     // Reading Text (Sans-Serif)
     body: {
-        fontFamily: 'System',
+        fontFamily: 'Inter_400Regular',
         fontSize: 17,
         fontWeight: '400',
         color: COLORS.ink,
+        lineHeight: 26,
     },
     bodyMedium: {
-        fontFamily: 'System',
+        fontFamily: 'Inter_500Medium',
         fontSize: 15,
         fontWeight: '500',
         color: COLORS.ink,
     },
     subhead: {
-        fontFamily: 'System',
+        fontFamily: 'Inter_400Regular',
         fontSize: 15,
         fontWeight: '400',
         color: COLORS.stone, // Secondary Text
     },
     caption: {
-        fontFamily: 'System',
+        fontFamily: 'Inter_500Medium',
         fontSize: 12,
         fontWeight: '500',
         color: COLORS.stone,

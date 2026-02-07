@@ -79,6 +79,7 @@ export default function HomeScreen() {
             return (data || []) as Page[];
         },
         enabled: !!user,
+        staleTime: 1000 * 60, // 1 minute - prevents redundant re-fetches
     });
 
 

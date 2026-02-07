@@ -14,6 +14,7 @@ import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import SiftFeed from '../../components/SiftFeed';
+import { FeedLoadingScreen } from '../../components/FeedLoadingScreen';
 import { QuickTagEditor } from '../../components/QuickTagEditor';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
@@ -197,9 +198,19 @@ export default function LibraryScreen() {
 
     if (loading && !refreshing && fetchStatus !== 'paused') {
         return (
-            <View style={[styles.loaderContainer, { backgroundColor: colors.canvas }]}>
-                <ActivityIndicator color={colors.ink} />
-            </View>
+            <ScreenWrapper edges={['top']}>
+                <View style={[styles.header, { paddingBottom: 0 }]}>
+                    <View style={styles.titleGroup}>
+                        <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
+                            YOUR COLLECTION
+                        </Typography>
+                        <Typography variant="h1" style={styles.serifTitle}>
+                            Library
+                        </Typography>
+                    </View>
+                </View>
+                <FeedLoadingScreen message="Loading your collection..." />
+            </ScreenWrapper>
         );
     }
 
