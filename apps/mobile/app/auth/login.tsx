@@ -21,6 +21,9 @@ if (NativeModules.RNGoogleSignin) {
 
 WebBrowser.maybeCompleteAuthSession();
 
+// Safer way to handle optional native modules
+const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authentication') : null;
+
 const { width } = Dimensions.get('window');
 
 const REMEMBER_ME_KEY = 'auth_remembered_email';
@@ -151,29 +154,14 @@ export default function LoginScreen() {
     const handleAppleSignIn = async () => {
         if (loading) return;
         try {
-            if (Platform.OS === 'web') {
-                const redirectTo = window.location.origin + '/';
-                console.log(`[Apple Auth] Web Redirect URL: ${redirectTo}`);
-                const { error } = await supabase.auth.signInWithOAuth({
-                    provider: 'apple',
-                    options: {
-                        redirectTo,
-                    },
-                });
-                if (error) throw error;
-                return;
-            }
-
             const rawNonce = Math.random().toString(36).substring(2, 11);
             const hashedNonce = await Crypto.digestStringAsync(
                 Crypto.CryptoDigestAlgorithm.SHA256,
                 rawNonce
             );
 
-            const AppleAuthentication = require('expo-apple-authentication');
-            const isAvailable = await AppleAuthentication.isAvailableAsync().catch(() => false);
-            if (!isAvailable) {
-                Alert.alert('Apple Auth', 'Apple Sign-In is not supported in this environment. Please use a physical device or development build.');
+            if (!AppleAuthentication) {
+                Alert.alert('Apple Auth', 'Apple Sign-In is not supported in this environment.');
                 return;
             }
 
@@ -285,18 +273,32 @@ export default function LoginScreen() {
 
                 {/* Social Auth */}
                 <View style={styles.socialContainer}>
-                    <Pressable
-                        onPress={handleAppleSignIn}
-                        disabled={loading}
-                        style={({ hovered }: any) => [
-                            styles.socialButtonApple,
-                            loading && { opacity: 0.5 },
-                            hovered && Platform.OS === 'web' && { opacity: 0.8, transform: [{ scale: 1.01 }] }
-                        ]}
-                    >
-                        <AppleLogo size={20} color={COLORS.paper} weight="fill" />
-                        <Typography variant="label" style={{ color: COLORS.paper, marginLeft: 10 }}>CONTINUE WITH APPLE</Typography>
-                    </Pressable>
+                    {Platform.OS === 'ios' && AppleAuthentication && (
+                        <View style={{ height: 52, marginVertical: 6 }}>
+                            <AppleAuthentication.AppleAuthenticationButton
+                                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                                cornerRadius={RADIUS.pill}
+                                style={{ width: '100%', height: '100%' }}
+                                onPress={handleAppleSignIn}
+                            />
+                        </View>
+                    )}
+
+                    {Platform.OS !== 'ios' && (
+                        <Pressable
+                            onPress={handleAppleSignIn}
+                            disabled={loading}
+                            style={({ hovered }: any) => [
+                                styles.socialButtonApple,
+                                loading && { opacity: 0.5 },
+                                hovered && Platform.OS === 'web' && { opacity: 0.8, transform: [{ scale: 1.01 }] }
+                            ]}
+                        >
+                            <AppleLogo size={20} color={COLORS.paper} weight="fill" />
+                            <Typography variant="label" style={{ color: COLORS.paper, marginLeft: 10 }}>CONTINUE WITH APPLE</Typography>
+                        </Pressable>
+                    )}
 
                     <Pressable
                         onPress={handleGoogleSignIn}

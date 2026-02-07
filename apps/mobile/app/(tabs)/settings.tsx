@@ -277,6 +277,12 @@ export default function ProfileScreen() {
                         onPress={() => Linking.openURL('https://sift-rho.vercel.app/terms')}
                         icon={<FileText size={20} color={colors.ink} />}
                     />
+                    <SettingsRow
+                        label="Delete Account"
+                        onPress={() => router.push('/settings/privacy')}
+                        icon={<Trash size={20} color="#EF4444" />}
+                        description="Permanently remove your account and data"
+                    />
                 </View>
 
                 {/* 4. SAVED ITEMS SECTION */}

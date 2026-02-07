@@ -23,14 +23,18 @@ export default function PrivacyScreen() {
                     text: 'Delete',
                     style: 'destructive',
                     onPress: async () => {
-                        // In a real app, you'd call a backend function to delete user data
-                        // For now, we sign out and inform the user
-                        const { error } = await supabase.rpc('delete_user_account'); // Assuming an RPC exists or handling via edge function
-                        if (error) {
-                            Alert.alert('Error', 'Account deletion requires manual verification. Please contact support@sift.app');
-                        } else {
-                            await signOut();
-                            router.replace('/auth/login');
+                        try {
+                            const { error } = await supabase.rpc('delete_user_account');
+                            if (error) {
+                                // Fallback info if RPC fails or requires manual steps
+                                Alert.alert('Request Failed', 'We couldn\'t process your request automatically. Please contact support@sift.app to finalize your account deletion.');
+                            } else {
+                                await signOut();
+                                router.replace('/auth/login');
+                                Alert.alert('Account Deleted', 'Your account and data have been permanently removed.');
+                            }
+                        } catch (e) {
+                            Alert.alert('Error', 'An unexpected error occurred. Please try again or contact support.');
                         }
                     }
                 }
