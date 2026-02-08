@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, Platform, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS, TRANSITIONS } from '../lib/theme';
@@ -35,7 +35,9 @@ interface SiftFeedProps {
     onArchive?: (id: string) => void;
     onDeleteForever?: (id: string) => void;
     onEditTags?: (id: string, currentTags: string[]) => void;
-    mode?: 'feed' | 'archive';
+    onOptions?: (item: any) => void;
+    onRemove?: (id: string) => void;
+    mode?: 'feed' | 'archive' | 'edit';
     loading?: boolean;
     ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
     ListEmptyComponent?: React.ComponentType<any> | React.ReactElement | null;
@@ -62,14 +64,16 @@ const getLayoutInfo = (screenWidth: number) => {
     return { numColumns, columnWidth };
 };
 
-const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever, onEditTags, mode = 'feed' }: {
+const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed' }: {
     item: Page,
     index: number,
     onPin?: (id: string) => void,
     onArchive?: (id: string) => void,
     onDeleteForever?: (id: string) => void,
     onEditTags?: (id: string, currentTags: string[]) => void,
-    mode?: 'feed' | 'archive'
+    onOptions?: (item: any) => void,
+    onRemove?: (id: string) => void,
+    mode?: 'feed' | 'archive' | 'edit'
 }) => {
     const { colors, isDark } = useTheme();
     const router = useRouter();
@@ -93,6 +97,11 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
     }, [page]);
 
     const handlePress = () => {
+        if (mode === 'edit') {
+            onRemove?.(item.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            return;
+        }
         Haptics.selectionAsync();
         router.push({
             pathname: `/page/${item.id}`,
@@ -103,56 +112,15 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
         });
     };
 
+    const handleRemove = () => {
+        onRemove?.(item.id);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    };
+
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        const archiveLabel = mode === 'archive' ? 'Restore' : 'Archive';
-        const options = ['Cancel', item.is_pinned ? 'Unpin' : 'Pin', 'Edit Tags', archiveLabel, 'Delete Forever'];
-        const isIOS = Platform.OS === 'ios';
-
-        if (__DEV__) {
-            options.push('View Diagnostics');
-        }
-
-        if (isIOS) {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options,
-                    cancelButtonIndex: 0,
-                    destructiveButtonIndex: options.indexOf('Delete Forever'),
-                    title: item.title,
-                    userInterfaceStyle: isDark ? 'dark' : 'light',
-                },
-                (buttonIndex) => {
-                    const selectedOption = options[buttonIndex];
-                    if (selectedOption === (item.is_pinned ? 'Unpin' : 'Pin')) onPin?.(item.id);
-                    if (selectedOption === 'Edit Tags') onEditTags?.(item.id, item.rawTags || []);
-                    if (selectedOption === archiveLabel) onArchive?.(item.id);
-                    if (selectedOption === 'Delete Forever') onDeleteForever?.(item.id);
-                    if (selectedOption === 'View Diagnostics') {
-                        Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.", [{ text: "Close" }]);
-                    }
-                }
-            );
-        } else {
-            const androidButtons: any[] = [
-                { text: 'Cancel', style: 'cancel' },
-                { text: item.is_pinned ? 'Unpin' : 'Pin', onPress: () => onPin?.(item.id) },
-                { text: 'Edit Tags', onPress: () => onEditTags?.(item.id, item.rawTags || []) },
-                { text: archiveLabel, onPress: () => onArchive?.(item.id) },
-            ];
-
-            if (__DEV__) {
-                androidButtons.push({ text: 'View Diagnostics', onPress: () => Alert.alert("Sift Diagnostics", item.debug_info || "No diagnostic information available.") });
-            }
-
-            androidButtons.push({ text: 'Delete Forever', style: 'destructive', onPress: () => onDeleteForever?.(item.id) });
-
-            Alert.alert(
-                item.title,
-                'Manage this Sift',
-                androidButtons
-            );
-        }
+        // Bubble up to parent to show custom ActionSheet
+        onOptions?.(item);
     };
 
     // Container Padding Strategy:
@@ -206,23 +174,34 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
         );
     }
 
+    const shakeAnimation = useAnimatedStyle(() => {
+        // Optional: Add a subtle shake or scale effect in edit mode
+        if (mode === 'edit') {
+            return {
+                transform: [{ scale: 0.95 }]
+            };
+        }
+        return {};
+    });
+
     return (
         <Animated.View
             entering={FadeIn.duration(400).easing(Easing.out(Easing.quad))}
             exiting={FadeOut.duration(200)}
-            style={{
+            style={[{
                 width: columnWidth,
                 marginBottom: GRID_GAP,
                 transform: Platform.OS === 'web' ? [{ scale: isHovered ? 1.02 : 1 }] : [],
-            }}
+            }, shakeAnimation]}
         >
             <Pressable
                 style={styles.cardContainer}
-                onPress={handlePress}
-                onLongPress={handleLongPress}
+                onPress={mode === 'edit' ? handleRemove : handlePress}
+                onLongPress={mode === 'edit' ? undefined : handleLongPress}
                 delayLongPress={300}
                 onHoverIn={() => setIsHovered(true)}
                 onHoverOut={() => setIsHovered(false)}
+                disabled={item.status === 'pending'}
             >
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
@@ -247,7 +226,7 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                             placeholder={item.blurhash || 'LKO2?V%2Tw=w]~RBVZRi_Noz9HkC'} // Default blurhash
                             contentFit="cover"
                             transition={500}
-                            style={styles.image}
+                            style={[styles.image, mode === 'edit' && { opacity: 0.8 }]}
                         />
                     )}
 
@@ -276,6 +255,15 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                             </Typography>
                         </View>
                     </Animated.View>
+
+                    {/* Checkbox / Remove Overlay for Edit Mode */}
+                    {mode === 'edit' && (
+                        <View style={styles.editOverlay}>
+                            <View style={styles.removeBadge}>
+                                <Minus size={16} color="white" weight="bold" />
+                            </View>
+                        </View>
+                    )}
                 </View>
             </Pressable>
         </Animated.View>
@@ -288,7 +276,9 @@ export default function SiftFeed({
     onArchive,
     onDeleteForever,
     onEditTags,
-    mode = 'feed',
+    onOptions,
+    onRemove,
+    mode = 'feed', // 'feed' | 'archive' | 'edit'
     loading = false,
     ListHeaderComponent,
     ListEmptyComponent,
@@ -303,6 +293,14 @@ export default function SiftFeed({
     const { width } = useWindowDimensions();
     const { numColumns, columnWidth } = getLayoutInfo(width);
 
+    const data = useMemo(() => {
+        if (mode === 'edit') {
+            // Inject a dummy item for the "Add Sifts" card
+            return [{ id: 'edit-collection-card', type: 'edit-action' }, ...pages];
+        }
+        return pages;
+    }, [mode, pages]);
+
     if (loading) {
         return (
             <View style={{ flex: 1, backgroundColor: colors.canvas }}>
@@ -314,23 +312,56 @@ export default function SiftFeed({
 
     return (
         <FlashList
-            data={pages}
-            keyExtractor={(item) => item.id}
+            data={data}
+            keyExtractor={(item) => (item as any).id}
             numColumns={numColumns}
-            extraData={isDark} // Minimal extraData to prevent unnecessary re-renders
+            extraData={[isDark, mode]} // Re-render when mode changes
             // @ts-ignore
             estimatedItemSize={250}
-            renderItem={({ item, index }) => (
-                <Card
-                    item={item}
-                    index={index}
-                    onPin={onPin}
-                    onArchive={onArchive}
-                    onDeleteForever={onDeleteForever}
-                    onEditTags={onEditTags}
-                    mode={mode}
-                />
-            )}
+            renderItem={({ item, index }) => {
+                if ((item as any).type === 'edit-action') {
+                    return (
+                        <View style={{
+                            width: columnWidth,
+                            marginBottom: GRID_GAP,
+                            height: columnWidth, // Make it square like other cards
+                        }}>
+                            <Pressable
+                                style={[styles.cardContainer, {
+                                    flex: 1,
+                                    backgroundColor: colors.paper,
+                                    borderRadius: RADIUS.l,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    borderWidth: 2,
+                                    borderColor: colors.subtle,
+                                    borderStyle: 'dashed'
+                                }]}
+                                onPress={() => onOptions?.({ type: 'trigger-picker' })}
+                            >
+                                <View style={[styles.removeBadge, { backgroundColor: colors.ink, width: 48, height: 48, borderRadius: 24, marginBottom: 8 }]}>
+                                    <Plus size={24} color="white" weight="bold" />
+                                </View>
+                                <Typography variant="label" style={{ fontWeight: 'bold' }}>Add Sifts</Typography>
+                            </Pressable>
+                        </View>
+                    );
+                }
+
+                return (
+                    <Card
+                        item={item as Page}
+                        index={index}
+                        onPin={onPin}
+                        onArchive={onArchive}
+                        onDeleteForever={onDeleteForever}
+                        onEditTags={onEditTags}
+                        onOptions={onOptions}
+                        onRemove={onRemove}
+                        mode={mode}
+                    />
+                );
+            }}
             ListHeaderComponent={ListHeaderComponent}
             ListEmptyComponent={!loading ? ListEmptyComponent : null}
             onScroll={onScroll}
@@ -349,8 +380,7 @@ export default function SiftFeed({
 }
 
 import { LinearGradient } from 'expo-linear-gradient';
-
-// ... (other imports)
+import { Minus, Plus } from 'phosphor-react-native';
 
 const styles = StyleSheet.create({
     cardContainer: {
@@ -416,6 +446,25 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         letterSpacing: 1,
         fontFamily: 'Inter_500Medium',
+    },
+    editOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        padding: 10,
+    },
+    removeBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: COLORS.danger,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
     }
 });
 

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert, Pressable, ActionSheetIOS } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert, Pressable, ActionSheetIOS, Modal } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CompactSiftList from '../../components/CompactSiftList';
 import { CategoryModal, CategoryData } from '../../components/modals/CategoryModal';
+import { ActionSheet } from '../../components/modals/ActionSheet';
 import { FolderModal, FolderData } from '../../components/modals/FolderModal';
 
 const { width } = Dimensions.get('window');
@@ -90,7 +91,9 @@ export default function LibraryScreen() {
     const [editingFolder, setEditingFolder] = useState<FolderData | null>(null);
 
     // Category Modal State
+    // Category Modal State
     const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+    const [categoryActionSheetVisible, setCategoryActionSheetVisible] = useState(false);
     const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null);
 
     // Load saved view preference
@@ -305,6 +308,32 @@ export default function LibraryScreen() {
         }
     };
 
+    const handleSaveCategory = async (cat: CategoryData) => {
+        try {
+            const { error } = await supabase
+                .from('categories')
+                .upsert({
+                    id: cat.id || undefined,
+                    name: cat.name,
+                    icon: cat.icon,
+                    tags: cat.tags,
+                    user_id: user?.id,
+                    sort_order: cat.sort_order || 999
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+            setCategoryModalVisible(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error: any) {
+            console.error("Error saving category:", error);
+            Alert.alert("Error", "Failed to save category");
+        }
+    };
+
     // Folder CRUD handlers
     const handleSaveFolder = async (folder: FolderData) => {
         if (!user?.id) return;
@@ -514,52 +543,17 @@ export default function LibraryScreen() {
                                 style={styles.manageButton}
                                 onPress={() => {
                                     Haptics.selectionAsync();
+                                    console.log('Manage Category Pressed. Active:', activeCategory);
                                     const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+                                    console.log('Current Category Found:', currentCat);
 
                                     if (!currentCat) {
                                         Alert.alert("Manage Category", "Options unavailable for this view.");
                                         return;
                                     }
 
-                                    if (Platform.OS === 'ios') {
-                                        ActionSheetIOS.showActionSheetWithOptions(
-                                            {
-                                                options: ['Cancel', 'Edit Category', 'Delete Category'],
-                                                destructiveButtonIndex: 2,
-                                                cancelButtonIndex: 0,
-                                            },
-                                            (buttonIndex) => {
-                                                if (buttonIndex === 1) {
-                                                    setEditingCategory(currentCat);
-                                                    setCategoryModalVisible(true);
-                                                } else if (buttonIndex === 2) {
-                                                    // Handle delete confirmation
-                                                    handleDeleteCategory(currentCat.id);
-                                                }
-                                            }
-                                        );
-                                    } else {
-                                        // Android fallback
-                                        Alert.alert(
-                                            'Manage Category',
-                                            'Choose an action',
-                                            [
-                                                { text: 'Cancel', style: 'cancel' },
-                                                {
-                                                    text: 'Edit Category',
-                                                    onPress: () => {
-                                                        setEditingCategory(currentCat);
-                                                        setCategoryModalVisible(true);
-                                                    }
-                                                },
-                                                {
-                                                    text: 'Delete Category',
-                                                    onPress: () => handleDeleteCategory(currentCat.id),
-                                                    style: 'destructive'
-                                                }
-                                            ]
-                                        );
-                                    }
+                                    setEditingCategory(currentCat);
+                                    setCategoryActionSheetVisible(true);
                                 }}
                             >
                                 <DotsThree size={28} color={colors.ink} />
@@ -692,6 +686,61 @@ export default function LibraryScreen() {
                     initialTags={selectedSiftTags}
                     onSave={handleSaveTags}
                 />
+
+                <CategoryModal
+                    visible={categoryModalVisible}
+                    onClose={() => setCategoryModalVisible(false)}
+                    onSave={handleSaveCategory}
+                    onDelete={handleDeleteCategory}
+                    existingCategory={editingCategory}
+                    suggestedTags={allUsedTags}
+                />
+
+                <ActionSheet
+                    visible={categoryActionSheetVisible}
+                    onClose={() => setCategoryActionSheetVisible(false)}
+                    title={activeCategory || 'Options'}
+                    options={[
+                        {
+                            label: 'Edit Category',
+                            onPress: () => {
+                                const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+                                if (currentCat) {
+                                    setEditingCategory(currentCat);
+                                    // Small delay to allow action sheet to close
+                                    setTimeout(() => setCategoryModalVisible(true), 100);
+                                }
+                            }
+                        },
+                        {
+                            label: 'Delete Category',
+                            isDestructive: true,
+                            onPress: () => {
+                                const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+                                if (currentCat) {
+                                    Alert.alert(
+                                        "Delete Category",
+                                        "Are you sure? Sifts inside won't be deleted.",
+                                        [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            {
+                                                text: 'Delete',
+                                                style: 'destructive',
+                                                onPress: () => handleDeleteCategory(currentCat.id)
+                                            }
+                                        ]
+                                    );
+                                }
+                            }
+                        },
+                        {
+                            label: 'Cancel',
+                            isCancel: true,
+                            onPress: () => { }
+                        }
+                    ]}
+                />
+
 
                 <FolderModal
                     visible={folderModalVisible}
@@ -919,8 +968,8 @@ const styles = StyleSheet.create({
     },
     emptyState: {
         width: '100%',
-        paddingVertical: 40,
         alignItems: 'center',
+        paddingVertical: 40,
     },
     sectionLabel: {
         width: '100%',

@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, RefreshControl, Alert, ActionSheetIOS, Platform } from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, RefreshControl, Alert, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { CaretLeft, PencilSimple, Folder, ShareNetwork, Trash, DotsThree } from 'phosphor-react-native';
+import { CaretLeft, Folder, ShareNetwork, DotsThree } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
-import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
+import { COLORS, SPACING, RADIUS } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
@@ -12,8 +12,11 @@ import { useAuth } from '../../lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import SiftFeed from '../../components/SiftFeed';
 import { FolderModal, FolderData } from '../../components/modals/FolderModal';
+import { ActionSheet } from '../../components/modals/ActionSheet';
+import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import { Plus, Minus, PencilSimple, Trash } from 'phosphor-react-native';
 
 interface FolderItem {
     id: string;
@@ -22,16 +25,22 @@ interface FolderItem {
     icon: string;
     sort_order: number;
     created_at: string;
+    is_pinned?: boolean;
 }
 
 export default function FolderScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
-    const { colors, isDark } = useTheme();
+    const { colors } = useTheme();
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
+    const [actionSheetVisible, setActionSheetVisible] = useState(false);
+
+    // Folder Edit Mode State
+    const [isEditing, setIsEditing] = useState(false);
+    const [siftPickerVisible, setSiftPickerVisible] = useState(false);
 
     // Fetch folder details
     const { data: folder } = useQuery({
@@ -75,11 +84,59 @@ export default function FolderScreen() {
     const handleUpdateFolder = async (folderData: FolderData) => {
         const { error } = await supabase
             .from('folders')
-            .update({ name: folderData.name, color: folderData.color, icon: folderData.icon })
+            .update({
+                name: folderData.name,
+                color: folderData.color,
+                icon: folderData.icon,
+                is_pinned: folderData.is_pinned
+            })
             .eq('id', id);
         if (error) throw error;
         queryClient.resetQueries({ queryKey: ['folder', id] });
         queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+    };
+
+    const handleAddSifts = async (selectedIds: string[]) => {
+        if (!id) return;
+        try {
+            const updates = selectedIds.map(siftId => ({
+                id: siftId,
+                folder_id: id
+            }));
+
+            // Batch update using upsert or loop (Sift doesn't support batch update easily via client lib sometimes, 
+            // but we can try updating pages where ID in list)
+
+            // Using a loop for safety as batch update on single table requires different syntax usually
+            const { error } = await supabase
+                .from('pages')
+                .update({ folder_id: id })
+                .in('id', selectedIds);
+
+            if (error) throw error;
+
+            await refetch();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Failed to add sifts.");
+        }
+    };
+
+    const handleRemoveSift = async (siftId: string) => {
+        // Optimistic update
+        const previousPages = queryClient.getQueryData(['folder-pages', id]);
+        queryClient.setQueryData(['folder-pages', id], (old: any[]) => old.filter(p => p.id !== siftId));
+
+        const { error } = await supabase
+            .from('pages')
+            .update({ folder_id: null })
+            .eq('id', siftId);
+
+        if (error) {
+            queryClient.setQueryData(['folder-pages', id], previousPages);
+            Alert.alert("Error", "Failed to remove sift.");
+        }
     };
 
     const handleDeleteFolder = async (folderId: string) => {
@@ -94,8 +151,13 @@ export default function FolderScreen() {
             .delete()
             .eq('id', folderId);
         if (error) throw error;
-        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
         router.back();
+    };
+
+    const toggleEditMode = () => {
+        setIsEditing(!isEditing);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     };
 
     const handleShare = async () => {
@@ -104,19 +166,6 @@ export default function FolderScreen() {
         await Clipboard.setStringAsync(deepLink);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert('Link Copied', `Share this link:\n${deepLink}`);
-    };
-
-    const handleRemoveFromFolder = async (pageId: string) => {
-        const { error } = await supabase
-            .from('pages')
-            .update({ folder_id: null })
-            .eq('id', pageId);
-        if (error) {
-            Alert.alert('Error', 'Failed to remove from folder');
-            return;
-        }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        refetch();
     };
 
     if (!folder) {
@@ -148,60 +197,26 @@ export default function FolderScreen() {
                     </Typography>
                 </View>
 
-                <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
-                    <ShareNetwork size={22} color={colors.ink} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={() => {
-                        Haptics.selectionAsync();
-                        if (Platform.OS === 'ios') {
-                            ActionSheetIOS.showActionSheetWithOptions(
-                                {
-                                    options: ['Cancel', 'Edit Folder', 'Delete Folder'],
-                                    destructiveButtonIndex: 2,
-                                    cancelButtonIndex: 0,
-                                },
-                                (buttonIndex) => {
-                                    if (buttonIndex === 1) {
-                                        setEditModalVisible(true);
-                                    } else if (buttonIndex === 2) {
-                                        // Handle delete confirmation via Alert inside handle function or here
-                                        Alert.alert(
-                                            'Delete Folder',
-                                            `Are you sure you want to delete "${folder.name}"? Sifts in this folder won't be deleted.`,
-                                            [
-                                                { text: 'Cancel', style: 'cancel' },
-                                                {
-                                                    text: 'Delete',
-                                                    style: 'destructive',
-                                                    onPress: () => handleDeleteFolder(folder.id)
-                                                }
-                                            ]
-                                        );
-                                    }
-                                }
-                            );
-                        } else {
-                            // Android fallback
-                            Alert.alert(
-                                'Folder Options',
-                                'Choose an action',
-                                [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    { text: 'Edit Folder', onPress: () => setEditModalVisible(true) },
-                                    {
-                                        text: 'Delete Folder',
-                                        onPress: () => handleDeleteFolder(folder.id),
-                                        style: 'destructive'
-                                    }
-                                ]
-                            );
-                        }
-                    }}
-                    style={styles.actionButton}
-                >
-                    <DotsThree size={24} color={colors.ink} weight="bold" />
-                </TouchableOpacity>
+                {isEditing ? (
+                    <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.actionButton}>
+                        <Typography variant="label" color="ink" style={{ fontWeight: '600' }}>Done</Typography>
+                    </TouchableOpacity>
+                ) : (
+                    <>
+                        <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
+                            <ShareNetwork size={22} color={colors.ink} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.selectionAsync();
+                                setActionSheetVisible(true);
+                            }}
+                            style={styles.actionButton}
+                        >
+                            <DotsThree size={24} color={colors.ink} weight="bold" />
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
             {/* Stats */}
@@ -215,6 +230,13 @@ export default function FolderScreen() {
             <SiftFeed
                 pages={pages as any}
                 loading={isLoading}
+                mode={isEditing ? 'edit' : 'feed'}
+                onOptions={(item) => {
+                    if (item.type === 'trigger-picker') {
+                        setSiftPickerVisible(true);
+                    }
+                }}
+                onRemove={handleRemoveSift}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                 }
@@ -238,7 +260,53 @@ export default function FolderScreen() {
                 onClose={() => setEditModalVisible(false)}
                 onSave={handleUpdateFolder}
                 onDelete={handleDeleteFolder}
-                existingFolder={{ id: folder.id, name: folder.name, color: folder.color, icon: folder.icon }}
+                existingFolder={{
+                    id: folder.id,
+                    name: folder.name,
+                    color: folder.color,
+                    icon: folder.icon,
+                    is_pinned: folder.is_pinned
+                }}
+            />
+
+            <ActionSheet
+                visible={actionSheetVisible}
+                onClose={() => setActionSheetVisible(false)}
+                title={folder.name}
+                options={[
+                    {
+                        label: 'Edit Folder',
+                        onPress: () => {
+                            setTimeout(() => setEditModalVisible(true), 100);
+                        }
+                    },
+                    {
+                        label: 'Delete Folder',
+                        isDestructive: true,
+                        onPress: () => {
+                            Alert.alert(
+                                "Delete Folder",
+                                "Are you sure you want to delete this folder? This action cannot be undone.",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    { text: "Delete", style: "destructive", onPress: () => handleDeleteFolder(id as string) }
+                                ]
+                            );
+                        }
+                    },
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ]}
+            />
+
+            <SiftPickerModal
+                visible={siftPickerVisible}
+                onClose={() => setSiftPickerVisible(false)}
+                onSelect={handleAddSifts}
+                currentFolderSiftIds={pages.map((p: any) => p.id)}
             />
         </ScreenWrapper>
     );
@@ -297,6 +365,24 @@ const styles = StyleSheet.create({
         top: '40%',
         left: 0,
         right: 0,
+        alignItems: 'center',
+    },
+    listHeader: {
+        marginBottom: 16,
+    },
+    editCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+        gap: 12,
+    },
+    editIconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
         alignItems: 'center',
     },
 });

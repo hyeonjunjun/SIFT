@@ -1,4 +1,4 @@
-import { ActionSheetIOS, Platform, View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { Platform, View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import * as Linking from 'expo-linking';
@@ -26,6 +26,7 @@ import Fuse from "fuse.js";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SiftLimitTracker } from "../../components/SiftLimitTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
+import { ActionSheet } from "../../components/modals/ActionSheet";
 
 interface Page {
     id: string;
@@ -565,33 +566,11 @@ export default function HomeScreen() {
         }
     };
 
+    const [addMenuVisible, setAddMenuVisible] = useState(false);
+
     const showAddMenu = () => {
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options: ['Cancel', 'Scan from Gallery', 'Paste Link'],
-                    cancelButtonIndex: 0,
-                    tintColor: COLORS.ink,
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) {
-                        pickAndSift();
-                    } else if (buttonIndex === 2) {
-                        inputRef.current?.focus();
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                "Add to Sift",
-                "How would you like to add content?",
-                [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Scan from Gallery", onPress: pickAndSift },
-                    { text: "Paste Link", onPress: () => inputRef.current?.focus() }
-                ]
-            );
-        }
+        setAddMenuVisible(true);
+        Haptics.selectionAsync();
     };
 
     // Handle Edit Tags from Feed
@@ -599,6 +578,14 @@ export default function HomeScreen() {
         setSelectedSiftId(id);
         setSelectedSiftTags(currentTags);
         setQuickTagModalVisible(true);
+    };
+
+    const [siftActionSheetVisible, setSiftActionSheetVisible] = useState(false);
+    const [selectedSift, setSelectedSift] = useState<any>(null);
+
+    const handleSiftOptions = (item: any) => {
+        setSelectedSift(item);
+        setSiftActionSheetVisible(true);
     };
 
     const handleSaveTags = async (newTags: string[]) => {
@@ -782,6 +769,7 @@ export default function HomeScreen() {
                 onArchive={handleArchive}
                 onDeleteForever={handleDeleteForever}
                 onEditTags={handleEditTagsTrigger}
+                onOptions={handleSiftOptions}
                 loading={loading && fetchStatus !== 'paused'}
                 ListHeaderComponent={HomeHeader}
                 ListEmptyComponent={HomeEmptyState}
@@ -798,6 +786,78 @@ export default function HomeScreen() {
                 onClose={() => setQuickTagModalVisible(false)}
                 initialTags={selectedSiftTags}
                 onSave={handleSaveTags}
+            />
+
+            <ActionSheet
+                visible={addMenuVisible}
+                onClose={() => setAddMenuVisible(false)}
+                title="Add to Sift"
+                options={[
+                    {
+                        label: 'Scan from Gallery',
+                        onPress: () => {
+                            // Slight delay to allow modal to close smoothly before picker opens (optional, but good for stability)
+                            setTimeout(() => pickAndSift(), 100);
+                        }
+                    },
+                    {
+                        label: 'Paste Link',
+                        onPress: () => {
+                            setTimeout(() => inputRef.current?.focus(), 100);
+                        }
+                    },
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ]}
+            />
+
+            <ActionSheet
+                visible={siftActionSheetVisible}
+                onClose={() => setSiftActionSheetVisible(false)}
+                title={selectedSift?.title || 'Sift Options'}
+                options={[
+                    {
+                        label: selectedSift?.is_pinned ? 'Unpin Sift' : 'Pin Sift',
+                        onPress: () => {
+                            if (selectedSift) handlePin(selectedSift.id);
+                        }
+                    },
+                    {
+                        label: 'Edit Tags',
+                        onPress: () => {
+                            setTimeout(() => {
+                                if (selectedSift) handleEditTagsTrigger(selectedSift.id, selectedSift.rawTags || []);
+                            }, 100);
+                        }
+                    },
+                    {
+                        label: 'Archive Sift',
+                        onPress: () => {
+                            if (selectedSift) handleArchive(selectedSift.id);
+                        }
+                    },
+                    {
+                        label: 'Delete Forever',
+                        isDestructive: true,
+                        onPress: () => {
+                            if (selectedSift) handleDeleteForever(selectedSift.id);
+                        }
+                    },
+                    (__DEV__ && selectedSift?.debug_info) ? {
+                        label: 'View Diagnostics',
+                        onPress: () => {
+                            Alert.alert("Sift Diagnostics", selectedSift.debug_info || "No details", [{ text: "Close" }]);
+                        }
+                    } : null,
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ].filter(Boolean) as any}
             />
 
             <LimitReachedModal
