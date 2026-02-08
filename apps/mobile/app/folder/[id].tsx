@@ -16,7 +16,7 @@ import { ActionSheet } from '../../components/modals/ActionSheet';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Plus, Minus, PencilSimple, Trash } from 'phosphor-react-native';
+import { Minus, Trash } from 'phosphor-react-native';
 
 interface FolderItem {
     id: string;
@@ -193,7 +193,7 @@ export default function FolderScreen() {
                         <Folder size={20} color="#FFFFFF" weight="fill" />
                     </View>
                     <Typography variant="h3" numberOfLines={1} style={{ flex: 1 }}>
-                        {folder.name}
+                        {isEditing ? "Remove Sifts" : folder.name}
                     </Typography>
                 </View>
 
@@ -231,11 +231,6 @@ export default function FolderScreen() {
                 pages={pages as any}
                 loading={isLoading}
                 mode={isEditing ? 'edit' : 'feed'}
-                onOptions={(item) => {
-                    if (item.type === 'trigger-picker') {
-                        setSiftPickerVisible(true);
-                    }
-                }}
                 onRemove={handleRemoveSift}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
@@ -275,9 +270,21 @@ export default function FolderScreen() {
                 title={folder.name}
                 options={[
                     {
-                        label: 'Edit Folder',
+                        label: 'Add Sifts',
                         onPress: () => {
-                            setTimeout(() => setEditModalVisible(true), 100);
+                            setTimeout(() => setSiftPickerVisible(true), 200);
+                        }
+                    },
+                    {
+                        label: 'Remove Sifts',
+                        onPress: () => {
+                            setIsEditing(true);
+                        }
+                    },
+                    {
+                        label: 'Edit Folder Details',
+                        onPress: () => {
+                            setTimeout(() => setEditModalVisible(true), 200);
                         }
                     },
                     {
@@ -369,20 +376,5 @@ const styles = StyleSheet.create({
     },
     listHeader: {
         marginBottom: 16,
-    },
-    editCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderRadius: RADIUS.m,
-        borderWidth: 1,
-        gap: 12,
-    },
-    editIconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
 });

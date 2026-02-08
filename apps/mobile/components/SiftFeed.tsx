@@ -380,7 +380,7 @@ export default function SiftFeed({
 }
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Minus, Plus } from 'phosphor-react-native';
+import { Minus } from 'phosphor-react-native';
 
 const styles = StyleSheet.create({
     cardContainer: {
