@@ -191,6 +191,22 @@ begin
   end if;
 end $$;
 
+-- Add is_pinned to pages if not exists
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'pages' and column_name = 'is_pinned') then
+    alter table public.pages add column is_pinned boolean default false;
+  end if;
+end $$;
+
+-- Add is_pinned to folders if not exists
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'folders' and column_name = 'is_pinned') then
+    alter table public.folders add column is_pinned boolean default false;
+  end if;
+end $$;
+
 -- Index for folder queries
 create index if not exists idx_folders_user_id on public.folders(user_id);
 create index if not exists idx_pages_folder_id on public.pages(folder_id);

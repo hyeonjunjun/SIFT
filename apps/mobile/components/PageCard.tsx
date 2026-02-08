@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Alert, Pressable, Text, ActionSheetIOS, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Trash, PushPin as Pin } from 'phosphor-react-native';
+import { Trash, PushPin, Star, Heart } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -11,6 +11,7 @@ import { COLORS, RADIUS, Theme, LIGHT_COLORS, DARK_COLORS, TRANSITIONS } from '.
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { useTheme } from '../context/ThemeContext';
+import { usePersonalization } from '../context/PersonalizationContext';
 
 interface PageCardProps {
     id: string;
@@ -30,12 +31,19 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) => {
     const { colors, isDark, theme } = useTheme();
     const router = useRouter();
+    const { pinIcon } = usePersonalization();
     const scale = useSharedValue(1);
     const [imageError, setImageError] = React.useState(false);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
     }));
+
+    const PinIconComponent = {
+        'star': Star,
+        'pin': PushPin,
+        'heart': Heart
+    }[pinIcon] || Star;
 
     // Fallback Title Logic
     const displayTitle = (title && title !== 'Untitled Page') ? title : (url ? getDomain(url) : 'Untitled Page');
@@ -187,7 +195,7 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
                             borderRadius: 100,
                             ...Theme.shadows.soft
                         }}>
-                            <Pin size={12} color={colors.accent} weight="fill" />
+                            <PinIconComponent size={14} color={colors.accent} weight="fill" />
                         </View>
                     )}
 

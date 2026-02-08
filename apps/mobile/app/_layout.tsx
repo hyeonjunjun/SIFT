@@ -13,6 +13,7 @@ import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
+import { PersonalizationProvider } from "../context/PersonalizationContext";
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -191,30 +192,35 @@ function RootLayoutNav() {
         prepare();
     }, []);
 
+    // Helper for safe splash dismissal
+    const safeHideSplash = useCallback(async () => {
+        try {
+            await SplashScreenIs.hideAsync();
+        } catch (e) {
+            // Put explicit catch here to consume the promise rejection
+            // Benign error during reloading: "No native splash screen registered..."
+        }
+    }, []);
+
     // Splash Dismissal Logic
     useEffect(() => {
         // Safety timeout: Force hide splash after 6 seconds regardless of state
         // Runs once on mount to ensure we never get stuck
         const safetyTimer = setTimeout(() => {
-            console.warn("[Splash] Safety timer triggered. Forcing dismissal.");
+            console.log("[Splash] Safety timer triggered.");
             setSplashDismissed(true);
             setSplashAnimationFinished(true);
-            try {
-                SplashScreenIs.hideAsync().catch(() => { /* Benign: Already hidden */ });
-            } catch (e) { }
+            safeHideSplash();
         }, 6000);
         return () => clearTimeout(safetyTimer);
-    }, []);
+    }, [safeHideSplash]);
 
     useEffect(() => {
         if (appReady && fontsLoaded && splashAnimationFinished && !authLoading) {
             setSplashDismissed(true);
-            try {
-                // Ensure this call doesn't throw unhandled promise rejection
-                SplashScreenIs.hideAsync().catch(() => { /* Benign: Already hidden */ });
-            } catch (e) { }
+            safeHideSplash();
         }
-    }, [appReady, fontsLoaded, splashAnimationFinished, authLoading]);
+    }, [appReady, fontsLoaded, splashAnimationFinished, authLoading, safeHideSplash]);
 
     // Auth Redirection Logic
     useEffect(() => {
@@ -292,7 +298,9 @@ export default function RootLayout() {
                     persistOptions={{ persister: asyncStoragePersister }}
                 >
                     <AuthProvider>
-                        <RootLayoutNav />
+                        <PersonalizationProvider>
+                            <RootLayoutNav />
+                        </PersonalizationProvider>
                     </AuthProvider>
                 </PersistQueryClientProvider>
             </ThemeProvider>

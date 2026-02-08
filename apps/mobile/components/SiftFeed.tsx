@@ -293,13 +293,8 @@ export default function SiftFeed({
     const { width } = useWindowDimensions();
     const { numColumns, columnWidth } = getLayoutInfo(width);
 
-    const data = useMemo(() => {
-        if (mode === 'edit') {
-            // Inject a dummy item for the "Add Sifts" card
-            return [{ id: 'edit-collection-card', type: 'edit-action' }, ...pages];
-        }
-        return pages;
-    }, [mode, pages]);
+    // Filter out edit-action injection
+    const data = pages;
 
     if (loading) {
         return (
@@ -319,35 +314,6 @@ export default function SiftFeed({
             // @ts-ignore
             estimatedItemSize={250}
             renderItem={({ item, index }) => {
-                if ((item as any).type === 'edit-action') {
-                    return (
-                        <View style={{
-                            width: columnWidth,
-                            marginBottom: GRID_GAP,
-                            height: columnWidth, // Make it square like other cards
-                        }}>
-                            <Pressable
-                                style={[styles.cardContainer, {
-                                    flex: 1,
-                                    backgroundColor: colors.paper,
-                                    borderRadius: RADIUS.l,
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    borderWidth: 2,
-                                    borderColor: colors.subtle,
-                                    borderStyle: 'dashed'
-                                }]}
-                                onPress={() => onOptions?.({ type: 'trigger-picker' })}
-                            >
-                                <View style={[styles.removeBadge, { backgroundColor: colors.ink, width: 48, height: 48, borderRadius: 24, marginBottom: 8 }]}>
-                                    <Plus size={24} color="white" weight="bold" />
-                                </View>
-                                <Typography variant="label" style={{ fontWeight: 'bold' }}>Add Sifts</Typography>
-                            </Pressable>
-                        </View>
-                    );
-                }
-
                 return (
                     <Card
                         item={item as Page}

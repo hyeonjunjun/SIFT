@@ -23,6 +23,7 @@ import CompactSiftList from '../../components/CompactSiftList';
 import { CategoryModal, CategoryData } from '../../components/modals/CategoryModal';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { FolderModal, FolderData } from '../../components/modals/FolderModal';
+import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -95,6 +96,8 @@ export default function LibraryScreen() {
     const [categoryModalVisible, setCategoryModalVisible] = useState(false);
     const [categoryActionSheetVisible, setCategoryActionSheetVisible] = useState(false);
     const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null);
+    const [isCategoryEditing, setIsCategoryEditing] = useState(false);
+    const [siftPickerVisible, setSiftPickerVisible] = useState(false);
 
     // Load saved view preference
     useEffect(() => {
@@ -124,6 +127,7 @@ export default function LibraryScreen() {
                 .select('id, title, url, tags, created_at, folder_id, metadata')
                 .eq('user_id', user.id)
                 .eq('is_archived', false)
+                .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -226,6 +230,7 @@ export default function LibraryScreen() {
             if (activeCategory) {
                 // If in a category, reset to main catalog
                 setActiveCategory(null);
+                setIsCategoryEditing(false);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
         });
@@ -430,6 +435,86 @@ export default function LibraryScreen() {
         });
     };
 
+    const handleAddCategorySifts = async (selectedIds: string[]) => {
+        if (!activeCategory || !user?.id) return;
+
+        try {
+            // Processing each update
+            const updates = selectedIds.map(async (id) => {
+                const page = pages.find(p => p.id === id);
+                if (!page) return;
+
+                const currentTags = page.tags || [];
+                if (!currentTags.includes(activeCategory)) { // Case-sensitive check? Logic mostly assumes uppercase
+                    const newTags = [...currentTags, activeCategory];
+                    await supabase
+                        .from('pages')
+                        .update({ tags: newTags })
+                        .eq('id', id);
+                }
+            });
+
+            await Promise.all(updates);
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        } catch (error) {
+            console.error('Error adding sifts to category:', error);
+            Alert.alert('Error', 'Failed to add sifts');
+        }
+    };
+
+    const handleRemoveCategorySift = async (id: string) => {
+        if (!activeCategory) return;
+
+        // Optimistic removal
+        const page = pages.find(p => p.id === id);
+        if (!page) return;
+
+        // Optimistically update cache
+        queryClient.setQueryData(['pages', user?.id], (old: SiftItem[] | undefined) => {
+            if (!old) return [];
+            return old.map(p => {
+                if (p.id === id) {
+                    // Start removing tag
+                    const newTags = (p.tags || []).filter(t => t.toUpperCase() !== activeCategory.toUpperCase());
+                    // Also check metadata category
+                    const newMetadata = { ...p.metadata };
+                    if (newMetadata.category?.toUpperCase() === activeCategory.toUpperCase()) {
+                        delete newMetadata.category;
+                    }
+                    return { ...p, tags: newTags, metadata: newMetadata };
+                }
+                return p;
+            });
+        });
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        try {
+            const currentTags = page.tags || [];
+            // Filter out the active category tag
+            const newTags = currentTags.filter(t => t.toUpperCase() !== activeCategory.toUpperCase());
+
+            // Check metadata legacy field too
+            let metadataUpdate = {};
+            if (page.metadata?.category?.toUpperCase() === activeCategory.toUpperCase()) {
+                metadataUpdate = { metadata: { ...page.metadata, category: null } };
+            }
+
+            const { error } = await supabase
+                .from('pages')
+                .update({ tags: newTags, ...metadataUpdate })
+                .eq('id', id);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error removing sift from category:', error);
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }); // Revert
+            Alert.alert('Error', 'Failed to remove sift');
+        }
+    };
+
     const openFolderModal = (folder?: FolderItem) => {
         if (folder) {
             setEditingFolder({ id: folder.id, name: folder.name, color: folder.color, icon: folder.icon });
@@ -478,6 +563,7 @@ export default function LibraryScreen() {
         .onUpdate((event) => {
             if (activeCategory && event.translationX > 80 && Math.abs(event.translationY) < 30) {
                 runOnJS(setActiveCategory)(null);
+                runOnJS(setIsCategoryEditing)(false);
                 runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
             }
         })
@@ -507,16 +593,25 @@ export default function LibraryScreen() {
                 {/* 1. EDITORIAL HEADER */}
                 <View style={styles.header}>
                     {activeCategory ? (
-                        <TouchableOpacity
-                            onPress={() => setActiveCategory(null)}
-                            style={styles.backButton}
-                        >
-                            <CaretLeft size={28} color={colors.ink} />
-                        </TouchableOpacity>
+                        isCategoryEditing ? (
+                            <TouchableOpacity
+                                onPress={() => setIsCategoryEditing(false)}
+                                style={styles.backButton}
+                            >
+                                <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                onPress={() => setActiveCategory(null)}
+                                style={styles.backButton}
+                            >
+                                <CaretLeft size={28} color={colors.ink} />
+                            </TouchableOpacity>
+                        )
                     ) : null}
                     <View style={[styles.titleGroup, activeCategory ? { marginLeft: 12 } : {}]}>
                         <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            {activeCategory ? `CATEGORY / ${activeCategory}` : 'YOUR COLLECTION'}
+                            {activeCategory ? (isCategoryEditing ? 'MANAGING' : `CATEGORY / ${activeCategory}`) : 'YOUR COLLECTION'}
                         </Typography>
                         <Typography variant="h1" style={styles.serifTitle}>
                             {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
@@ -538,25 +633,29 @@ export default function LibraryScreen() {
                                 )}
                             </TouchableOpacity>
                         )}
-                        {activeCategory && (
+                        {activeCategory && !isCategoryEditing && (
                             <TouchableOpacity
                                 style={styles.manageButton}
                                 onPress={() => {
                                     Haptics.selectionAsync();
-                                    console.log('Manage Category Pressed. Active:', activeCategory);
                                     const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
-                                    console.log('Current Category Found:', currentCat);
-
-                                    if (!currentCat) {
-                                        Alert.alert("Manage Category", "Options unavailable for this view.");
-                                        return;
-                                    }
-
+                                    if (!currentCat) return;
                                     setEditingCategory(currentCat);
                                     setCategoryActionSheetVisible(true);
                                 }}
                             >
                                 <DotsThree size={28} color={colors.ink} />
+                            </TouchableOpacity>
+                        )}
+                        {activeCategory && isCategoryEditing && (
+                            <TouchableOpacity
+                                style={styles.manageButton}
+                                onPress={() => {
+                                    Haptics.selectionAsync();
+                                    setSiftPickerVisible(true);
+                                }}
+                            >
+                                <Plus size={24} color={colors.ink} weight="regular" />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -585,6 +684,8 @@ export default function LibraryScreen() {
                                 pages={activeCategoryPages as any}
                                 onEditTags={handleEditTagsTrigger}
                                 loading={loading && fetchStatus !== 'paused'}
+                                mode={isCategoryEditing ? 'edit' : 'feed'}
+                                onRemove={handleRemoveCategorySift}
                                 refreshControl={
                                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                                 }
@@ -702,7 +803,13 @@ export default function LibraryScreen() {
                     title={activeCategory || 'Options'}
                     options={[
                         {
-                            label: 'Edit Category',
+                            label: `Manage ${activeCategory || 'Category'}`,
+                            onPress: () => {
+                                setIsCategoryEditing(true);
+                            }
+                        },
+                        {
+                            label: 'Rename/Icon',
                             onPress: () => {
                                 const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
                                 if (currentCat) {
@@ -749,6 +856,13 @@ export default function LibraryScreen() {
                     onDelete={handleDeleteFolder}
                     onPin={handlePinFolder}
                     existingFolder={editingFolder}
+                />
+
+                <SiftPickerModal
+                    visible={siftPickerVisible}
+                    onClose={() => setSiftPickerVisible(false)}
+                    onSelect={handleAddCategorySifts}
+                    currentFolderSiftIds={activeCategoryPages.map(p => p.id)}
                 />
             </ScreenWrapper>
         </GestureHandlerRootView>

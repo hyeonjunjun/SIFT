@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, RefreshControl, Alert, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { CaretLeft, Folder, ShareNetwork, DotsThree } from 'phosphor-react-native';
+import { CaretLeft, Folder, ShareNetwork, DotsThree, Plus } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -68,6 +68,7 @@ export default function FolderScreen() {
                 .select('id, title, url, tags, created_at, metadata')
                 .eq('folder_id', id)
                 .eq('is_archived', false)
+                .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
@@ -184,25 +185,43 @@ export default function FolderScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <CaretLeft size={28} color={colors.ink} />
-                </TouchableOpacity>
+                {isEditing ? (
+                    <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.backButton}>
+                        <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <CaretLeft size={28} color={colors.ink} />
+                    </TouchableOpacity>
+                )}
 
-                <View style={styles.headerCenter}>
-                    <View style={[styles.folderIcon, { backgroundColor: folder.color }]}>
-                        <Folder size={20} color="#FFFFFF" weight="fill" />
+                <View style={[styles.headerCenter, isEditing && { alignItems: 'flex-start', marginLeft: 16 }]}>
+                    {!isEditing && (
+                        <View style={[styles.folderIcon, { backgroundColor: folder.color }]}>
+                            <Folder size={20} color="#FFFFFF" weight="fill" />
+                        </View>
+                    )}
+                    <View>
+                        {isEditing && (
+                            <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1, fontWeight: '700', marginBottom: 2 }}>
+                                MANAGING
+                            </Typography>
+                        )}
+                        <Typography variant="h3" numberOfLines={1} style={{ fontSize: 20, fontFamily: 'PlayfairDisplay_600SemiBold' }}>
+                            {folder.name}
+                        </Typography>
                     </View>
-                    <Typography variant="h3" numberOfLines={1} style={{ flex: 1 }}>
-                        {isEditing ? "Remove Sifts" : folder.name}
-                    </Typography>
                 </View>
 
                 {isEditing ? (
-                    <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.actionButton}>
-                        <Typography variant="label" color="ink" style={{ fontWeight: '600' }}>Done</Typography>
+                    <TouchableOpacity onPress={() => {
+                        Haptics.selectionAsync();
+                        setSiftPickerVisible(true);
+                    }} style={styles.actionButton}>
+                        <Plus size={24} color={colors.ink} />
                     </TouchableOpacity>
                 ) : (
-                    <>
+                    <View style={styles.headerActions}>
                         <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
                             <ShareNetwork size={22} color={colors.ink} />
                         </TouchableOpacity>
@@ -215,7 +234,7 @@ export default function FolderScreen() {
                         >
                             <DotsThree size={24} color={colors.ink} weight="bold" />
                         </TouchableOpacity>
-                    </>
+                    </View>
                 )}
             </View>
 
@@ -270,13 +289,7 @@ export default function FolderScreen() {
                 title={folder.name}
                 options={[
                     {
-                        label: 'Add Sifts',
-                        onPress: () => {
-                            setTimeout(() => setSiftPickerVisible(true), 200);
-                        }
-                    },
-                    {
-                        label: 'Remove Sifts',
+                        label: `Manage ${folder.name}`,
                         onPress: () => {
                             setIsEditing(true);
                         }
