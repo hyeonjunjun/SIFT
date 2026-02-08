@@ -3,7 +3,7 @@ import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
-import { X, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket, Check, Trash } from 'phosphor-react-native';
+import { X, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket, Check, Trash, PushPin } from 'phosphor-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
@@ -51,6 +51,7 @@ export interface FolderData {
     name: string;
     color: string;
     icon: string;
+    is_pinned?: boolean;
 }
 
 interface FolderModalProps {
@@ -58,14 +59,16 @@ interface FolderModalProps {
     onClose: () => void;
     onSave: (folder: FolderData) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
+    onPin?: (id: string, isPinned: boolean) => Promise<void>;
     existingFolder?: FolderData | null;
 }
 
-export const FolderModal = ({ visible, onClose, onSave, onDelete, existingFolder }: FolderModalProps) => {
+export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existingFolder }: FolderModalProps) => {
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0]);
     const [selectedIcon, setSelectedIcon] = useState('Folder');
+    const [isPinned, setIsPinned] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const isEditMode = !!existingFolder?.id;
@@ -77,10 +80,12 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, existingFolder
                 setName(existingFolder.name);
                 setSelectedColor(existingFolder.color || FOLDER_COLORS[0]);
                 setSelectedIcon(existingFolder.icon || 'Folder');
+                setIsPinned(!!existingFolder.is_pinned);
             } else {
                 setName('');
                 setSelectedColor(FOLDER_COLORS[0]);
                 setSelectedIcon('Folder');
+                setIsPinned(false);
             }
         }
     }, [visible, existingFolder]);
@@ -98,6 +103,7 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, existingFolder
                 name: name.trim(),
                 color: selectedColor,
                 icon: selectedIcon,
+                is_pinned: isPinned
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onClose();
@@ -149,9 +155,27 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, existingFolder
                         <Typography variant="h3">
                             {isEditMode ? 'Edit Folder' : 'New Folder'}
                         </Typography>
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={22} color={colors.stone} />
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                            {isEditMode && onPin && existingFolder?.id && (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        const newPinnedState = !isPinned;
+                                        setIsPinned(newPinnedState);
+                                        onPin(existingFolder.id!, newPinnedState);
+                                    }}
+                                    style={styles.closeButton}
+                                >
+                                    <PushPin
+                                        size={22}
+                                        color={isPinned ? colors.ink : colors.stone}
+                                        weight={isPinned ? "fill" : "regular"}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                                <X size={22} color={colors.stone} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollContent}>
@@ -292,6 +316,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         ...Theme.shadows.soft,
+        position: 'relative',
     },
     sectionLabel: {
         marginBottom: SPACING.s,

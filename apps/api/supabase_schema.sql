@@ -169,7 +169,8 @@ create table if not exists public.folders (
   name text not null,
   color text, -- hex color for folder icon
   icon text, -- phosphor icon name
-  sort_order int default 0
+  sort_order int default 0,
+  is_pinned boolean default false
 );
 
 -- Enable RLS for folders

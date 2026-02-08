@@ -13,6 +13,7 @@ import { useAuth } from '../../lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
+import { PageRow } from '../../components/CompactSiftList';
 
 interface SiftItem {
     id: string;
@@ -114,38 +115,29 @@ export default function HistoryScreen() {
         router.push(`/page/${item.id}`);
     }, [router]);
 
-    const renderItem = ({ item }: { item: SiftItem }) => (
-        <Pressable
-            onPress={() => handlePress(item)}
-            style={({ pressed }) => [styles.row, { backgroundColor: colors.paper, borderColor: colors.separator }, pressed && { opacity: 0.7 }]}
-        >
-            {/* Thumbnail */}
-            <View style={[styles.thumbnail, { backgroundColor: colors.subtle }]}>
-                {item.metadata?.image_url ? (
-                    <Image
-                        source={{ uri: item.metadata.image_url }}
-                        style={styles.thumbnailImage}
-                        contentFit="cover"
-                        transition={200}
-                    />
-                ) : (
-                    <Typography variant="h2" style={{ color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }}>
-                        {(item.title || 'S').charAt(0).toUpperCase()}
-                    </Typography>
-                )}
-            </View>
 
-            {/* Content */}
-            <View style={styles.content}>
-                <Typography variant="body" numberOfLines={1} style={[styles.title, { color: colors.ink }]}>
-                    {item.title || 'Untitled'}
-                </Typography>
-                <Typography variant="caption" numberOfLines={1} style={{ color: colors.stone }}>
-                    {getDomain(item.url)} {item.metadata?.category ? `· ${item.metadata.category.toUpperCase()}` : ''}
-                </Typography>
-            </View>
-        </Pressable>
-    );
+
+    const renderItem = ({ item }: { item: SiftItem }) => {
+        // Adapt item to PageRow format
+        const adaptedItem = {
+            ...item,
+            image_url: item.metadata?.image_url
+        };
+
+        return (
+            <PageRow
+                item={adaptedItem}
+                colors={colors}
+                isDark={isDark}
+                router={router}
+                getDomain={getDomain}
+                formatDate={(d: string) => {
+                    const date = new Date(d);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }}
+            />
+        );
+    };
 
     const renderSectionHeader = ({ section }: { section: { title: string } }) => (
         <View style={[styles.sectionHeader, { backgroundColor: colors.canvas }]}>
@@ -193,6 +185,7 @@ export default function HistoryScreen() {
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 renderSectionHeader={renderSectionHeader}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                 contentContainerStyle={styles.listContent}
                 stickySectionHeadersEnabled={true}
                 ListEmptyComponent={() => (
@@ -251,10 +244,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginHorizontal: 20,
-        marginBottom: 8,
-        padding: 12,
-        borderRadius: RADIUS.m,
-        borderWidth: StyleSheet.hairlineWidth,
+        // marginBottom removed - handled by ItemSeparatorComponent
+        paddingVertical: 4, // Optional internal padding
     },
     thumbnail: {
         width: 48,

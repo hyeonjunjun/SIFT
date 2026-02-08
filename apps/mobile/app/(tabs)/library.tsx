@@ -47,6 +47,7 @@ interface FolderItem {
     icon: string;
     sort_order: number;
     created_at: string;
+    is_pinned?: boolean;
 }
 
 const CATEGORIES = [
@@ -132,17 +133,24 @@ export default function LibraryScreen() {
         queryKey: ['folders', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data, error } = await supabase
-                .from('folders')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('sort_order', { ascending: true });
+            try {
+                const { data, error } = await supabase
+                    .from('folders')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('is_pinned', { ascending: false })
+                    .order('sort_order', { ascending: true });
 
-            if (error) {
-                console.error('Error fetching folders:', error);
-                throw error;
+                if (error) {
+                    // Silently fail if table doesn't exist yet
+                    console.warn('Folders query error (table may not exist):', error.message);
+                    return [];
+                }
+                return (data || []) as FolderItem[];
+            } catch (e) {
+                console.warn('Folders query failed:', e);
+                return [];
             }
-            return (data || []) as FolderItem[];
         },
         enabled: !!user?.id,
     });
@@ -275,6 +283,22 @@ export default function LibraryScreen() {
         if (error) throw error;
         queryClient.resetQueries({ queryKey: ['folders', user?.id] });
         queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+    };
+
+    const handlePinFolder = async (folderId: string, isPinned: boolean) => {
+        const { error } = await supabase
+            .from('folders')
+            .update({ is_pinned: isPinned })
+            .eq('id', folderId);
+
+        if (error) {
+            console.error('Error pinning folder:', error);
+            Alert.alert('Error', 'Failed to update pin status');
+            return;
+        }
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
     };
 
     const openFolderModal = (folder?: FolderItem) => {
@@ -514,6 +538,7 @@ export default function LibraryScreen() {
                     onClose={() => setFolderModalVisible(false)}
                     onSave={handleSaveFolder}
                     onDelete={handleDeleteFolder}
+                    onPin={handlePinFolder}
                     existingFolder={editingFolder}
                 />
             </ScreenWrapper>
@@ -765,7 +790,7 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        bottom: 100,
+        bottom: 110, // Above Nav Bar (approx 80-90px) + padding
         right: 20,
         width: 56,
         height: 56,
