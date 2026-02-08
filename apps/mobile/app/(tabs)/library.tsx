@@ -8,7 +8,7 @@ import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
-import { MagnifyingGlass, CaretLeft, DotsThree } from 'phosphor-react-native';
+import { MagnifyingGlass, CaretLeft, DotsThree, SquaresFour, List, Plus, Folder } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
@@ -18,6 +18,9 @@ import { FeedLoadingScreen } from '../../components/FeedLoadingScreen';
 import { QuickTagEditor } from '../../components/QuickTagEditor';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CompactSiftList from '../../components/CompactSiftList';
+import { FolderModal, FolderData } from '../../components/modals/FolderModal';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -30,10 +33,20 @@ interface SiftItem {
     url: string;
     tags: string[];
     created_at: string;
+    folder_id?: string;
     metadata?: {
         image_url?: string;
         category?: string;
     };
+}
+
+interface FolderItem {
+    id: string;
+    name: string;
+    color: string;
+    icon: string;
+    sort_order: number;
+    created_at: string;
 }
 
 const CATEGORIES = [
@@ -60,10 +73,31 @@ export default function LibraryScreen() {
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
+    // View mode: 'grid' (categories) or 'list' (compact)
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
     const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
     const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
+
+    // Folder Modal State
+    const [folderModalVisible, setFolderModalVisible] = useState(false);
+    const [editingFolder, setEditingFolder] = useState<FolderData | null>(null);
+
+    // Load saved view preference
+    useEffect(() => {
+        AsyncStorage.getItem('library_view_mode').then(saved => {
+            if (saved === 'list' || saved === 'grid') setViewMode(saved);
+        });
+    }, []);
+
+    const toggleViewMode = () => {
+        const newMode = viewMode === 'grid' ? 'list' : 'grid';
+        setViewMode(newMode);
+        AsyncStorage.setItem('library_view_mode', newMode);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    };
 
     const {
         data: pages = [],
@@ -74,10 +108,9 @@ export default function LibraryScreen() {
         queryKey: ['pages', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
             const { data, error } = await supabase
                 .from('pages')
-                .select('id, title, url, tags, created_at, metadata') // OPTIMIZE: Exclude 'content' and 'summary'
+                .select('id, title, url, tags, created_at, folder_id, metadata')
                 .eq('user_id', user.id)
                 .eq('is_archived', false)
                 .order('created_at', { ascending: false });
@@ -87,6 +120,29 @@ export default function LibraryScreen() {
                 throw error;
             }
             return (data || []) as SiftItem[];
+        },
+        enabled: !!user?.id,
+    });
+
+    // Fetch folders
+    const {
+        data: folders = [],
+        refetch: refetchFolders,
+    } = useQuery({
+        queryKey: ['folders', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            const { data, error } = await supabase
+                .from('folders')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('sort_order', { ascending: true });
+
+            if (error) {
+                console.error('Error fetching folders:', error);
+                throw error;
+            }
+            return (data || []) as FolderItem[];
         },
         enabled: !!user?.id,
     });
@@ -146,13 +202,89 @@ export default function LibraryScreen() {
     useFocusEffect(
         useCallback(() => {
             refetch();
-        }, [refetch])
+            refetchFolders();
+        }, [refetch, refetchFolders])
     );
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+        await Promise.all([
+            queryClient.resetQueries({ queryKey: ['pages', user?.id] }),
+            queryClient.resetQueries({ queryKey: ['folders', user?.id] }),
+        ]);
         setRefreshing(false);
+    };
+
+    const handleArchive = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('pages')
+                .update({ is_archived: true })
+                .eq('id', id);
+
+            if (error) throw error;
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+        } catch (error: any) {
+            console.error("Error archiving sift:", error);
+            Alert.alert("Error", "Failed to archive sift");
+        }
+    };
+
+    // Folder CRUD handlers
+    const handleSaveFolder = async (folder: FolderData) => {
+        if (!user?.id) return;
+
+        if (folder.id) {
+            // Update existing folder
+            const { error } = await supabase
+                .from('folders')
+                .update({ name: folder.name, color: folder.color, icon: folder.icon })
+                .eq('id', folder.id);
+            if (error) throw error;
+        } else {
+            // Create new folder
+            const { error } = await supabase
+                .from('folders')
+                .insert({
+                    user_id: user.id,
+                    name: folder.name,
+                    color: folder.color,
+                    icon: folder.icon,
+                    sort_order: folders.length,
+                });
+            if (error) throw error;
+        }
+
+        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+    };
+
+    const handleDeleteFolder = async (folderId: string) => {
+        // First unassign all sifts from this folder
+        await supabase
+            .from('pages')
+            .update({ folder_id: null })
+            .eq('folder_id', folderId);
+
+        // Then delete the folder
+        const { error } = await supabase
+            .from('folders')
+            .delete()
+            .eq('id', folderId);
+
+        if (error) throw error;
+        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+        queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+    };
+
+    const openFolderModal = (folder?: FolderItem) => {
+        if (folder) {
+            setEditingFolder({ id: folder.id, name: folder.name, color: folder.color, icon: folder.icon });
+        } else {
+            setEditingFolder(null);
+        }
+        setFolderModalVisible(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
     const categoryData = useMemo(() => {
@@ -235,14 +367,31 @@ export default function LibraryScreen() {
                             {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
                         </Typography>
                     </View>
-                    {activeCategory && (
-                        <TouchableOpacity
-                            style={styles.manageButton}
-                            onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
-                        >
-                            <DotsThree size={28} color={colors.ink} />
-                        </TouchableOpacity>
-                    )}
+
+                    {/* View Toggle + Options */}
+                    <View style={styles.headerActions}>
+                        {!activeCategory && (
+                            <TouchableOpacity
+                                style={styles.viewToggle}
+                                onPress={toggleViewMode}
+                                activeOpacity={0.7}
+                            >
+                                {viewMode === 'grid' ? (
+                                    <List size={22} color={colors.ink} weight="bold" />
+                                ) : (
+                                    <SquaresFour size={22} color={colors.ink} weight="bold" />
+                                )}
+                            </TouchableOpacity>
+                        )}
+                        {activeCategory && (
+                            <TouchableOpacity
+                                style={styles.manageButton}
+                                onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
+                            >
+                                <DotsThree size={28} color={colors.ink} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 </View>
 
                 {/* 2. SEARCH INPUT (Only in main view) */}
@@ -260,7 +409,7 @@ export default function LibraryScreen() {
                     </View>
                 )}
 
-                {/* 3. BENTO GRID or SIFT FEED */}
+                {/* 3. BENTO GRID, SIFT FEED, or COMPACT LIST */}
                 {activeCategory ? (
                     <GestureDetector gesture={swipeGesture}>
                         <View style={{ flex: 1 }}>
@@ -280,7 +429,19 @@ export default function LibraryScreen() {
                             )}
                         </View>
                     </GestureDetector>
+                ) : viewMode === 'list' ? (
+                    /* COMPACT LIST VIEW */
+                    <CompactSiftList
+                        pages={pages as any}
+                        onArchive={(id) => handleArchive(id)}
+                        onEditTags={handleEditTagsTrigger}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
+                        }
+                        contentContainerStyle={styles.feedContainer}
+                    />
                 ) : (
+                    /* GRID VIEW (Categories) */
                     <ScrollView
                         contentContainerStyle={styles.gridContainer}
                         showsVerticalScrollIndicator={false}
@@ -288,6 +449,34 @@ export default function LibraryScreen() {
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                         }
                     >
+                        {/* FOLDERS SECTION */}
+                        {folders.length > 0 && (
+                            <>
+                                <Typography variant="label" color="stone" style={styles.sectionLabel}>
+                                    YOUR FOLDERS
+                                </Typography>
+                                <View style={styles.folderRow}>
+                                    {folders.map((folder) => (
+                                        <TouchableOpacity
+                                            key={folder.id}
+                                            style={[styles.folderTile, { backgroundColor: folder.color }]}
+                                            onPress={() => router.push(`/folder/${folder.id}`)}
+                                            onLongPress={() => openFolderModal(folder)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Folder size={24} color="#FFFFFF" weight="fill" />
+                                            <Typography variant="caption" style={styles.folderName} numberOfLines={1}>
+                                                {folder.name}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
+                                    CATEGORIES
+                                </Typography>
+                            </>
+                        )}
+
                         <View style={styles.bentoWrapper}>
                             {filteredCategories.map((cat) => (
                                 <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
@@ -301,11 +490,31 @@ export default function LibraryScreen() {
                         </View>
                     </ScrollView>
                 )}
+
+                {/* Floating Action Button - New Folder */}
+                {!activeCategory && viewMode === 'grid' && (
+                    <TouchableOpacity
+                        style={[styles.fab, { backgroundColor: colors.ink }]}
+                        onPress={() => openFolderModal()}
+                        activeOpacity={0.8}
+                    >
+                        <Plus size={24} color={colors.paper} weight="bold" />
+                    </TouchableOpacity>
+                )}
+
                 <QuickTagEditor
                     visible={quickTagModalVisible}
                     onClose={() => setQuickTagModalVisible(false)}
                     initialTags={selectedSiftTags}
                     onSave={handleSaveTags}
+                />
+
+                <FolderModal
+                    visible={folderModalVisible}
+                    onClose={() => setFolderModalVisible(false)}
+                    onSave={handleSaveFolder}
+                    onDelete={handleDeleteFolder}
+                    existingFolder={editingFolder}
                 />
             </ScreenWrapper>
         </GestureHandlerRootView>
@@ -421,6 +630,18 @@ const styles = StyleSheet.create({
     manageButton: {
         padding: 4,
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    viewToggle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -514,6 +735,44 @@ const styles = StyleSheet.create({
         width: '100%',
         paddingVertical: 40,
         alignItems: 'center',
-    }
+    },
+    sectionLabel: {
+        width: '100%',
+        marginBottom: SPACING.s,
+        letterSpacing: 1,
+    },
+    folderRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        width: '100%',
+        marginBottom: SPACING.m,
+    },
+    folderTile: {
+        width: 80,
+        height: 80,
+        borderRadius: RADIUS.l,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...Theme.shadows.soft,
+    },
+    folderName: {
+        color: '#FFFFFF',
+        marginTop: 6,
+        fontWeight: '600',
+        textAlign: 'center',
+        maxWidth: 70,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 100,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...Theme.shadows.medium,
+    },
 });
 

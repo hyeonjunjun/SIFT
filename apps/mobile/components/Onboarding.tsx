@@ -1,25 +1,28 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Animated as RNAnimated, SafeAreaView, Platform } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Animated as RNAnimated, SafeAreaView, Platform, Image } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
-    withDelay,
-    withRepeat,
-    withSequence,
-    Easing
+    withSpring,
+    Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from './design-system/Typography';
-import { COLORS, RADIUS, Theme } from '../lib/theme';
-import { router } from 'expo-router';
-import { ShareNetwork, Funnel, CheckCircle, CaretRight, X } from 'phosphor-react-native';
+import { COLORS, RADIUS } from '../lib/theme';
+import { ArrowRight } from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View as MotiView } from 'moti';
+import * as Haptics from 'expo-haptics';
 
-const { width, height } = Dimensions.get('window');
-const isWeb = Platform.OS === 'web';
-const VISUAL_SIZE = isWeb ? Math.min(width * 0.4, 400) : 250;
+const { width } = Dimensions.get('window');
+
+// Import illustrations
+const ILLUSTRATIONS = {
+    chaos: require('../assets/illustrations/onboarding_chaos.png'),
+    signal: require('../assets/illustrations/onboarding_signal.png'),
+    share: require('../assets/illustrations/onboarding_share.png'),
+};
 
 interface OnboardingProps {
     onComplete: () => void;
@@ -28,18 +31,24 @@ interface OnboardingProps {
 const SLIDES = [
     {
         id: 'chaos',
-        title: 'Calm the chaos.',
-        subtitle: 'The digital world is loud. Sift helps you capture only what truly resonates.',
+        title: 'Calm the\nchaos.',
+        subtitle: 'The digital world is loud.\nSift captures only what resonates.',
+        illustration: ILLUSTRATIONS.chaos,
+        accentColor: 'rgba(110, 124, 148, 0.12)',
     },
     {
         id: 'sift',
-        title: 'Find the signal.',
-        subtitle: 'We distill your links and images into clean, actionable gems of insight.',
+        title: 'Find the\nsignal.',
+        subtitle: 'We distill your links and images\ninto clean, actionable gems.',
+        illustration: ILLUSTRATIONS.signal,
+        accentColor: 'rgba(125, 147, 137, 0.12)',
     },
     {
         id: 'action',
-        title: 'Seamlessly Sift.',
-        subtitle: 'Just tap the Share button in any app to save to your library.',
+        title: 'Seamlessly\nSift.',
+        subtitle: 'Tap Share in any app.\nThat\'s it.',
+        illustration: ILLUSTRATIONS.share,
+        accentColor: 'rgba(181, 110, 86, 0.10)',
     }
 ];
 
@@ -47,6 +56,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollX = useRef(new RNAnimated.Value(0)).current;
     const scrollViewRef = useRef<ScrollView>(null);
+    const buttonScale = useSharedValue(1);
 
     const handleScroll = RNAnimated.event(
         [{ nativeEvent: { contentOffset: { x: scrollX } } }],
@@ -59,11 +69,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     };
 
     const scrollToIndex = (index: number) => {
+        Haptics.selectionAsync();
         scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
         setActiveIndex(index);
     };
 
     const finishOnboarding = async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             await AsyncStorage.setItem('has_launched', 'true');
             onComplete();
@@ -73,212 +85,152 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         }
     };
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.skipContainer}>
-                <TouchableOpacity
-                    style={styles.skipButton}
-                    onPress={finishOnboarding}
-                    activeOpacity={0.7}
-                >
-                    <Typography variant="label" color={COLORS.stone}>Skip</Typography>
-                </TouchableOpacity>
-            </View>
+    const handleButtonPressIn = () => {
+        buttonScale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+    };
 
-            <View style={{ flex: 4 }}>
-                <ScrollView
-                    ref={scrollViewRef}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    onScroll={handleScroll}
-                    onMomentumScrollEnd={handleMomentumScrollEnd}
-                    scrollEventThrottle={16}
-                >
-                    {SLIDES.map((slide, index) => (
-                        <View key={slide.id} style={{ width, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                            <MotiView
-                                from={{ opacity: 0, scale: 0.9, translateY: 20 }}
-                                animate={{
-                                    opacity: activeIndex === index ? 1 : 0,
-                                    scale: activeIndex === index ? 1 : 0.9,
-                                    translateY: activeIndex === index ? 0 : 20
-                                }}
-                                transition={{ type: 'timing', duration: 800 }}
-                                style={styles.visualContainer}
+    const handleButtonPressOut = () => {
+        buttonScale.value = withSpring(1, { damping: 15, stiffness: 400 });
+    };
+
+    const buttonAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: buttonScale.value }]
+    }));
+
+    const isLastSlide = activeIndex === SLIDES.length - 1;
+
+    return (
+        <View style={styles.container}>
+            <LinearGradient
+                colors={['#FAF9F6', '#F5F3EE']}
+                style={StyleSheet.absoluteFill}
+            />
+
+            <SafeAreaView style={styles.safeArea}>
+                {/* Skip */}
+                <View style={styles.skipContainer}>
+                    <TouchableOpacity
+                        style={styles.skipButton}
+                        onPress={finishOnboarding}
+                        activeOpacity={0.5}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Typography variant="caption" color={COLORS.stone} style={styles.skipText}>
+                            Skip
+                        </Typography>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Main content */}
+                <View style={styles.contentWrapper}>
+                    <ScrollView
+                        ref={scrollViewRef}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        onScroll={handleScroll}
+                        onMomentumScrollEnd={handleMomentumScrollEnd}
+                        scrollEventThrottle={16}
+                        decelerationRate="fast"
+                    >
+                        {SLIDES.map((slide, index) => (
+                            <View key={slide.id} style={styles.slide}>
+                                {/* Illustration with glow */}
+                                <MotiView
+                                    from={{ opacity: 0, scale: 0.85 }}
+                                    animate={{
+                                        opacity: activeIndex === index ? 1 : 0.3,
+                                        scale: activeIndex === index ? 1 : 0.85,
+                                    }}
+                                    transition={{ type: 'timing', duration: 450, easing: Easing.out(Easing.cubic) }}
+                                    style={styles.illustrationContainer}
+                                >
+                                    {/* Soft glow behind illustration */}
+                                    <View style={[styles.glowCircle, { backgroundColor: slide.accentColor }]} />
+
+                                    <Image
+                                        source={slide.illustration}
+                                        style={styles.illustration}
+                                        resizeMode="contain"
+                                    />
+                                </MotiView>
+
+                                {/* Typography */}
+                                <MotiView
+                                    from={{ opacity: 0, translateY: 20 }}
+                                    animate={{
+                                        opacity: activeIndex === index ? 1 : 0,
+                                        translateY: activeIndex === index ? 0 : 20
+                                    }}
+                                    transition={{ type: 'timing', duration: 400, delay: 60 }}
+                                    style={styles.textStack}
+                                >
+                                    <Typography variant="h1" style={styles.title}>
+                                        {slide.title}
+                                    </Typography>
+                                    <Typography variant="body" style={styles.subtitle}>
+                                        {slide.subtitle}
+                                    </Typography>
+                                </MotiView>
+                            </View>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                    {/* Pagination */}
+                    <View style={styles.pagination}>
+                        {SLIDES.map((_, i) => {
+                            const scale = scrollX.interpolate({
+                                inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+                                outputRange: [1, 1.4, 1],
+                                extrapolate: 'clamp',
+                            });
+                            const opacity = scrollX.interpolate({
+                                inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+                                outputRange: [0.25, 1, 0.25],
+                                extrapolate: 'clamp',
+                            });
+                            return (
+                                <TouchableOpacity
+                                    key={i}
+                                    onPress={() => scrollToIndex(i)}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 16, bottom: 16, left: 8, right: 8 }}
+                                >
+                                    <RNAnimated.View
+                                        style={[styles.dot, { opacity, transform: [{ scale }] }]}
+                                    />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    {/* CTA */}
+                    <Animated.View style={[styles.buttonWrapper, buttonAnimatedStyle]}>
+                        <TouchableOpacity
+                            style={[styles.button, isLastSlide && styles.buttonPrimary]}
+                            onPress={isLastSlide ? finishOnboarding : () => scrollToIndex(activeIndex + 1)}
+                            onPressIn={handleButtonPressIn}
+                            onPressOut={handleButtonPressOut}
+                            activeOpacity={1}
+                        >
+                            <Typography
+                                variant="label"
+                                style={[styles.buttonText, isLastSlide && styles.buttonTextPrimary]}
                             >
-                                {index === 0 && <ChaosVisual isActive={activeIndex === 0} />}
-                                {index === 1 && <SiftVisual isActive={activeIndex === 1} />}
-                                {index === 2 && <ActionVisual isActive={activeIndex === 2} />}
-                            </MotiView>
-
-                            <View style={styles.textStack}>
-                                <Typography variant="h1" style={{ textAlign: 'center', marginBottom: 12, fontSize: 36 }}>
-                                    {slide.title}
-                                </Typography>
-                                <Typography variant="body" style={{ textAlign: 'center', color: COLORS.stone, lineHeight: 24 }}>
-                                    {slide.subtitle}
-                                </Typography>
-                            </View>
-                        </View>
-                    ))}
-                </ScrollView>
-            </View>
-
-            <View style={styles.footer}>
-                <View style={styles.pagination}>
-                    {SLIDES.map((_, i) => {
-                        const widthAnim = scrollX.interpolate({
-                            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-                            outputRange: [8, 24, 8],
-                            extrapolate: 'clamp',
-                        });
-                        const opacity = scrollX.interpolate({
-                            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
-                            outputRange: [0.3, 1, 0.3],
-                            extrapolate: 'clamp',
-                        });
-                        return (
-                            <TouchableOpacity key={i} onPress={() => scrollToIndex(i)} activeOpacity={0.7}>
-                                <RNAnimated.View
-                                    style={[styles.dot, { opacity, width: widthAnim, backgroundColor: COLORS.ink }]}
-                                />
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-
-                <View style={styles.buttonContainer}>
-                    {activeIndex === SLIDES.length - 1 ? (
-                        <TouchableOpacity
-                            style={[styles.button, { backgroundColor: COLORS.ink }]}
-                            onPress={finishOnboarding}
-                            activeOpacity={0.9}
-                        >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Typography variant="label" style={{ color: COLORS.paper, marginRight: 8 }}>GET STARTED</Typography>
-                                <CheckCircle size={18} color={COLORS.paper} weight="bold" />
-                            </View>
+                                {isLastSlide ? 'Get Started' : 'Continue'}
+                            </Typography>
+                            <ArrowRight
+                                size={20}
+                                color={isLastSlide ? COLORS.paper : COLORS.ink}
+                                weight="bold"
+                            />
                         </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity
-                            style={[styles.button, { backgroundColor: COLORS.subtle }]}
-                            onPress={() => scrollToIndex(activeIndex + 1)}
-                            activeOpacity={0.8}
-                        >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Typography variant="label" color={COLORS.ink} style={{ marginRight: 8 }}>CONTINUE</Typography>
-                                <CaretRight size={18} color={COLORS.ink} weight="bold" />
-                            </View>
-                        </TouchableOpacity>
-                    )}
+                    </Animated.View>
                 </View>
-            </View>
-        </SafeAreaView>
-    );
-}
-
-const GENTLE_EASING = Easing.bezier(0.25, 0.1, 0.25, 1.0);
-
-function ChaosVisual({ isActive }: { isActive: boolean }) {
-    return (
-        <View style={styles.visualInner}>
-            <AnimatedShape delay={0} x={-50} y={-40} size={50} color={COLORS.stone} opacity={0.2} />
-            <AnimatedShape delay={200} x={50} y={30} size={70} color={COLORS.subtle} opacity={0.4} />
-            <AnimatedShape delay={400} x={-30} y={60} size={40} color={COLORS.ink} opacity={0.1} />
-            <AnimatedShape delay={600} x={40} y={-50} size={60} color={COLORS.separator} opacity={0.6} />
-            <ShareNetwork size={60} color={COLORS.ink} weight="thin" />
-        </View>
-    );
-}
-
-function AnimatedShape({ delay, x, y, size, color, opacity }: { delay: number; x: number; y: number; size: number; color: string; opacity?: number }) {
-    const sv = useSharedValue(0);
-    React.useEffect(() => {
-        sv.value = withDelay(delay, withRepeat(
-            withSequence(
-                withTiming(1, { duration: 2500, easing: GENTLE_EASING }),
-                withTiming(0, { duration: 2500, easing: GENTLE_EASING })
-            ), -1, true
-        ));
-    }, []);
-
-    const style = useAnimatedStyle(() => ({
-        transform: [
-            { translateX: x },
-            { translateY: y },
-            { scale: 0.8 + sv.value * 0.4 }
-        ] as any,
-        opacity: (opacity || 0.3) * sv.value
-    }));
-
-    return <Animated.View style={[style, { position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }]} />;
-}
-
-function SiftVisual({ isActive }: { isActive: boolean }) {
-    const gemScale = useSharedValue(0);
-
-    React.useEffect(() => {
-        if (isActive) {
-            gemScale.value = withTiming(1, { duration: 1000, easing: GENTLE_EASING });
-        } else {
-            gemScale.value = withTiming(0, { duration: 500 });
-        }
-    }, [isActive]);
-
-    const gemStyle = useAnimatedStyle(() => ({
-        transform: [
-            { scale: gemScale.value },
-            { rotate: `${gemScale.value * 15}deg` }
-        ] as any,
-        opacity: gemScale.value
-    }));
-
-    return (
-        <View style={styles.visualInner}>
-            <View style={{ opacity: 0.1, transform: [{ scale: 1.5 }] }}>
-                <Funnel size={100} color={COLORS.ink} weight="thin" />
-            </View>
-            <Animated.View style={[gemStyle, styles.gem]}>
-                <CheckCircle size={40} color={COLORS.paper} weight="bold" />
-            </Animated.View>
-        </View>
-    );
-}
-
-function ActionVisual({ isActive }: { isActive: boolean }) {
-    const tapScale = useSharedValue(1);
-
-    React.useEffect(() => {
-        if (isActive) {
-            tapScale.value = withRepeat(
-                withSequence(
-                    withTiming(0.95, { duration: 800, easing: GENTLE_EASING }),
-                    withTiming(1, { duration: 800, easing: GENTLE_EASING })
-                ),
-                -1, true
-            );
-        } else {
-            tapScale.value = 1;
-        }
-    }, [isActive]);
-
-    const tapStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: tapScale.value }]
-    }));
-
-    return (
-        <View style={styles.visualInner}>
-            <Animated.View style={[tapStyle, styles.mockPhone]}>
-                <LinearGradient
-                    colors={[COLORS.paper, COLORS.canvas]}
-                    style={StyleSheet.absoluteFill}
-                />
-                <ShareNetwork size={32} color={COLORS.ink} weight="regular" />
-            </Animated.View>
-            <Typography variant="label" color={COLORS.stone} style={{ marginTop: 20 }}>
-                TAP SHARE ANYWHERE
-            </Typography>
+            </SafeAreaView>
         </View>
     );
 }
@@ -288,86 +240,111 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.canvas,
     },
+    safeArea: {
+        flex: 1,
+    },
     skipContainer: {
-        paddingHorizontal: 30,
-        paddingTop: 20,
+        paddingHorizontal: 24,
+        paddingTop: 8,
         alignItems: 'flex-end',
     },
     skipButton: {
-        padding: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
     },
-    footer: {
-        flex: 1.5,
+    skipText: {
+        fontSize: 14,
+        fontWeight: '500',
+        letterSpacing: 0.2,
+    },
+    contentWrapper: {
+        flex: 1,
         justifyContent: 'center',
+    },
+    slide: {
+        width,
         alignItems: 'center',
-        paddingBottom: 60,
+        justifyContent: 'center',
+        paddingHorizontal: 40,
+    },
+    illustrationContainer: {
+        width: 240,
+        height: 240,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 32,
+    },
+    glowCircle: {
+        position: 'absolute',
+        width: 220,
+        height: 220,
+        borderRadius: 110,
+    },
+    illustration: {
+        width: 200,
+        height: 200,
     },
     textStack: {
-        marginTop: 40,
-        paddingHorizontal: 40,
         alignItems: 'center',
     },
-    buttonContainer: {
-        height: 80,
-        width: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
+    title: {
+        fontSize: 48,
+        fontWeight: '700',
+        textAlign: 'center',
+        letterSpacing: -1.5,
+        color: COLORS.ink,
+        lineHeight: 52,
+        marginBottom: 16,
     },
-    visualContainer: {
-        width: VISUAL_SIZE,
-        height: VISUAL_SIZE,
-        borderRadius: 40,
-        backgroundColor: COLORS.paper,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...Theme.shadows.medium,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
+    subtitle: {
+        fontSize: 16,
+        lineHeight: 24,
+        textAlign: 'center',
+        color: COLORS.stone,
+        fontWeight: '400',
     },
-    visualInner: {
-        flex: 1,
+    footer: {
+        paddingBottom: Platform.OS === 'ios' ? 50 : 40,
+        paddingHorizontal: 32,
         alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
     },
     pagination: {
         flexDirection: 'row',
-        height: 20,
         alignItems: 'center',
-        marginBottom: 30,
+        marginBottom: 28,
+        gap: 12,
     },
     dot: {
-        height: 8,
-        borderRadius: 4,
-        marginHorizontal: 4,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.ink,
+    },
+    buttonWrapper: {
+        width: '100%',
     },
     button: {
         height: 56,
-        paddingHorizontal: 40,
         borderRadius: RADIUS.pill,
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'center',
-        ...Theme.shadows.medium,
+        justifyContent: 'center',
+        gap: 10,
+        borderWidth: 1.5,
+        borderColor: COLORS.ink,
+        backgroundColor: 'transparent',
     },
-    gem: {
-        width: 80,
-        height: 80,
-        borderRadius: 24,
+    buttonPrimary: {
         backgroundColor: COLORS.ink,
-        alignItems: 'center',
-        justifyContent: 'center',
-        ...Theme.shadows.medium,
-        position: 'absolute',
+        borderColor: COLORS.ink,
     },
-    mockPhone: {
-        width: 160,
-        height: 90,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: COLORS.separator,
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        ...Theme.shadows.soft,
-    }
+    buttonText: {
+        fontSize: 17,
+        fontWeight: '600',
+        letterSpacing: 0.2,
+        color: COLORS.ink,
+    },
+    buttonTextPrimary: {
+        color: COLORS.paper,
+    },
 });

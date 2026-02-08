@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 60,
+        marginBottom: 48,
     },
     logoText: {
         fontSize: 72,
@@ -119,15 +119,15 @@ const styles = StyleSheet.create({
         lineHeight: 80,
     },
     smallCapsLabel: {
-        fontSize: 10,
-        letterSpacing: 2.5,
-        marginTop: -10,
+        fontSize: 11,
+        letterSpacing: 2,
+        marginTop: 4,
         fontFamily: 'System',
         fontWeight: '500',
     },
     form: {
         width: '100%',
-        gap: 16,
+        gap: 14,
     },
     inputContainer: {
         backgroundColor: COLORS.paper,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
         ...Theme.shadows.soft,
     },
     input: {
-        paddingVertical: 16,
+        paddingVertical: 18,
         paddingHorizontal: 20,
         fontSize: 17,
         color: COLORS.ink,
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 8,
+        marginTop: 10,
         ...Theme.shadows.soft,
     },
     buttonDisabled: {
         opacity: 0.7,
     },
     footer: {
-        marginTop: 60,
+        marginTop: 48,
         alignItems: 'center',
     },
 });

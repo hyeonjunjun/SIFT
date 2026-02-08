@@ -296,22 +296,21 @@ export default function LoginScreen() {
                             ]}
                         >
                             <AppleLogo size={20} color={COLORS.paper} weight="fill" />
-                            <Typography variant="label" style={{ color: COLORS.paper, marginLeft: 10 }}>CONTINUE WITH APPLE</Typography>
+                            <Typography variant="label" style={styles.socialButtonAppleText}>Continue with Apple</Typography>
                         </Pressable>
                     )}
 
-                    <Pressable
+                    <TouchableOpacity
                         onPress={handleGoogleSignIn}
                         disabled={loading}
-                        style={({ hovered }: any) => [
-                            styles.socialButtonGoogle,
-                            loading && { opacity: 0.5 },
-                            hovered && Platform.OS === 'web' && { backgroundColor: COLORS.subtle, transform: [{ scale: 1.01 }] }
-                        ]}
+                        style={[styles.socialButtonGoogle, loading && { opacity: 0.5 }]}
+                        activeOpacity={0.8}
                     >
-                        <GoogleLogo size={20} color={COLORS.ink} weight="bold" />
-                        <Typography variant="label" style={{ color: COLORS.ink, marginLeft: 10 }}>CONTINUE WITH GOOGLE</Typography>
-                    </Pressable>
+                        <View style={styles.socialButtonContent}>
+                            <GoogleLogo size={18} color={COLORS.ink} weight="bold" />
+                            <Typography variant="label" style={styles.socialButtonGoogleText}>Continue with Google</Typography>
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Footer */}
@@ -426,18 +425,33 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
-        ...Theme.shadows.soft,
+        gap: 10,
     },
     socialButtonGoogle: {
         flexDirection: 'row',
         backgroundColor: COLORS.paper,
         height: 52,
         borderRadius: RADIUS.pill,
-        borderWidth: StyleSheet.hairlineWidth,
+        borderWidth: 1.5,
         borderColor: COLORS.separator,
         justifyContent: 'center',
         alignItems: 'center',
-        ...Theme.shadows.soft,
+        gap: 10,
+    },
+    socialButtonGoogleText: {
+        color: COLORS.ink,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    socialButtonAppleText: {
+        color: COLORS.paper,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    socialButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
     },
     footer: {
         marginTop: 40,

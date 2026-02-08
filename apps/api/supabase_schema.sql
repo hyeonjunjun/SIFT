@@ -119,3 +119,77 @@ begin
       for each row execute procedure public.handle_new_user();
   end if;
 end $$;
+
+-- 5. Create pending_sifts table for tracking URLs during processing
+-- This allows retry of failed sifts and prevents URL loss
+create table if not exists public.pending_sifts (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  user_id uuid references auth.users(id) not null,
+  url text not null,
+  status text default 'pending' check (status in ('pending', 'processing', 'failed', 'completed')),
+  error_message text,
+  retry_count int default 0,
+  last_attempt_at timestamp with time zone,
+  -- Store the resulting page_id once completed (for linking)
+  page_id uuid references public.pages(id) on delete set null
+);
+
+-- Enable RLS for pending_sifts
+alter table public.pending_sifts enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can read their own pending sifts' and tablename = 'pending_sifts') then
+    create policy "Users can read their own pending sifts" on public.pending_sifts for select to authenticated using (auth.uid() = user_id);
+  end if;
+  
+  if not exists (select 1 from pg_policies where policyname = 'Users can create pending sifts' and tablename = 'pending_sifts') then
+    create policy "Users can create pending sifts" on public.pending_sifts for insert to authenticated with check (auth.uid() = user_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can update their own pending sifts' and tablename = 'pending_sifts') then
+    create policy "Users can update their own pending sifts" on public.pending_sifts for update to authenticated using (auth.uid() = user_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can delete their own pending sifts' and tablename = 'pending_sifts') then
+    create policy "Users can delete their own pending sifts" on public.pending_sifts for delete to authenticated using (auth.uid() = user_id);
+  end if;
+end $$;
+
+-- Index for faster queries on user's pending sifts
+create index if not exists idx_pending_sifts_user_id on public.pending_sifts(user_id);
+create index if not exists idx_pending_sifts_status on public.pending_sifts(status);
+
+-- 6. Create folders table for custom organization
+create table if not exists public.folders (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  user_id uuid references auth.users(id) not null,
+  name text not null,
+  color text, -- hex color for folder icon
+  icon text, -- phosphor icon name
+  sort_order int default 0
+);
+
+-- Enable RLS for folders
+alter table public.folders enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own folders' and tablename = 'folders') then
+    create policy "Users can manage their own folders" on public.folders for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+end $$;
+
+-- Add folder_id to pages table if not exists
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'pages' and column_name = 'folder_id') then
+    alter table public.pages add column folder_id uuid references public.folders(id) on delete set null;
+  end if;
+end $$;
+
+-- Index for folder queries
+create index if not exists idx_folders_user_id on public.folders(user_id);
+create index if not exists idx_pages_folder_id on public.pages(folder_id);
