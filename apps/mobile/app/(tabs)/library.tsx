@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert, Pressable, ActionSheetIOS } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -20,6 +20,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CompactSiftList from '../../components/CompactSiftList';
+import { CategoryModal, CategoryData } from '../../components/modals/CategoryModal';
 import { FolderModal, FolderData } from '../../components/modals/FolderModal';
 
 const { width } = Dimensions.get('window');
@@ -50,13 +51,15 @@ interface FolderItem {
     is_pinned?: boolean;
 }
 
-const CATEGORIES = [
-    { name: 'COOKING', icon: 'Cooking' },
-    { name: 'BAKING', icon: 'Baking' },
-    { name: 'TECH', icon: 'Tech' },
-    { name: 'HEALTH', icon: 'Health' },
-    { name: 'LIFESTYLE', icon: 'Lifestyle' },
-    { name: 'PROFESSIONAL', icon: 'Professional' },
+
+
+const DEFAULT_CATEGORIES = [
+    { name: 'COOKING', icon: 'Cooking', tags: ['COOKING', 'RECIPES', 'FOOD'] },
+    { name: 'BAKING', icon: 'Baking', tags: ['BAKING', 'DESSERT', 'BREAD'] },
+    { name: 'TECH', icon: 'Tech', tags: ['TECH', 'CODING', 'SOFTWARE'] },
+    { name: 'HEALTH', icon: 'Health', tags: ['HEALTH', 'FITNESS', 'WELLNESS'] },
+    { name: 'LIFESTYLE', icon: 'Lifestyle', tags: ['LIFESTYLE', 'HOME', 'DECOR'] },
+    { name: 'PROFESSIONAL', icon: 'Professional', tags: ['WORK', 'CAREER', 'BUSINESS'] },
 ];
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -85,6 +88,10 @@ export default function LibraryScreen() {
     // Folder Modal State
     const [folderModalVisible, setFolderModalVisible] = useState(false);
     const [editingFolder, setEditingFolder] = useState<FolderData | null>(null);
+
+    // Category Modal State
+    const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null);
 
     // Load saved view preference
     useEffect(() => {
@@ -123,6 +130,7 @@ export default function LibraryScreen() {
             return (data || []) as SiftItem[];
         },
         enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
     });
 
     // Fetch folders
@@ -153,9 +161,62 @@ export default function LibraryScreen() {
             }
         },
         enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
     });
 
+    // Fetch Categories (Smart Folders)
+    const { data: categories = [], refetch: refetchCategories } = useQuery({
+        queryKey: ['categories', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
 
+            // 1. Fetch existing
+            const { data, error } = await supabase
+                .from('categories')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('sort_order', { ascending: true });
+
+            if (error) {
+                console.warn('Categories query error:', error.message);
+                return [];
+            }
+
+            // 2. Seed defaults if empty
+            if (!data || data.length === 0) {
+                console.log('Seeding default categories...');
+                const seedData = DEFAULT_CATEGORIES.map((cat, index) => ({
+                    user_id: user.id,
+                    name: cat.name,
+                    icon: cat.icon,
+                    tags: cat.tags,
+                    sort_order: index
+                }));
+
+                const { data: seeded, error: seedError } = await supabase
+                    .from('categories')
+                    .insert(seedData)
+                    .select();
+
+                if (seedError) console.error('Seeding failed:', seedError);
+                return seeded || [];
+            }
+
+            return data as CategoryData[];
+        },
+        enabled: !!user?.id,
+        // No staleTime for dev to see changes immediately, or keep it short
+    });
+
+    // Derive unique used tags for suggestions
+    const allUsedTags = useMemo(() => {
+        const tagSet = new Set<string>();
+        // Add tags from existing pages
+        pages.forEach(p => p.tags?.forEach(t => tagSet.add(t.toUpperCase())));
+        // Add tags from default categories as fallback suggestions
+        DEFAULT_CATEGORIES.forEach(c => c.tags.forEach(t => tagSet.add(t)));
+        return Array.from(tagSet).sort();
+    }, [pages]);
     // Tab Bar Reset Logic
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('tabPress' as any, (e: any) => {
@@ -232,10 +293,15 @@ export default function LibraryScreen() {
 
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+
+            // Optimistic update
+            queryClient.setQueryData(['pages', user?.id], (old: SiftItem[] | undefined) =>
+                old ? old.filter(p => p.id !== id) : []
+            );
         } catch (error: any) {
             console.error("Error archiving sift:", error);
             Alert.alert("Error", "Failed to archive sift");
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         }
     };
 
@@ -267,6 +333,29 @@ export default function LibraryScreen() {
         queryClient.resetQueries({ queryKey: ['folders', user?.id] });
     };
 
+    const handleDeleteCategory = async (id: string) => {
+        if (!id) return;
+
+        // Optimistic Remove
+        const previousActive = activeCategory;
+        if (activeCategory) setActiveCategory(null);
+        setCategoryModalVisible(false);
+
+        const { error } = await supabase
+            .from('categories')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting category:', error);
+            Alert.alert('Error', 'Failed to delete category');
+            // Revert state if needed, but for now just invalidate
+            if (previousActive) setActiveCategory(previousActive);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+    };
+
     const handleDeleteFolder = async (folderId: string) => {
         // First unassign all sifts from this folder
         await supabase
@@ -294,11 +383,22 @@ export default function LibraryScreen() {
         if (error) {
             console.error('Error pinning folder:', error);
             Alert.alert('Error', 'Failed to update pin status');
+            // Revert on error
+            queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
             return;
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+
+        // Optimistic update: manually sort locally
+        queryClient.setQueryData(['folders', user?.id], (old: FolderItem[] | undefined) => {
+            if (!old) return [];
+            return old.map(f => f.id === folderId ? { ...f, is_pinned: isPinned } : f)
+                .sort((a, b) => {
+                    if (a.is_pinned === b.is_pinned) return a.sort_order - b.sort_order;
+                    return a.is_pinned ? -1 : 1;
+                });
+        });
     };
 
     const openFolderModal = (folder?: FolderItem) => {
@@ -312,9 +412,11 @@ export default function LibraryScreen() {
     };
 
     const categoryData = useMemo(() => {
-        return CATEGORIES.map((cat, index) => {
+        return categories.map((cat) => {
             const catPages = pages.filter(p =>
-                p.tags?.some(t => t.toUpperCase() === cat.name) ||
+                // Match any of the category's tags
+                (cat.tags && cat.tags.length > 0 && p.tags?.some(t => cat.tags.includes(t.toUpperCase()))) ||
+                // Fallback to metadata category if it matches name (legacy)
                 p.metadata?.category?.toUpperCase() === cat.name
             );
 
@@ -328,7 +430,7 @@ export default function LibraryScreen() {
                 latestImage: catPages[0]?.metadata?.image_url
             };
         });
-    }, [pages]);
+    }, [pages, categories]);
 
     const activeCategoryPages = useMemo(() => {
         if (!activeCategory) return [];
@@ -410,7 +512,55 @@ export default function LibraryScreen() {
                         {activeCategory && (
                             <TouchableOpacity
                                 style={styles.manageButton}
-                                onPress={() => Alert.alert("Manage Category", `Options for ${activeCategory} will go here.`)}
+                                onPress={() => {
+                                    Haptics.selectionAsync();
+                                    const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+
+                                    if (!currentCat) {
+                                        Alert.alert("Manage Category", "Options unavailable for this view.");
+                                        return;
+                                    }
+
+                                    if (Platform.OS === 'ios') {
+                                        ActionSheetIOS.showActionSheetWithOptions(
+                                            {
+                                                options: ['Cancel', 'Edit Category', 'Delete Category'],
+                                                destructiveButtonIndex: 2,
+                                                cancelButtonIndex: 0,
+                                            },
+                                            (buttonIndex) => {
+                                                if (buttonIndex === 1) {
+                                                    setEditingCategory(currentCat);
+                                                    setCategoryModalVisible(true);
+                                                } else if (buttonIndex === 2) {
+                                                    // Handle delete confirmation
+                                                    handleDeleteCategory(currentCat.id);
+                                                }
+                                            }
+                                        );
+                                    } else {
+                                        // Android fallback
+                                        Alert.alert(
+                                            'Manage Category',
+                                            'Choose an action',
+                                            [
+                                                { text: 'Cancel', style: 'cancel' },
+                                                {
+                                                    text: 'Edit Category',
+                                                    onPress: () => {
+                                                        setEditingCategory(currentCat);
+                                                        setCategoryModalVisible(true);
+                                                    }
+                                                },
+                                                {
+                                                    text: 'Delete Category',
+                                                    onPress: () => handleDeleteCategory(currentCat.id),
+                                                    style: 'destructive'
+                                                }
+                                            ]
+                                        );
+                                    }
+                                }}
                             >
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
@@ -481,18 +631,28 @@ export default function LibraryScreen() {
                                 </Typography>
                                 <View style={styles.folderRow}>
                                     {folders.map((folder) => (
-                                        <TouchableOpacity
+                                        <Pressable
                                             key={folder.id}
-                                            style={[styles.folderTile, { backgroundColor: folder.color }]}
+                                            style={({ pressed }) => [
+                                                styles.folderTile,
+                                                {
+                                                    backgroundColor: folder.color,
+                                                    opacity: pressed ? 0.8 : 1,
+                                                    transform: [{ scale: pressed ? 0.98 : 1 }]
+                                                }
+                                            ]}
                                             onPress={() => router.push(`/folder/${folder.id}`)}
-                                            onLongPress={() => openFolderModal(folder)}
-                                            activeOpacity={0.8}
+                                            onLongPress={() => {
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                openFolderModal(folder);
+                                            }}
+                                            delayLongPress={300} // Shorter delay for better responsiveness
                                         >
                                             <Folder size={24} color="#FFFFFF" weight="fill" />
                                             <Typography variant="caption" style={styles.folderName} numberOfLines={1}>
                                                 {folder.name}
                                             </Typography>
-                                        </TouchableOpacity>
+                                        </Pressable>
                                     ))}
                                 </View>
                                 <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
@@ -546,16 +706,17 @@ export default function LibraryScreen() {
     );
 }
 
-interface CategoryData {
-    name: string;
-    icon: string;
+
+
+// Extended interface for UI presentation
+interface CategoryUI extends CategoryData {
     pages: SiftItem[];
     count: number;
     height: number;
     latestImage?: string;
 }
 
-const Tile = ({ cat, colors, isDark, onPress }: { cat: CategoryData, colors: any, isDark: boolean, onPress: () => void }) => {
+const Tile = ({ cat, colors, isDark, onPress }: { cat: CategoryUI, colors: any, isDark: boolean, onPress: () => void }) => {
     const hasImage = cat.count > 0 && cat.latestImage;
 
     return (
@@ -790,8 +951,8 @@ const styles = StyleSheet.create({
     },
     fab: {
         position: 'absolute',
-        bottom: 110, // Above Nav Bar (approx 80-90px) + padding
-        right: 20,
+        bottom: 24, // 24px from bottom (very low, might overlap tab bar on some devices)
+        right: 24, // 24px off right edge
         width: 56,
         height: 56,
         borderRadius: 28,

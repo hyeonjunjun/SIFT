@@ -14,15 +14,15 @@ export const LIGHT_COLORS = {
 };
 
 export const DARK_COLORS = {
-    ink: '#F5F5F0',       // Bone White (Primary Text)
-    paper: '#161615',     // Obsidian (Cards/Surfaces)
-    canvas: '#0D0D0C',    // Near Black (Backgrounds)
-    stone: '#70706C',     // Dimmed Stone (Secondary Text)
-    separator: '#222220', // Stealth Dividers
-    subtle: '#1C1C1A',    // Dark Highlight
+    ink: '#FFFFFF',       // Pure White (Primary Text) - Increased from Bone White
+    paper: '#141413',     // Slightly darker Obsidian
+    canvas: '#000000',    // True Black (Backgrounds)
+    stone: '#999995',     // Lighter Stone (Secondary Text) - Increased contrast
+    separator: '#2A2A28', // Slightly more visible dividers
+    subtle: '#1F1F1E',    // Dark Highlight
     accent: '#7E8DA4',    // Muted Slate Blue
-    danger: '#B56E56',    // Deep Clay Red
-    success: '#7D9389',   // Deep Sage Green
+    danger: '#CF6679',    // Brighter Red (Material Dark standard)
+    success: '#81C784',   // Brighter Green
 };
 
 export const COLORS = LIGHT_COLORS; // Default export for backwards compatibility

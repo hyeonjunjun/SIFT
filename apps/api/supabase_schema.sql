@@ -194,3 +194,27 @@ end $$;
 -- Index for folder queries
 create index if not exists idx_folders_user_id on public.folders(user_id);
 create index if not exists idx_pages_folder_id on public.pages(folder_id);
+
+-- 7. Create categories table (Smart Folders)
+create table if not exists public.categories (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  user_id uuid references auth.users(id) not null,
+  name text not null,
+  icon text, -- phosphor icon name
+  tags text[], -- Array of tags this category watches
+  sort_order int default 0
+);
+
+-- Enable RLS for categories
+alter table public.categories enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own categories' and tablename = 'categories') then
+    create policy "Users can manage their own categories" on public.categories for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+end $$;
+
+-- Index for category queries
+create index if not exists idx_categories_user_id on public.categories(user_id);

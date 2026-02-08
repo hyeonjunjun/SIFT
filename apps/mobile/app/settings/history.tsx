@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, SectionList, Pressable } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, SectionList, Pressable, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { CaretLeft, MagnifyingGlass, X, ClockCounterClockwise } from 'phosphor-react-native';
 import { Image } from 'expo-image';
@@ -92,6 +92,7 @@ export default function HistoryScreen() {
             return (data || []) as SiftItem[];
         },
         enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
     // Filter by search
@@ -190,10 +191,16 @@ export default function HistoryScreen() {
                 stickySectionHeadersEnabled={true}
                 ListEmptyComponent={() => (
                     <View style={styles.emptyState}>
-                        <ClockCounterClockwise size={48} color={COLORS.stone} weight="thin" />
-                        <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
-                            {isLoading ? 'Loading...' : (searchQuery ? 'No results found.' : 'No sifts yet.')}
-                        </Typography>
+                        {isLoading ? (
+                            <ActivityIndicator size="large" color={colors.ink} style={{ marginBottom: SPACING.m }} />
+                        ) : (
+                            <>
+                                <ClockCounterClockwise size={48} color={COLORS.stone} weight="thin" />
+                                <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
+                                    {searchQuery ? 'No results found.' : 'No sifts yet.'}
+                                </Typography>
+                            </>
+                        )}
                     </View>
                 )}
             />

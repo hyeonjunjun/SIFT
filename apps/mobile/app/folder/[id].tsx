@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, RefreshControl, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { CaretLeft, PencilSimple, Folder, ShareNetwork, Trash } from 'phosphor-react-native';
+import { CaretLeft, PencilSimple, Folder, ShareNetwork, Trash, DotsThree } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -148,14 +148,60 @@ export default function FolderScreen() {
                     </Typography>
                 </View>
 
-                <View style={styles.headerActions}>
-                    <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
-                        <ShareNetwork size={22} color={colors.ink} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setEditModalVisible(true)} style={styles.actionButton}>
-                        <PencilSimple size={22} color={colors.ink} />
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
+                    <ShareNetwork size={22} color={colors.ink} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => {
+                        Haptics.selectionAsync();
+                        if (Platform.OS === 'ios') {
+                            ActionSheetIOS.showActionSheetWithOptions(
+                                {
+                                    options: ['Cancel', 'Edit Folder', 'Delete Folder'],
+                                    destructiveButtonIndex: 2,
+                                    cancelButtonIndex: 0,
+                                },
+                                (buttonIndex) => {
+                                    if (buttonIndex === 1) {
+                                        setEditModalVisible(true);
+                                    } else if (buttonIndex === 2) {
+                                        // Handle delete confirmation via Alert inside handle function or here
+                                        Alert.alert(
+                                            'Delete Folder',
+                                            `Are you sure you want to delete "${folder.name}"? Sifts in this folder won't be deleted.`,
+                                            [
+                                                { text: 'Cancel', style: 'cancel' },
+                                                {
+                                                    text: 'Delete',
+                                                    style: 'destructive',
+                                                    onPress: () => handleDeleteFolder(folder.id)
+                                                }
+                                            ]
+                                        );
+                                    }
+                                }
+                            );
+                        } else {
+                            // Android fallback
+                            Alert.alert(
+                                'Folder Options',
+                                'Choose an action',
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: 'Edit Folder', onPress: () => setEditModalVisible(true) },
+                                    {
+                                        text: 'Delete Folder',
+                                        onPress: () => handleDeleteFolder(folder.id),
+                                        style: 'destructive'
+                                    }
+                                ]
+                            );
+                        }
+                    }}
+                    style={styles.actionButton}
+                >
+                    <DotsThree size={24} color={colors.ink} weight="bold" />
+                </TouchableOpacity>
             </View>
 
             {/* Stats */}

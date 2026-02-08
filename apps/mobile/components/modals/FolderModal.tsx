@@ -350,13 +350,13 @@ const styles = StyleSheet.create({
     iconGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: 12, // Match colorGrid gap
         marginBottom: SPACING.l,
     },
     iconOption: {
-        width: 48,
-        height: 48,
-        borderRadius: RADIUS.m,
+        width: 44, // Match colorOption width
+        height: 44, // Match colorOption height
+        borderRadius: 22, // Circular to match colorOption
         justifyContent: 'center',
         alignItems: 'center',
     },
