@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
         fontWeight: '400',
         letterSpacing: -1,
         color: COLORS.ink,
-        lineHeight: 80,
+        lineHeight: 88,
     },
     smallCapsLabel: {
         fontSize: 10,

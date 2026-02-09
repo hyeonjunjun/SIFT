@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
@@ -20,6 +22,8 @@ export default function SocialScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'friends' | 'shared'>('shared');
     const [refreshing, setRefreshing] = useState(false);
+    const translateX = useSharedValue(0);
+    const { width } = Dimensions.get('window');
 
     // 1. Fetch Friends/Relationships
     const { data: friendships = [] } = useQuery({
@@ -130,6 +134,25 @@ export default function SocialScreen() {
         setRefreshing(false);
     };
 
+    // Swipe gesture handler
+    const panGesture = Gesture.Pan()
+        .onUpdate((event) => {
+            translateX.value = event.translationX;
+        })
+        .onEnd((event) => {
+            const threshold = width * 0.2; // 20% of screen width
+            if (event.translationX > threshold && activeTab === 'friends') {
+                runOnJS(setActiveTab)('shared');
+            } else if (event.translationX < -threshold && activeTab === 'shared') {
+                runOnJS(setActiveTab)('friends');
+            }
+            translateX.value = withSpring(0);
+        });
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: translateX.value }]
+    }));
+
     return (
         <ScreenWrapper edges={['top']}>
             <View style={styles.header}>
@@ -186,27 +209,31 @@ export default function SocialScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
-                {activeTab === 'shared' ? (
-                    <View style={styles.feed}>
-                        {sharedSifts.length === 0 ? (
-                            <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No sifts yet" subtitle="Gems shared by friends will land here." />
+            <GestureDetector gesture={panGesture}>
+                <Animated.View style={animatedStyle}>
+                    <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
+                        {activeTab === 'shared' ? (
+                            <View style={styles.feed}>
+                                {sharedSifts.length === 0 ? (
+                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No sifts yet" subtitle="Gems shared by friends will land here." />
+                                ) : (
+                                    sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} colors={colors} />)
+                                )}
+                            </View>
                         ) : (
-                            sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} colors={colors} />)
+                            <View style={styles.friendsList}>
+                                {friendships.length === 0 ? (
+                                    <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing gems." />
+                                ) : (
+                                    friendships.map((f: any) => (
+                                        <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} />
+                                    ))
+                                )}
+                            </View>
                         )}
-                    </View>
-                ) : (
-                    <View style={styles.friendsList}>
-                        {friendships.length === 0 ? (
-                            <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing gems." />
-                        ) : (
-                            friendships.map((f: any) => (
-                                <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} />
-                            ))
-                        )}
-                    </View>
-                )}
-            </ScrollView>
+                    </ScrollView>
+                </Animated.View>
+            </GestureDetector>
         </ScreenWrapper>
     );
 }
@@ -327,7 +354,7 @@ const styles = StyleSheet.create({
     miniAvatar: { width: 32, height: 32, borderRadius: 16 },
     mediumAvatar: { width: 48, height: 48, borderRadius: 24 },
     tinyAvatar: { width: 20, height: 20, borderRadius: 10 },
-    tabsContainer: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 20, gap: 24 },
+    tabsContainer: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 8, marginBottom: 20, gap: 24 },
     tab: { paddingBottom: 8 },
     scrollContent: { paddingHorizontal: 20, paddingBottom: 160 },
     card: { padding: 20, borderRadius: RADIUS.m, borderWidth: StyleSheet.hairlineWidth, marginBottom: 16, ...Theme.shadows.soft },
