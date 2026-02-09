@@ -30,6 +30,7 @@
         "usesNonExemptEncryption": false,
         "googleServicesFile": "./GoogleService-Info.plist"
       },
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleURLTypes": [
           {

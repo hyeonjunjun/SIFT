@@ -45,6 +45,7 @@ export function HeroCarousel({ pages }: HeroCarouselProps) {
                         title={item.title}
                         tags={item.tags}
                         imageUrl={item.metadata?.image_url}
+                        isPinned={item.is_pinned}
                     />
                 )}
                 keyExtractor={(item) => item.id}

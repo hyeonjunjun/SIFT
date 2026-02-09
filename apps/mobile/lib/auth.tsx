@@ -30,6 +30,7 @@ export type Profile = {
     avatar_url?: string;
     interests?: string[];
     tier?: 'free' | 'plus' | 'unlimited' | 'admin';
+    pin_style?: 'pin' | 'heart' | 'star' | 'bookmark' | 'lightning';
 };
 
 type AuthContextType = {

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Pressable, Image, Platform, ActionSheetIOS, Alert } from 'react-native';
+import { View, Pressable, Image, Platform, ActionSheetIOS, Alert, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { Typography } from './design-system/Typography';
 import { Card } from './design-system/Card';
-import { PushPin as Pin } from 'phosphor-react-native';
+import PinIcon from './PinIcon';
 import { COLORS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 
@@ -25,7 +25,7 @@ interface GridPageCardProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDeleteForever, onPin, isPinned, createdAt }: GridPageCardProps) {
+function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDeleteForever, onPin, isPinned, createdAt }: GridPageCardProps) {
     const router = useRouter();
     const scale = useSharedValue(1);
 
@@ -59,8 +59,53 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
     };
 
     const handleLongPress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        // PeekModal removed. Could add context menu here if needed.
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+        const options = ['Cancel', 'Share Sift', isPinned ? 'Unpin Sift' : 'Pin Sift', 'Archive Sift', 'Delete Permanently'];
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options,
+                    cancelButtonIndex: 0,
+                    destructiveButtonIndex: 4,
+                },
+                (buttonIndex) => {
+                    if (buttonIndex === 1) handleShare();
+                    if (buttonIndex === 2) onPin?.(id);
+                    if (buttonIndex === 3) onDelete?.(id);
+                    if (buttonIndex === 4) {
+                        Alert.alert("Delete Permanently", "This cannot be undone.", [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
+                        ]);
+                    }
+                }
+            );
+        } else {
+            Alert.alert(
+                "Options",
+                title,
+                [
+                    { text: "Share", onPress: handleShare },
+                    { text: isPinned ? "Unpin" : "Pin", onPress: () => onPin?.(id) },
+                    { text: "Archive", onPress: () => onDelete?.(id) },
+                    { text: "Delete Forever", style: 'destructive', onPress: () => onDeleteForever?.(id) },
+                    { text: "Cancel", style: "cancel" }
+                ]
+            );
+        }
+    };
+
+    const handleShare = async () => {
+        try {
+            const shareUrl = `https://sift-rho.vercel.app/share/${id}`;
+            await Share.share({
+                message: `Check out this Sift: ${title}\n\n${shareUrl}`,
+                url: shareUrl,
+            });
+        } catch (error: any) {
+            Alert.alert('Error', error.message);
+        }
     };
 
     // Deterministic random height based on index to keep it stable
@@ -80,7 +125,7 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
                     {/* Pin Indicator */}
                     {isPinned && (
                         <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
-                            <Pin size={10} color={COLORS.ink} weight="fill" />
+                            <PinIcon size={10} color={COLORS.ink} weight="fill" />
                         </View>
                     )}
 
@@ -113,3 +158,5 @@ export function GridPageCard({ id, title, url, imageUrl, index, onDelete, onDele
         </>
     );
 }
+
+export const GridPageCard = React.memo(GridPageCardComponent);

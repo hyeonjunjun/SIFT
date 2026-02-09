@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Books, Fingerprint, ImageSquare, XCircle } from 'phosphor-react-native';
+import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
@@ -105,6 +105,7 @@ export default function HomeScreen() {
     const [isProcessingQueue, setIsProcessingQueue] = useState(false);
     const router = useRouter();
     const params = useLocalSearchParams();
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     // Visual Sifter Hook
     const { pickAndSift, loading: isSiftingImage } = useImageSifter(() => {
@@ -653,6 +654,28 @@ export default function HomeScreen() {
                             {(profile?.display_name || "Guest").split(' ')[0]}
                         </Typography>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => {
+                            setViewMode(prev => prev === 'grid' ? 'list' : 'grid');
+                            triggerHaptic('selection');
+                        }}
+                        style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: RADIUS.pill,
+                            backgroundColor: COLORS.subtle,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginTop: 8
+                        }}
+                    >
+                        {viewMode === 'grid' ? (
+                            <Rows size={22} color={COLORS.ink} weight="bold" />
+                        ) : (
+                            <SquaresFour size={22} color={COLORS.ink} weight="bold" />
+                        )}
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.inputContainer}>
@@ -778,6 +801,7 @@ export default function HomeScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.ink} />
                 }
                 contentContainerStyle={{ paddingBottom: 160 }}
+                viewMode={viewMode}
             />
 
             {/* 6. MODALS */}

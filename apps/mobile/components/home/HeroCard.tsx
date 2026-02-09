@@ -6,15 +6,17 @@ import { useRouter } from 'expo-router';
 import { COLORS, BORDER, Theme } from '../../lib/theme';
 import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import PinIcon from '../PinIcon';
 
 interface HeroCardProps {
     id: string;
     title: string;
     tags?: string[];
     imageUrl?: string;
+    isPinned?: boolean;
 }
 
-export const HeroCard = React.memo(({ id, title, tags = [], imageUrl }: HeroCardProps) => {
+const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCardProps) => {
     const router = useRouter();
     const category = tags[0] || 'Uncategorized';
     const scale = useSharedValue(1);
@@ -55,6 +57,20 @@ export const HeroCard = React.memo(({ id, title, tags = [], imageUrl }: HeroCard
                     ) : (
                         <View style={styles.placeholder} />
                     )}
+
+                    {isPinned && (
+                        <View style={{
+                            position: 'absolute',
+                            top: 10,
+                            right: 10,
+                            backgroundColor: 'rgba(255,255,255,0.9)',
+                            padding: 5,
+                            borderRadius: 100,
+                            ...Theme.shadows.soft
+                        }}>
+                            <PinIcon size={10} color={COLORS.ink} weight="fill" />
+                        </View>
+                    )}
                 </View>
                 <View style={styles.textContainer}>
                     <Typography variant="label" style={styles.categoryText}>
@@ -67,11 +83,13 @@ export const HeroCard = React.memo(({ id, title, tags = [], imageUrl }: HeroCard
             </Pressable>
         </Animated.View>
     );
-});
+};
+
+export const HeroCard = React.memo(HeroCardComponent);
 
 const styles = StyleSheet.create({
     container: {
-        width: 240, // Slightly smaller than before for cleaner look
+        width: 240,
         marginRight: 16,
     },
     imageContainer: {
@@ -104,7 +122,7 @@ const styles = StyleSheet.create({
     },
     categoryText: {
         fontSize: 11,
-        color: COLORS.stone, // Secondary Text
+        color: COLORS.stone,
         marginBottom: 2,
     },
     heroTitle: {

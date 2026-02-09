@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Alert, Pressable, Text, ActionSheetIOS, Platform } from 'react-native';
+import { View, Alert, Pressable, Text, ActionSheetIOS, Platform, Share } from 'react-native';
 import { Image } from 'expo-image';
 import { Trash, PushPin, Star, Heart } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
+import PinIcon from './PinIcon';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import * as Haptics from 'expo-haptics';
@@ -28,7 +29,7 @@ interface PageCardProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) => {
+const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) => {
     const { colors, isDark, theme } = useTheme();
     const router = useRouter();
     const { pinIcon } = usePersonalization();
@@ -82,19 +83,21 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
-                    options: ['Cancel', 'Copy Link', 'Pin/Unpin Page', 'Archive Page', 'Delete Permanently'],
-                    destructiveButtonIndex: 4,
+                    options: ['Cancel', 'Copy Link', 'Share Sift', 'Pin/Unpin Page', 'Archive Page', 'Delete Permanently'],
+                    destructiveButtonIndex: 5,
                     cancelButtonIndex: 0,
                     userInterfaceStyle: isDark ? 'dark' : 'light',
                 },
                 (buttonIndex) => {
                     if (buttonIndex === 1) { // Copy Link
                         if (url) Clipboard.setStringAsync(url);
-                    } else if (buttonIndex === 2) { // Pin
+                    } else if (buttonIndex === 2) { // Share
+                        handleShare();
+                    } else if (buttonIndex === 3) { // Pin
                         onPin?.(id);
-                    } else if (buttonIndex === 3) { // Archive
+                    } else if (buttonIndex === 4) { // Archive
                         onDelete?.(id);
-                    } else if (buttonIndex === 4) { // Delete Forever
+                    } else if (buttonIndex === 5) { // Delete Forever
                         Alert.alert(
                             "Delete Permanently",
                             "This cannot be undone.",
@@ -112,6 +115,7 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
                 displayTitle,
                 [
                     { text: "Copy Link", onPress: () => url && Clipboard.setStringAsync(url) },
+                    { text: "Share Sift", onPress: handleShare },
                     { text: "Pin/Unpin", onPress: () => onPin?.(id) },
                     { text: "Archive", onPress: () => onDelete?.(id) },
                     {
@@ -129,6 +133,18 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
                     { text: "Cancel", style: "cancel" }
                 ]
             );
+        }
+    };
+
+    const handleShare = async () => {
+        try {
+            const shareUrl = `https://sift-rho.vercel.app/share/${id}`;
+            await Share.share({
+                message: `Check out this Sift: ${displayTitle}\n\n${shareUrl}`,
+                url: shareUrl,
+            });
+        } catch (error: any) {
+            Alert.alert('Error', error.message);
         }
     };
 
@@ -195,7 +211,7 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
                             borderRadius: 100,
                             ...Theme.shadows.soft
                         }}>
-                            <PinIconComponent size={14} color={colors.accent} weight="fill" />
+                            <PinIcon size={12} color={colors.accent} weight="fill" />
                         </View>
                     )}
 
@@ -230,6 +246,8 @@ export const PageCard = React.memo(({ id, title, gist, url, tags = [], onDelete,
                     </View>
                 </View>
             </AnimatedPressable>
-        </ReanimatedSwipeable>
+        </ReanimatedSwipeable >
     );
-});
+};
+
+export const PageCard = React.memo(PageCardComponent);

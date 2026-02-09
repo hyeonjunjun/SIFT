@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
-import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork, Eye, FilmSlate } from 'phosphor-react-native';
+import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork, Eye, FilmSlate, PushPin, Heart, Star, Bookmark, Lightning } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { supabase } from "../../lib/supabase";
 import SiftFeed from "../../components/SiftFeed";
@@ -259,6 +259,35 @@ export default function ProfileScreen() {
                         onValueChange={toggleReduceMotion}
                         icon={<FilmSlate size={20} color={colors.ink} />}
                     />
+
+                    <View style={[styles.pinStylePicker, { borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.separator }]}>
+                        <Typography variant="label" style={{ marginBottom: 12 }}>Pin Icon Style</Typography>
+                        <View style={styles.pinIconRow}>
+                            {[
+                                { id: 'pin', icon: PushPin },
+                                { id: 'heart', icon: Heart },
+                                { id: 'star', icon: Star },
+                                { id: 'bookmark', icon: Bookmark },
+                                { id: 'lightning', icon: Lightning }
+                            ].map((item) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        // @ts-ignore
+                                        updateProfileInDB({ pin_style: item.id });
+                                    }}
+                                    style={[
+                                        styles.pinIconItem,
+                                        { backgroundColor: colors.canvas, borderColor: colors.separator },
+                                        profile?.pin_style === item.id && { borderColor: colors.accent, borderWidth: 2 }
+                                    ]}
+                                >
+                                    <item.icon size={20} color={profile?.pin_style === item.id ? colors.accent : colors.stone} weight="fill" />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
                 </View>
 
 
@@ -317,7 +346,38 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={styles.feedWrapper}>
-                    <SiftFeed pages={savedPages} loading={loading} />
+                    <SiftFeed
+                        pages={savedPages}
+                        loading={loading}
+                        onPin={async (id) => {
+                            try {
+                                const page = savedPages.find(p => p.id === id);
+                                if (!page) return;
+                                const { error } = await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
+                                if (error) throw error;
+                                fetchSavedPages();
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } catch (e) { Alert.alert("Error", "Failed to update pin"); }
+                        }}
+                        onArchive={async (id) => {
+                            try {
+                                const { error } = await supabase.from('pages').update({ is_archived: true }).eq('id', id);
+                                if (error) throw error;
+                                fetchSavedPages();
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                Alert.alert("Success", "Moved to Archive");
+                            } catch (e) { Alert.alert("Error", "Failed to archive"); }
+                        }}
+                        onDeleteForever={async (id) => {
+                            try {
+                                const { error } = await supabase.from('pages').delete().eq('id', id);
+                                if (error) throw error;
+                                fetchSavedPages();
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                Alert.alert("Success", "Permanently Deleted");
+                            } catch (e) { Alert.alert("Error", "Failed to delete"); }
+                        }}
+                    />
 
                     {(!savedPages || savedPages.length === 0) && !loading && (
                         <View style={styles.emptyState}>
@@ -449,5 +509,20 @@ const styles = StyleSheet.create({
     emptyState: {
         padding: SPACING.xl,
         alignItems: 'center',
+    },
+    pinStylePicker: {
+        padding: 16,
+    },
+    pinIconRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    pinIconItem: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
     }
 });

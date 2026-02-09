@@ -2,15 +2,17 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, Pressable, Alert, Platform, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { COLORS, RADIUS, TRANSITIONS } from '../lib/theme';
+import { COLORS, RADIUS, TRANSITIONS, Theme } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { Article, Video } from 'phosphor-react-native';
+import PinIcon from './PinIcon';
 import Animated, { FadeIn, FadeOut, Layout, Easing, useSharedValue, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
 import { FeedLoadingScreen } from './FeedLoadingScreen';
+import { PageCard } from './PageCard';
 import { useTheme } from '../context/ThemeContext';
 
 interface Page {
@@ -46,6 +48,7 @@ interface SiftFeedProps {
     contentContainerStyle?: any;
     onEndReached?: () => void;
     onEndReachedThreshold?: number;
+    viewMode?: 'grid' | 'list';
 }
 
 const GRID_PADDING = 20;
@@ -230,6 +233,21 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                         />
                     )}
 
+                    {item.is_pinned && (
+                        <View style={{
+                            position: 'absolute',
+                            top: 12,
+                            right: 12,
+                            zIndex: 10,
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+                            padding: 6,
+                            borderRadius: 100,
+                            ...Theme.shadows.soft
+                        }}>
+                            <PinIcon size={10} color={colors.accent} weight="fill" />
+                        </View>
+                    )}
+
                     {/* Gradient Overlay & Text (Now Inside) */}
                     <Animated.View
                         entering={FadeIn.duration(600)}
@@ -286,12 +304,15 @@ export default function SiftFeed({
     refreshControl,
     contentContainerStyle,
     onEndReached,
-    onEndReachedThreshold = 0.5
+    onEndReachedThreshold = 0.5,
+    viewMode = 'grid'
 }: SiftFeedProps) {
     const { colors, isDark } = useTheme();
 
     const { width } = useWindowDimensions();
-    const { numColumns, columnWidth } = getLayoutInfo(width);
+    const layout = getLayoutInfo(width);
+    const numColumns = viewMode === 'list' ? 1 : layout.numColumns;
+    const columnWidth = viewMode === 'list' ? (width - 40) : layout.columnWidth;
 
     // Filter out edit-action injection
     const data = pages;
@@ -312,12 +333,23 @@ export default function SiftFeed({
             keyExtractor={(item) => (item as any).id}
             numColumns={numColumns}
             extraData={[isDark, mode]} // Re-render when mode changes
-            // @ts-ignore
-            estimatedItemSize={250}
-            renderItem={({ item, index }) => {
-                return (
+            renderItem={({ item, index }) => (
+                viewMode === 'list' ? (
+                    <PageCard
+                        id={item.id}
+                        title={item.title}
+                        gist={item.summary || ""}
+                        url={item.url}
+                        tags={item.tags}
+                        isPinned={item.is_pinned}
+                        imageUrl={item.metadata?.image_url}
+                        onPin={onPin}
+                        onDelete={onArchive}
+                        onDeleteForever={onDeleteForever}
+                    />
+                ) : (
                     <Card
-                        item={item as Page}
+                        item={item}
                         index={index}
                         onPin={onPin}
                         onArchive={onArchive}
@@ -327,8 +359,8 @@ export default function SiftFeed({
                         onRemove={onRemove}
                         mode={mode}
                     />
-                );
-            }}
+                )
+            )}
             ListHeaderComponent={ListHeaderComponent}
             ListEmptyComponent={!loading ? ListEmptyComponent : null}
             onScroll={onScroll}
