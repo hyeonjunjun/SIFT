@@ -27,7 +27,8 @@
         ]
       },
       "config": {
-        "usesNonExemptEncryption": false
+        "usesNonExemptEncryption": false,
+        "googleServicesFile": "./GoogleService-Info.plist"
       },
       "infoPlist": {
         "CFBundleURLTypes": [
@@ -48,6 +49,7 @@
         "backgroundColor": "#FDFCF8"
       },
       "package": "com.hkjstudio.sift",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 135,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
@@ -101,7 +103,8 @@
         }
       ],
       "expo-apple-authentication",
-      "./plugins/withShareExtensionExclusions.js"
+      "./plugins/withShareExtensionExclusions.js",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "router": {},
