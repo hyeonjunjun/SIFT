@@ -195,20 +195,32 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                         shadowOpacity: (isDark || highContrast) ? 0.6 : 0.08,
                     }}
                 >
-                    {isPinned && (
-                        <View style={{
+                    <Pressable
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            onPin?.(id);
+                        }}
+                        hitSlop={12}
+                        style={{
                             position: 'absolute',
                             top: 14,
                             right: 14,
                             zIndex: 10,
-                            backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+                            backgroundColor: isPinned
+                                ? (isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)')
+                                : 'rgba(255,255,255,0.85)',
                             padding: 8,
                             borderRadius: 100,
                             ...Theme.shadows.soft
-                        }}>
-                            <PinIcon size={12} color={colors.accent} weight="fill" />
-                        </View>
-                    )}
+                        }}
+                    >
+                        <PinIcon
+                            size={12}
+                            color={isPinned ? colors.accent : 'rgba(0,0,0,0.5)'}
+                            weight={isPinned ? "fill" : "regular"}
+                        />
+                    </Pressable>
 
                     {imageUrl && (
                         <Image

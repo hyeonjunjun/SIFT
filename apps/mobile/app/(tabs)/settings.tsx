@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useCallback } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
+import { Share, View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork, Eye, FilmSlate, PushPin, Heart, Star, Bookmark, Lightning } from 'phosphor-react-native';
@@ -125,16 +125,23 @@ export default function ProfileScreen() {
         }
     };
 
-    const shareSiftID = async () => {
-        if (!user?.id) return;
-        const deepLink = `sift://user/${user.id}`;
-        await Clipboard.setStringAsync(deepLink);
-        if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-            "Sift ID Copied",
-            `Share this link with friends:\n\n${deepLink}\n\nWhen they open it, they'll be prompted to connect!`,
-            [{ text: "Great" }]
-        );
+    const inviteFriends = async () => {
+        if (!profile?.sift_id) {
+            Alert.alert("Wait a second", "We're still setting up your Sift ID. Try again in a moment!");
+            return;
+        }
+
+        const message = `Hey! I've been using Sift to stay mindful of the cool things I find online. 🕊️ I thought you'd love it too! Let's connect so we can share our favorite finds.\n\nMy Sift ID is: ${profile.sift_id}\n\nJoin me here: sift://user/${profile.sift_id}`;
+
+        try {
+            await Share.share({
+                message,
+                title: 'Connect on Sift',
+            });
+            if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error: any) {
+            Alert.alert("Error", error.message);
+        }
     };
 
     return (
@@ -166,6 +173,7 @@ export default function ProfileScreen() {
                                 {tier === 'admin' ? 'ADMIN' : `${tierName.toUpperCase()} MEMBER`}
                             </Typography>
                         </View>
+                        <Typography variant="label" color="stone" style={styles.smallCapsLabel}>YOUR • IDENTITY</Typography>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
                             {profile?.display_name || user?.email?.split('@')[0] || 'User'}
                         </Typography>
@@ -207,9 +215,9 @@ export default function ProfileScreen() {
                         icon={<ClockCounterClockwise size={20} color={colors.ink} />}
                     />
                     <SettingsRow
-                        label="Share Sift ID"
-                        description={`sift://user/${user?.id?.slice(0, 12)}...`}
-                        onPress={shareSiftID}
+                        label="Invite Friends"
+                        description={`Sift ID: ${profile?.sift_id || 'Generating...'}`}
+                        onPress={inviteFriends}
                         icon={<ShareNetwork size={20} color={colors.ink} />}
                     />
                 </View>
@@ -332,7 +340,7 @@ export default function ProfileScreen() {
                     />
                     <SettingsRow
                         label="Terms of Service"
-                        onPress={() => Linking.openURL('https://sift-rho.vercel.app/terms')}
+                        onPress={() => router.push('/settings/terms')}
                         icon={<FileText size={20} color={colors.ink} />}
                     />
                     <SettingsRow
@@ -446,7 +454,9 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     serifTitle: {
-        fontSize: 24,
+        fontSize: 32,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        color: COLORS.ink,
         marginBottom: 4,
     },
     userBio: {

@@ -15,9 +15,10 @@ interface HeroCardProps {
     tags?: string[];
     imageUrl?: string;
     isPinned?: boolean;
+    onTogglePin?: (id: string) => void;
 }
 
-const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCardProps) => {
+const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned, onTogglePin }: HeroCardProps) => {
     const { colors } = useTheme();
     const router = useRouter();
     const category = tags[0] || 'Uncategorized';
@@ -40,21 +41,21 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCar
         router.push(`/page/${id}`);
     };
 
+    const handlePinPress = (e: any) => {
+        e.stopPropagation();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onTogglePin?.(id);
+    };
+
     return (
-        <Animated.View style={animatedStyle}>
+        <Animated.View style={[animatedStyle, styles.outerContainer]}>
             <Pressable
                 onPress={handlePress}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                style={[
-                    styles.container,
-                    {
-                        backgroundColor: colors.paper,
-                        ...Theme.shadows.soft
-                    }
-                ]}
+                style={styles.container}
             >
-                <View style={styles.imageContainer}>
+                <View style={[styles.imageContainer, { backgroundColor: colors.subtle }]}>
                     {imageUrl ? (
                         <Image
                             source={imageUrl}
@@ -66,19 +67,25 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCar
                         <View style={[styles.placeholder, { backgroundColor: colors.subtle }]} />
                     )}
 
-                    {isPinned && (
-                        <View style={{
+                    <Pressable
+                        onPress={handlePinPress}
+                        hitSlop={12}
+                        style={{
                             position: 'absolute',
                             top: 10,
                             right: 10,
-                            backgroundColor: colors.paper,
+                            backgroundColor: isPinned ? colors.paper : 'rgba(255,255,255,0.85)',
                             padding: 6,
                             borderRadius: RADIUS.pill,
                             ...Theme.shadows.sharp
-                        }}>
-                            <PinIcon size={12} color={colors.ink} weight="fill" />
-                        </View>
-                    )}
+                        }}
+                    >
+                        <PinIcon
+                            size={12}
+                            color={isPinned ? colors.ink : 'rgba(0,0,0,0.5)'}
+                            weight={isPinned ? "fill" : "regular"}
+                        />
+                    </Pressable>
                 </View>
                 <View style={styles.textContainer}>
                     <Typography variant="label" style={styles.categoryText}>
@@ -96,15 +103,16 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCar
 export const HeroCard = React.memo(HeroCardComponent);
 
 const styles = StyleSheet.create({
-    container: {
+    outerContainer: {
         width: 240,
         marginRight: 16,
-        borderRadius: RADIUS.m,
-        overflow: 'hidden',
+    },
+    container: {
+        width: '100%',
     },
     imageContainer: {
-        width: 240,
-        height: 140, // 16:9ish
+        width: '100%',
+        height: 140,
         borderRadius: RADIUS.m,
         overflow: 'hidden',
         // @ts-ignore
@@ -116,10 +124,10 @@ const styles = StyleSheet.create({
     },
     placeholder: {
         flex: 1,
-        backgroundColor: COLORS.ink,
     },
     textContainer: {
         marginTop: 10,
+        paddingHorizontal: 2, // Minor breathing room
     },
     categoryText: {
         fontSize: 11,
@@ -131,5 +139,6 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '600',
         lineHeight: 20,
+        minHeight: 40, // Ensure space for 2 lines to prevent cut-off issues
     },
 });

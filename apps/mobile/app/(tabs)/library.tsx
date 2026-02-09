@@ -645,7 +645,7 @@ export default function LibraryScreen() {
                     ) : null}
                     <View style={[styles.titleGroup, activeCategoryId ? { marginLeft: 12 } : {}]}>
                         <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            {activeCategoryId ? (isCategoryEditing ? 'MANAGING' : `CATEGORY / ${categories.find(c => c.id === activeCategoryId)?.name?.toUpperCase() || ''}`) : 'YOUR COLLECTION'}
+                            {activeCategoryId ? (isCategoryEditing ? 'MANAGING' : `CATEGORY • ${categories.find(c => c.id === activeCategoryId)?.name?.toUpperCase() || ''}`) : 'YOUR COLLECTION'}
                         </Typography>
                         <Typography variant="h1" style={styles.serifTitle}>
                             {activeCategoryId ? (categories.find(c => c.id === activeCategoryId)?.name || '') : 'Library'}
@@ -697,16 +697,19 @@ export default function LibraryScreen() {
 
                 {/* 2. SEARCH INPUT (Only in main view) */}
                 {!activeCategoryId && (
-                    <View style={[styles.searchContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                        <MagnifyingGlass size={18} color={colors.stone} weight="regular" />
-                        <TextInput
-                            style={[styles.searchInput, { color: colors.ink }]}
-                            placeholder="Search your mind..."
-                            placeholderTextColor={colors.stone}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            autoCapitalize="none"
-                        />
+                    <View style={styles.searchContainer}>
+                        <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                            <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
+                            <TextInput
+                                style={[styles.searchInput, { color: colors.ink }]}
+                                placeholder="Search your mind..."
+                                placeholderTextColor={colors.stone}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </View>
                     </View>
                 )}
 
@@ -1007,7 +1010,9 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     serifTitle: {
-        fontSize: 34,
+        fontSize: 36,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        color: COLORS.ink,
     },
     titleGroup: {
         flex: 1,
@@ -1028,19 +1033,27 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     searchContainer: {
+        marginHorizontal: 20,
+        marginBottom: SPACING.l
+    },
+    searchInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: 20,
-        marginBottom: 24,
         paddingHorizontal: 16,
-        height: 48, // Slightly taller
-        borderRadius: 12,
+        height: 52,
+        borderRadius: RADIUS.l,
         borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.08)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
+        ...Theme.shadows.soft,
     },
     searchInput: {
         flex: 1,
-        marginLeft: 10,
-        fontSize: 16,
+        fontSize: 15,
+        fontFamily: 'System',
+        paddingVertical: 0,
+        textAlignVertical: 'center',
     },
     gridContainer: {
         paddingHorizontal: 20,

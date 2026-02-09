@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Typography } from './design-system/Typography';
 import { COLORS, RADIUS, Theme } from '../lib/theme';
-import { ArrowRight, CircleDashed, CirclesThree, ShareNetwork } from 'phosphor-react-native';
+import { ArrowRight } from 'phosphor-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View as MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
@@ -23,24 +23,24 @@ interface OnboardingProps {
 
 const SLIDES = [
     {
-        id: 'chaos',
-        title: 'Calm the\nchaos.',
-        subtitle: 'The digital world is loud.\nSift captures only what resonates.',
-        icon: 'CircleDashed',
+        id: 'mindful',
+        title: 'Mindful\nCuration',
+        subtitle: 'The internet is overwhelming.\nSift helps you keep what matters.',
+        gradient: ['#F8F5F0', '#E8E2D8'],
         accentColor: COLORS.ink,
     },
     {
-        id: 'sift',
-        title: 'Find the\nsignal.',
-        subtitle: 'We distill your links and images\ninto clean, actionable gems.',
-        icon: 'CirclesThree',
+        id: 'signal',
+        title: 'Find the\nSignal',
+        subtitle: 'We distill noise into clarity.\nEvery link becomes a keepsake.',
+        gradient: ['#E8E2D8', '#DFD6C8'],
         accentColor: COLORS.ink,
     },
     {
-        id: 'action',
-        title: 'Seamlessly\nSift.',
-        subtitle: 'Tap Share in any app.\nThat\'s it.',
-        icon: 'ShareNetwork',
+        id: 'share',
+        title: 'Share the\nVibe',
+        subtitle: 'Connect with friends.\nBuild a library together.',
+        gradient: ['#DFD6C8', '#D6CBC0'],
         accentColor: COLORS.ink,
     }
 ];
@@ -128,19 +128,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         {SLIDES.map((slide, index) => (
                             <View key={slide.id} style={styles.slide}>
                                 <MotiView
-                                    from={{ opacity: 0, scale: 0.9 }}
+                                    from={{ opacity: 0, scale: 0.95 }}
                                     animate={{
                                         opacity: activeIndex === index ? 1 : 0,
-                                        scale: activeIndex === index ? 1 : 0.9,
+                                        scale: activeIndex === index ? 1 : 0.95,
                                     }}
-                                    transition={{ type: 'timing', duration: 400, easing: Easing.out(Easing.quad) }}
+                                    transition={{ type: 'timing', duration: 600, easing: Easing.out(Easing.cubic) }}
                                     style={styles.illustrationContainer}
                                 >
-                                    {/* Minimalist Icon View */}
-                                    <View style={styles.iconCircle}>
-                                        {slide.icon === 'CircleDashed' && <CircleDashed size={80} color={COLORS.ink} weight="light" />}
-                                        {slide.icon === 'CirclesThree' && <CirclesThree size={80} color={COLORS.ink} weight="light" />}
-                                        {slide.icon === 'ShareNetwork' && <ShareNetwork size={80} color={COLORS.ink} weight="light" />}
+                                    {/* Immersive Gradient Background */}
+                                    <View style={[styles.gradientCard, {
+                                        backgroundColor: slide.gradient[0],
+                                    }]}>
+                                        <View style={[styles.gradientOverlay, {
+                                            backgroundColor: slide.gradient[1],
+                                            opacity: 0.6,
+                                        }]} />
                                     </View>
                                 </MotiView>
 
@@ -261,47 +264,40 @@ const styles = StyleSheet.create({
         paddingHorizontal: 40,
     },
     illustrationContainer: {
-        width: 240,
-        height: 240,
+        width: width - 80,
+        height: 320,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 32,
+        marginBottom: 48,
     },
-    iconCircle: {
-        width: 160,
-        height: 160,
-        borderRadius: 80,
-        backgroundColor: COLORS.paper,
-        alignItems: 'center',
-        justifyContent: 'center',
+    gradientCard: {
+        width: '100%',
+        height: '100%',
+        borderRadius: RADIUS.l,
+        overflow: 'hidden',
         ...Theme.shadows.soft,
     },
-    glowCircle: {
-        position: 'absolute',
-        width: 220,
-        height: 220,
-        borderRadius: 110,
-    },
-    gradientCircle: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
+    gradientOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        borderRadius: RADIUS.l,
     },
     textStack: {
         alignItems: 'center',
+        paddingHorizontal: 20,
     },
     title: {
-        fontSize: 48,
+        fontSize: 56,
         fontWeight: '700',
         textAlign: 'center',
-        letterSpacing: -1.5,
+        letterSpacing: -2,
         color: COLORS.ink,
-        lineHeight: 52,
-        marginBottom: 16,
+        lineHeight: 60,
+        marginBottom: 20,
+        fontFamily: 'PlayfairDisplay_700Bold',
     },
     subtitle: {
-        fontSize: 16,
-        lineHeight: 24,
+        fontSize: 17,
+        lineHeight: 26,
         textAlign: 'center',
         color: COLORS.stone,
         fontWeight: '400',

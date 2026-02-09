@@ -233,20 +233,32 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
                         />
                     )}
 
-                    {item.is_pinned && (
-                        <View style={{
+                    <Pressable
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            onPin?.(item.id);
+                        }}
+                        hitSlop={12}
+                        style={{
                             position: 'absolute',
                             top: 12,
                             right: 12,
                             zIndex: 10,
-                            backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+                            backgroundColor: item.is_pinned
+                                ? (isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)')
+                                : 'rgba(255,255,255,0.85)',
                             padding: 6,
                             borderRadius: 100,
                             ...Theme.shadows.soft
-                        }}>
-                            <PinIcon size={10} color={colors.accent} weight="fill" />
-                        </View>
-                    )}
+                        }}
+                    >
+                        <PinIcon
+                            size={10}
+                            color={item.is_pinned ? colors.accent : 'rgba(0,0,0,0.5)'}
+                            weight={item.is_pinned ? "fill" : "regular"}
+                        />
+                    </Pressable>
 
                     {/* Gradient Overlay & Text (Now Inside) */}
                     <Animated.View

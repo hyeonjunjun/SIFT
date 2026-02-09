@@ -72,11 +72,11 @@ export default function SocialScreen() {
         }
         setIsSearching(true);
         try {
-            // Search by username OR exact email
+            // Search by username, exact email, or Sift ID
             const { data } = await supabase
                 .from('profiles')
-                .select('id, username, display_name, avatar_url, email')
-                .or(`username.ilike.%${text}%,email.eq.${text.toLowerCase()}`)
+                .select('id, username, display_name, avatar_url, email, sift_id')
+                .or(`username.ilike.%${text}%,email.eq.${text.toLowerCase()},sift_id.eq.${text.toUpperCase()}`)
                 .neq('id', user?.id)
                 .limit(5);
 
@@ -133,23 +133,26 @@ export default function SocialScreen() {
     return (
         <ScreenWrapper edges={['top']}>
             <View style={styles.header}>
-                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NATIVE NETWORK</Typography>
+                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NATIVE • NETWORK</Typography>
                 <Typography variant="h1" style={styles.serifTitle}>Social</Typography>
             </View>
 
-            <View style={[styles.searchContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                <MagnifyingGlass size={18} color={colors.stone} weight="bold" />
-                <TextInput
-                    style={[styles.searchInput, { color: colors.ink }]}
-                    placeholder="Add friends..."
-                    placeholderTextColor={colors.stone}
-                    value={searchQuery}
-                    onChangeText={handleSearch}
-                    autoCapitalize="none"
-                />
-                {isSearching && (
-                    <ActivityIndicator size="small" color={colors.ink} />
-                )}
+            <View style={styles.searchContainer}>
+                <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                    <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
+                    <TextInput
+                        style={[styles.searchInput, { color: colors.ink }]}
+                        placeholder="Search by Sift ID or username..."
+                        placeholderTextColor={colors.stone}
+                        value={searchQuery}
+                        onChangeText={handleSearch}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    {isSearching && (
+                        <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
+                    )}
+                </View>
             </View>
 
             {searchResults.length > 0 ? (
@@ -292,9 +295,33 @@ function EmptyState({ icon, title, subtitle }: any) {
 const styles = StyleSheet.create({
     header: { paddingHorizontal: 20, marginTop: SPACING.m, marginBottom: 20 },
     smallCapsLabel: { marginBottom: 4 },
-    serifTitle: { fontSize: 34 },
-    searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, paddingHorizontal: 16, height: 48, borderRadius: RADIUS.m, borderWidth: StyleSheet.hairlineWidth, marginBottom: 12 },
-    searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
+    serifTitle: {
+        fontSize: 36,
+        fontFamily: 'PlayfairDisplay_700Bold',
+    },
+    searchContainer: {
+        marginHorizontal: 20,
+        marginBottom: 12
+    },
+    searchInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        height: 52,
+        borderRadius: RADIUS.l,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.08)',
+        // @ts-ignore
+        cornerCurve: 'continuous',
+        ...Theme.shadows.soft,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        fontFamily: 'System',
+        paddingVertical: 0,
+        textAlignVertical: 'center',
+    },
     searchResultsBox: { marginHorizontal: 20, borderRadius: RADIUS.m, ...Theme.shadows.medium, marginBottom: 20, overflow: 'hidden' },
     searchResultItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.separator },
     miniAvatar: { width: 32, height: 32, borderRadius: 16 },

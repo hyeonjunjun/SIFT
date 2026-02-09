@@ -426,7 +426,7 @@ export default function PageDetail() {
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
                             <View style={styles.headerTitleBox}>
-                                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>SAVED ARTIFACT</Typography>
+                                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>SAVED • ARTIFACT</Typography>
                                 <Typography variant="h1" numberOfLines={1} style={styles.serifTitle}>{page?.title || 'Loading...'}</Typography>
                             </View>
                             <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton}>
@@ -702,7 +702,8 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     serifTitle: {
-        fontSize: 20, // Smaller for detail page header to fit long titles
+        fontSize: 20,
+        fontFamily: 'PlayfairDisplay_700Bold',
     },
     scrollContent: {
         paddingHorizontal: 24, // Wider margins for editorial feel

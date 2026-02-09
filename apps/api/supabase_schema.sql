@@ -84,6 +84,10 @@ begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'pin_style') then
     alter table public.profiles add column pin_style text default 'pin' check (pin_style in ('pin', 'heart', 'star', 'bookmark', 'lightning'));
   end if;
+
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'sift_id') then
+    alter table public.profiles add column sift_id text unique;
+  end if;
 end $$;
 
 -- Enable RLS for profiles

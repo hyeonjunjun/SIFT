@@ -128,20 +128,32 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
             >
                 <Card style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                     {/* Pin Indicator */}
-                    {isPinned && (
-                        <View style={{
+                    <Pressable
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            onPin?.(id);
+                        }}
+                        hitSlop={12}
+                        style={{
                             position: 'absolute',
                             top: 8,
                             right: 8,
                             zIndex: 10,
-                            backgroundColor: colors.paper,
+                            backgroundColor: isPinned
+                                ? (isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)')
+                                : 'rgba(255,255,255,0.85)',
                             padding: 6,
                             borderRadius: RADIUS.pill,
                             ...Theme.shadows.sharp
-                        }}>
-                            <PinIcon size={12} color={colors.ink} weight="fill" />
-                        </View>
-                    )}
+                        }}
+                    >
+                        <PinIcon
+                            size={12}
+                            color={isPinned ? colors.ink : 'rgba(0,0,0,0.5)'}
+                            weight={isPinned ? "fill" : "regular"}
+                        />
+                    </Pressable>
 
                     <View style={{ aspectRatio }}>
                         {imageUrl ? (

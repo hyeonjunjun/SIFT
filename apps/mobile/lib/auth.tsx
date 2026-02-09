@@ -31,6 +31,7 @@ export type Profile = {
     interests?: string[];
     tier?: 'free' | 'plus' | 'unlimited' | 'admin';
     pin_style?: 'pin' | 'heart' | 'star' | 'bookmark' | 'lightning';
+    sift_id?: string;
 };
 
 type AuthContextType = {
@@ -156,9 +157,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (!data.email && actingUser.email) updates.email = actingUser.email;
                 if (isAdmin && data.tier !== 'admin') updates.tier = 'admin';
 
+                // NEW: Auto-generate human-friendly Sift ID if missing
+                if (!data.sift_id) {
+                    const base = (data.username || data.display_name || actingUser.email?.split('@')[0] || 'SIFTER')
+                        .toUpperCase()
+                        .replace(/[^A-Z0-9]/g, '')
+                        .slice(0, 10);
+                    const random = Math.floor(1000 + Math.random() * 9000);
+                    updates.sift_id = `${base}-${random}`;
+                    console.log(`[Auth] Generated new Sift ID: ${updates.sift_id}`);
+                }
+
                 if (Object.keys(updates).length > 0) {
                     supabase.from('profiles').update(updates).eq('id', actingUser.id).then();
-                    data.tier = resolvedTier;
+                    if (updates.sift_id) data.sift_id = updates.sift_id;
+                    if (updates.tier) data.tier = resolvedTier;
                     if (updates.email) data.email = actingUser.email;
                 }
 

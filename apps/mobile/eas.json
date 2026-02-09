@@ -29,6 +29,8 @@
             "autoIncrement": true,
             "env": {
                 "EXPO_PUBLIC_API_URL": "https://sift-rho.vercel.app",
+                "EXPO_PUBLIC_SUPABASE_URL": "https://twgfzcjqqhabnuqsyhvp.supabase.co",
+                "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_p6uwBDhBGf4bItVnUNv4ow_-D9ik8LI",
                 "EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS": "240781979317-1lblejma2h683dpjr3cmd9gdcosb98h2.apps.googleusercontent.com",
                 "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "240781979317-th80om2srfbroe5kv9e6tfd86tglroqc.apps.googleusercontent.com",
                 "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "240781979317-bjl813ouj9hma6vnheba5l0uhcka9t9u.apps.googleusercontent.com"
@@ -48,7 +50,7 @@
             },
             "android": {
                 "track": "production",
-                "changesNotSentForReview": true
+                "releaseStatus": "draft"
             }
         }
     }

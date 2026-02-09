@@ -171,7 +171,7 @@ export default function HomeScreen() {
         }
 
         // 3. Sort (Pinned first, then date)
-        return results.sort((a, b) => {
+        return [...results].sort((a, b) => {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
             const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -432,7 +432,7 @@ export default function HomeScreen() {
 
                 if (payload.eventType === 'INSERT') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
-                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
@@ -443,11 +443,11 @@ export default function HomeScreen() {
                     const archivedChanged = newRecord.is_archived !== oldRecord.is_archived;
 
                     if (statusChanged || titleChanged || pinnedChanged || archivedChanged) {
-                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                         if (statusChanged) triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                     }
                 } else if (payload.eventType === 'DELETE') {
-                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                 }
             })
             .subscribe();
@@ -472,7 +472,7 @@ export default function HomeScreen() {
 
         try {
             await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }),
+                queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] }),
                 refreshProfile()
             ]);
         } catch (e) {
@@ -505,7 +505,7 @@ export default function HomeScreen() {
                 throw new Error(`Server returned ${response.status}: ${text || 'Unknown archive error'}`);
             }
 
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             showToast("Moved to Archive");
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
@@ -531,7 +531,7 @@ export default function HomeScreen() {
                 throw new Error(`Server returned ${response.status}: ${text || 'Unknown delete error'}`);
             }
 
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             showToast("Permanently Deleted");
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
@@ -548,7 +548,7 @@ export default function HomeScreen() {
             const newPinnedState = !page.is_pinned;
 
             // Optimistic Update
-            queryClient.setQueryData(['pages', user?.id], (old: any[] | undefined) => {
+            queryClient.setQueryData(['pages', user?.id, tier], (old: any[] | undefined) => {
                 if (!old) return [];
                 return old.map(p => p.id === id ? { ...p, is_pinned: newPinnedState } : p);
             });
@@ -560,7 +560,7 @@ export default function HomeScreen() {
             console.error('[Pin] Action failed:', error);
             showToast("Action failed");
             // Rollback on error
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
         }
     };
 
@@ -610,7 +610,7 @@ export default function HomeScreen() {
                 .eq('id', selectedSiftId);
 
             if (error) throw error;
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             showToast("Tags updated");
         } catch (error: any) {
             console.error("Error updating tags:", error);
@@ -658,9 +658,9 @@ export default function HomeScreen() {
                         style={styles.greetingBox}
                     >
                         <Typography variant="label" color={COLORS.stone} style={{ marginBottom: 2 }}>
-                            {getGreeting()},
+                            {getGreeting()} •
                         </Typography>
-                        <Typography variant="h1" numberOfLines={1} style={{ fontSize: 36, fontFamily: 'PlayfairDisplay_700Bold', color: COLORS.ink }}>
+                        <Typography variant="h1" numberOfLines={1} style={styles.serifTitle}>
                             {(profile?.display_name || "Guest").split(' ')[0]}
                         </Typography>
                     </TouchableOpacity>
@@ -753,7 +753,12 @@ export default function HomeScreen() {
 
             {/* 3. HERO CAROUSEL */}
             <View style={{ marginHorizontal: -20 }}>
-                {activeFilter === 'All' && searchQuery === '' && <HeroCarousel pages={pages} />}
+                {activeFilter === 'All' && searchQuery === '' && (
+                    <HeroCarousel
+                        pages={filteredPages}
+                        onTogglePin={handlePin}
+                    />
+                )}
             </View>
 
             {/* 4. FILTER BAR */}
@@ -928,6 +933,11 @@ const styles = StyleSheet.create({
     greetingBox: {
         flex: 1,
     },
+    serifTitle: {
+        fontSize: 36,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        color: COLORS.ink,
+    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -973,6 +983,8 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontFamily: 'System',
         color: COLORS.ink,
+        paddingVertical: 0,
+        textAlignVertical: 'center',
     }
 });
 

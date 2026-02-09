@@ -9,9 +9,10 @@ const ITEM_WIDTH = width * 0.75; // Used for snap logic, but Card handles its ow
 
 interface HeroCarouselProps {
     pages: any[];
+    onTogglePin?: (id: string) => void;
 }
 
-export function HeroCarousel({ pages }: HeroCarouselProps) {
+export function HeroCarousel({ pages, onTogglePin }: HeroCarouselProps) {
     const recentPages = pages.slice(0, 5); // Start with top 5
     const lastIndex = useRef(0);
 
@@ -46,6 +47,7 @@ export function HeroCarousel({ pages }: HeroCarouselProps) {
                         tags={item.tags}
                         imageUrl={item.metadata?.image_url}
                         isPinned={item.is_pinned}
+                        onTogglePin={onTogglePin}
                     />
                 )}
                 keyExtractor={(item) => item.id}

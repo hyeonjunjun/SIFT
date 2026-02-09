@@ -205,7 +205,7 @@ export default function LoginScreen() {
                 <View style={styles.header}>
                     <Typography variant="h1" style={styles.logoText}>sift</Typography>
                     <Typography variant="label" color={COLORS.stone} style={styles.smallCapsLabel}>
-                        REFINE YOUR DIGITAL INTAKE
+                        MINDFUL DIGITAL CURATION
                     </Typography>
                 </View>
 
@@ -274,15 +274,20 @@ export default function LoginScreen() {
                 {/* Social Auth */}
                 <View style={styles.socialContainer}>
                     {Platform.OS === 'ios' && AppleAuthentication && (
-                        <View style={{ height: 52, marginVertical: 6 }}>
-                            <AppleAuthentication.AppleAuthenticationButton
-                                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                                cornerRadius={RADIUS.pill}
-                                style={{ width: '100%', height: '100%' }}
-                                onPress={handleAppleSignIn}
-                            />
-                        </View>
+                        <TouchableOpacity
+                            onPress={handleAppleSignIn}
+                            disabled={loading}
+                            activeOpacity={0.8}
+                            style={[
+                                styles.socialButtonApple,
+                                loading && { opacity: 0.5 }
+                            ]}
+                        >
+                            <View style={styles.socialButtonContent}>
+                                <AppleLogo size={20} color={COLORS.paper} weight="fill" />
+                                <Typography variant="label" style={styles.socialButtonAppleText}>Continue with Apple</Typography>
+                            </View>
+                        </TouchableOpacity>
                     )}
 
                     {Platform.OS !== 'ios' && (
@@ -343,12 +348,12 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     logoText: {
-        fontSize: 84,
-        fontFamily: 'PlayfairDisplay_700Bold',
-        fontWeight: '700',
-        letterSpacing: -4,
+        fontSize: 72,
+        fontFamily: 'InstrumentSerif_400Regular',
+        fontWeight: '400',
+        letterSpacing: -1,
         color: COLORS.ink,
-        lineHeight: 90,
+        lineHeight: 80,
     },
     smallCapsLabel: {
         fontSize: 10,
@@ -422,33 +427,39 @@ const styles = StyleSheet.create({
     },
     socialButtonApple: {
         flexDirection: 'row',
-        backgroundColor: '#000000',
-        height: 52,
+        backgroundColor: COLORS.ink,
+        height: 56,
         borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 10,
+        ...Theme.shadows.soft,
     },
     socialButtonGoogle: {
         flexDirection: 'row',
         backgroundColor: COLORS.paper,
-        height: 52,
+        height: 56,
         borderRadius: RADIUS.pill,
         borderWidth: 1.5,
         borderColor: COLORS.separator,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 10,
+        ...Theme.shadows.soft,
     },
     socialButtonGoogleText: {
+        fontFamily: 'Inter_500Medium',
         color: COLORS.ink,
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '500',
+        letterSpacing: 0.2,
     },
     socialButtonAppleText: {
+        fontFamily: 'Inter_500Medium',
         color: COLORS.paper,
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '500',
+        letterSpacing: 0.2,
     },
     socialButtonContent: {
         flexDirection: 'row',

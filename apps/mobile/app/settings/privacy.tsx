@@ -56,29 +56,26 @@ export default function PrivacyScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.section}>
-                    <Typography variant="label" style={styles.sectionTitle}>LEGAL</Typography>
+                    <Typography variant="label" style={styles.sectionTitle}>DATA COLLECTION</Typography>
+                    <Typography variant="body" style={styles.text}>
+                        We collect information to help you save and organize your library. This includes:
+                        {'\n'}• URLs and content you explicitly "sift"
+                        {'\n'}• Profile information (display name, bio, interests)
+                        {'\n'}• Friendships and items shared within the network
+                    </Typography>
+                </View>
 
-                    <TouchableOpacity
-                        style={styles.row}
-                        onPress={() => Linking.openURL('https://sift-rho.vercel.app/privacy')}
-                    >
-                        <ShieldCheck size={24} color={COLORS.stone} />
-                        <Typography variant="body" style={styles.rowText}>Privacy Policy</Typography>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.row}
-                        onPress={() => Linking.openURL('https://sift-rho.vercel.app/terms')}
-                    >
-                        <FileText size={24} color={COLORS.stone} />
-                        <Typography variant="body" style={styles.rowText}>Terms of Service</Typography>
-                    </TouchableOpacity>
+                <View style={styles.section}>
+                    <Typography variant="label" style={styles.sectionTitle}>YOUR PRIVACY</Typography>
+                    <Typography variant="body" style={styles.text}>
+                        Sift is built on a foundation of digital hygge—comfort and security. We do not sell your personal data. Your private sifts are yours alone and are never used to train advertising or AI models without your explicit consent.
+                    </Typography>
                 </View>
 
                 <View style={styles.section}>
                     <Typography variant="label" style={styles.sectionTitle}>DATA MANAGEMENT</Typography>
-                    <Typography variant="caption" style={{ marginBottom: 20 }}>
-                        Sift only stores the data you explicitly save: your library artifacts, profile bio, and interests. We do not use your personal sifts to train AI models or share your data with third parties.
+                    <Typography variant="body" style={[styles.text, { marginBottom: 24 }]}>
+                        You have full control over your data. You can edit your profile, archive sifts, or permanently delete your account at any time.
                     </Typography>
 
                     <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
@@ -88,6 +85,10 @@ export default function PrivacyScreen() {
                         </Typography>
                     </TouchableOpacity>
                 </View>
+
+                <Typography variant="caption" style={styles.footerText}>
+                    Last updated: February 9, 2026
+                </Typography>
             </ScrollView>
         </ScreenWrapper>
     );
@@ -123,6 +124,16 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.separator,
+    },
+    text: {
+        lineHeight: 24,
+        color: COLORS.ink,
+    },
+    footerText: {
+        marginTop: 40,
+        textAlign: 'center',
+        color: COLORS.stone,
+        opacity: 0.7,
     },
     rowText: {
         marginLeft: 12,
