@@ -8,7 +8,7 @@ import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
-import { MagnifyingGlass, CaretLeft, DotsThree, SquaresFour, List, Plus, Folder } from 'phosphor-react-native';
+import { MagnifyingGlass, CaretLeft, DotsThree, SquaresFour, List, Plus, Folder, Rows } from 'phosphor-react-native';
 import { supabase } from '../../lib/supabase';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
@@ -77,10 +77,8 @@ export default function LibraryScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
-    const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
-    // View mode: 'grid' (categories) or 'list' (compact)
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
@@ -620,14 +618,14 @@ export default function LibraryScreen() {
 
                     {/* View Toggle + Options */}
                     <View style={styles.headerActions}>
-                        {!activeCategory && (
+                        {!isCategoryEditing && (
                             <TouchableOpacity
                                 style={styles.viewToggle}
                                 onPress={toggleViewMode}
                                 activeOpacity={0.7}
                             >
                                 {viewMode === 'grid' ? (
-                                    <List size={22} color={colors.ink} weight="bold" />
+                                    <Rows size={22} color={colors.ink} weight="bold" />
                                 ) : (
                                     <SquaresFour size={22} color={colors.ink} weight="bold" />
                                 )}
@@ -690,6 +688,7 @@ export default function LibraryScreen() {
                                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                                 }
                                 contentContainerStyle={styles.feedContainer}
+                                viewMode={viewMode}
                             />
                             {(!activeCategoryPages || activeCategoryPages.length === 0) && !loading && (
                                 <View style={styles.emptyState}>
