@@ -7,8 +7,9 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from '
 import { Typography } from './design-system/Typography';
 import { Card } from './design-system/Card';
 import PinIcon from './PinIcon';
-import { COLORS } from '../lib/theme';
+import { COLORS, RADIUS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
+import { useTheme } from '../context/ThemeContext';
 
 interface GridPageCardProps {
     id: string;
@@ -26,8 +27,12 @@ interface GridPageCardProps {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDeleteForever, onPin, isPinned, createdAt }: GridPageCardProps) {
+    const { colors, isDark, reduceMotion, highContrast } = useTheme();
     const router = useRouter();
     const scale = useSharedValue(1);
+
+    // Duration helper for Reduce Motion
+    const getDuration = (standard: number) => reduceMotion ? 0 : standard;
 
     // Dust Gathering Logic (30 days)
     const isDusty = (() => {
@@ -40,18 +45,18 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
-        opacity: withTiming(opacity, { duration: 300, easing: Easing.inOut(Easing.ease) })
+        opacity: withTiming(opacity, { duration: getDuration(300), easing: Easing.inOut(Easing.ease) })
     }));
 
     // Domain cleaning
     const domain = getDomain(url);
 
     const handlePressIn = () => {
-        scale.value = withTiming(0.97, { duration: 150, easing: Easing.inOut(Easing.ease) });
+        scale.value = withTiming(0.97, { duration: getDuration(150), easing: Easing.inOut(Easing.ease) });
     };
 
     const handlePressOut = () => {
-        scale.value = withTiming(1, { duration: 150, easing: Easing.inOut(Easing.ease) });
+        scale.value = withTiming(1, { duration: getDuration(150), easing: Easing.inOut(Easing.ease) });
     };
 
     const handlePress = () => {
@@ -124,8 +129,16 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                 <Card style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                     {/* Pin Indicator */}
                     {isPinned && (
-                        <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 100 }}>
-                            <PinIcon size={10} color={COLORS.ink} weight="fill" />
+                        <View style={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            zIndex: 10,
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+                            padding: 6,
+                            borderRadius: RADIUS.pill,
+                        }}>
+                            <PinIcon size={10} color={colors.accent} weight="fill" />
                         </View>
                     )}
 
@@ -144,11 +157,11 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                     </View>
 
                     <View style={{ padding: 12 }}>
-                        <Typography variant="body" style={{ color: COLORS.ink, fontWeight: '700', lineHeight: 20, marginBottom: 4, fontSize: 13 }}>
+                        <Typography variant="body" color="ink" style={{ fontWeight: '700', lineHeight: 20, marginBottom: 4, fontSize: 13 }}>
                             {title}
                         </Typography>
                         {domain ? (
-                            <Typography variant="caption" style={{ color: COLORS.ink, opacity: 0.6, fontSize: 10, fontWeight: '500' }}>
+                            <Typography variant="caption" color="stone" style={{ fontSize: 10, fontWeight: '500' }}>
                                 {domain}
                             </Typography>
                         ) : null}

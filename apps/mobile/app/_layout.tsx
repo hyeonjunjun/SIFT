@@ -134,10 +134,13 @@ import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono';
 import { Lora_400Regular, Lora_500Medium, Lora_600SemiBold, Lora_400Regular_Italic } from '@expo-google-fonts/lora';
 
 // Safe Splash Screen Prevention
+let isSplashPrevented = false;
 try {
-    SplashScreenIs.preventAutoHideAsync().catch(() => { });
+    SplashScreenIs.preventAutoHideAsync()
+        .then(() => { isSplashPrevented = true; })
+        .catch(() => { isSplashPrevented = false; });
 } catch (e) {
-    // Ignore native module missing
+    isSplashPrevented = false;
 }
 
 function RootLayoutNav() {
@@ -174,6 +177,7 @@ function RootLayoutNav() {
     const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
     const [splashDismissed, setSplashDismissed] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const splashHiddenRef = React.useRef(false);
 
     // Initial Preparation
     useEffect(() => {
@@ -194,11 +198,17 @@ function RootLayoutNav() {
 
     // Helper for safe splash dismissal
     const safeHideSplash = useCallback(async () => {
+        if (splashHiddenRef.current) return;
+        splashHiddenRef.current = true;
+
         try {
-            await SplashScreenIs.hideAsync();
+            // Only attempt to hide if we successfully called preventAutoHide
+            // otherwise hideAsync will throw the "No native splash screen registered" error.
+            if (isSplashPrevented) {
+                await SplashScreenIs.hideAsync().catch(() => { /* Benign */ });
+            }
         } catch (e) {
-            // Put explicit catch here to consume the promise rejection
-            // Benign error during reloading: "No native splash screen registered..."
+            // Benign error during reloading or if native screen was already gone
         }
     }, []);
 

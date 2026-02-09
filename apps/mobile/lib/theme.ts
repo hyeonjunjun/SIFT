@@ -25,6 +25,22 @@ export const DARK_COLORS = {
     success: '#81C784',   // Brighter Green
 };
 
+export const HIGH_CONTRAST_LIGHT_COLORS = {
+    ...LIGHT_COLORS,
+    ink: '#000000',       // Pure Black
+    stone: '#555555',     // Darker Grey
+    accent: '#2C3E50',    // Deep Navy
+    separator: '#000000', // Black Dividers
+};
+
+export const HIGH_CONTRAST_DARK_COLORS = {
+    ...DARK_COLORS,
+    ink: '#FFFFFF',       // Pure White
+    stone: '#DDDDDD',     // Much Lighter Grey
+    accent: '#3498DB',    // Vibrant Blue
+    separator: '#FFFFFF', // White Dividers
+};
+
 export const COLORS = LIGHT_COLORS; // Default export for backwards compatibility
 
 export const SPACING = {

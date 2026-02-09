@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CaretLeft, Star, PushPin, Heart, Check } from 'phosphor-react-native';
+import { CaretLeft, Star, PushPin, Heart, Check, Bookmark, Lightning } from 'phosphor-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS } from '../../lib/theme';
@@ -18,6 +18,8 @@ export default function PersonalizationScreen() {
         { id: 'star', label: 'Star', icon: Star },
         { id: 'pin', label: 'Push Pin', icon: PushPin },
         { id: 'heart', label: 'Heart', icon: Heart },
+        { id: 'bookmark', label: 'Bookmark', icon: Bookmark },
+        { id: 'lightning', label: 'Lightning', icon: Lightning },
     ];
 
     const handleSelect = (id: PinIconType) => {

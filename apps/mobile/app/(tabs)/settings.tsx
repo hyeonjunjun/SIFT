@@ -18,13 +18,25 @@ import { UsageTracker } from "../../components/UsageTracker";
 import { useSubscription } from "../../hooks/useSubscription";
 import { useTheme } from "../../context/ThemeContext";
 import { useQueryClient } from '@tanstack/react-query';
+import { usePersonalization } from '../../context/PersonalizationContext';
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
-    const { user, tier, profile, refreshProfile, signOut } = useAuth();
+    const { user, tier, profile, refreshProfile, signOut, updateProfileInDB } = useAuth();
+    const { setPinIcon } = usePersonalization();
     const { description: tierName } = useSubscription();
     const router = useRouter();
-    const { theme, setTheme, colors, isDark } = useTheme();
+    const {
+        theme,
+        setTheme,
+        colors,
+        isDark,
+        highContrast,
+        setHighContrast,
+        reduceMotion,
+        setReduceMotion
+    } = useTheme();
+
     const queryClient = useQueryClient();
     const [savedPages, setSavedPages] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -33,8 +45,6 @@ export default function ProfileScreen() {
     // Settings State
     const [hapticsEnabled, setHapticsEnabled] = useState(true);
     const [autoClipboard, setAutoClipboard] = useState(true);
-    const [highContrast, setHighContrast] = useState(false);
-    const [reduceMotion, setReduceMotion] = useState(false);
 
     const fetchSavedPages = useCallback(async () => {
         try {
@@ -58,12 +68,8 @@ export default function ProfileScreen() {
         try {
             const h = await AsyncStorage.getItem('settings_haptics');
             const c = await AsyncStorage.getItem('settings_clipboard');
-            const hc = await AsyncStorage.getItem('settings_high_contrast');
-            const rm = await AsyncStorage.getItem('settings_reduce_motion');
             if (h !== null) setHapticsEnabled(h === 'true');
             if (c !== null) setAutoClipboard(c === 'true');
-            if (hc !== null) setHighContrast(hc === 'true');
-            if (rm !== null) setReduceMotion(rm === 'true');
         } catch (e) {
             console.error(e);
         }
@@ -99,14 +105,12 @@ export default function ProfileScreen() {
     };
 
     const toggleHighContrast = async (value: boolean) => {
-        setHighContrast(value);
-        await AsyncStorage.setItem('settings_high_contrast', String(value));
+        await setHighContrast(value);
         if (hapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
     const toggleReduceMotion = async (value: boolean) => {
-        setReduceMotion(value);
-        await AsyncStorage.setItem('settings_reduce_motion', String(value));
+        await setReduceMotion(value);
         if (hapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
@@ -274,8 +278,7 @@ export default function ProfileScreen() {
                                     key={item.id}
                                     onPress={() => {
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                        // @ts-ignore
-                                        updateProfileInDB({ pin_style: item.id });
+                                        setPinIcon(item.id as any);
                                     }}
                                     style={[
                                         styles.pinIconItem,
@@ -353,11 +356,24 @@ export default function ProfileScreen() {
                             try {
                                 const page = savedPages.find(p => p.id === id);
                                 if (!page) return;
-                                const { error } = await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
+
+                                const newPinnedState = !page.is_pinned;
+
+                                // Optimistic update
+                                setSavedPages(prev =>
+                                    prev.map(p => p.id === id ? { ...p, is_pinned: newPinnedState } : p)
+                                        .filter(p => p.is_pinned) // If unpinned, remove from saved list
+                                );
+
+                                const { error } = await supabase.from('pages').update({ is_pinned: newPinnedState }).eq('id', id);
                                 if (error) throw error;
-                                fetchSavedPages();
+                                fetchSavedPages(); // Final sync
                                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            } catch (e) { Alert.alert("Error", "Failed to update pin"); }
+                            } catch (e) {
+                                console.error('[Pin/Settings] Error:', e);
+                                fetchSavedPages(); // Revert on error
+                                Alert.alert("Error", "Failed to update pin");
+                            }
                         }}
                         onArchive={async (id) => {
                             try {

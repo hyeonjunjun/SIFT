@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Alert, Pressable, Text, ActionSheetIOS, Platform, Share } from 'react-native';
 import { Image } from 'expo-image';
-import { Trash, PushPin, Star, Heart } from 'phosphor-react-native';
+import { Trash } from 'phosphor-react-native';
 import { useRouter } from 'expo-router';
 import PinIcon from './PinIcon';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
@@ -12,7 +12,6 @@ import { COLORS, RADIUS, Theme, LIGHT_COLORS, DARK_COLORS, TRANSITIONS } from '.
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { useTheme } from '../context/ThemeContext';
-import { usePersonalization } from '../context/PersonalizationContext';
 
 interface PageCardProps {
     id: string;
@@ -30,21 +29,17 @@ interface PageCardProps {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDeleteForever, onPin, isPinned, imageUrl }: PageCardProps) => {
-    const { colors, isDark, theme } = useTheme();
+    const { colors, isDark, theme, reduceMotion, highContrast } = useTheme();
     const router = useRouter();
-    const { pinIcon } = usePersonalization();
-    const scale = useSharedValue(1);
     const [imageError, setImageError] = React.useState(false);
+    const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
     }));
 
-    const PinIconComponent = {
-        'star': Star,
-        'pin': PushPin,
-        'heart': Heart
-    }[pinIcon] || Star;
+    // Duration helper for Reduce Motion
+    const getDuration = (standard: number) => reduceMotion ? 0 : standard;
 
     // Fallback Title Logic
     const displayTitle = (title && title !== 'Untitled Page') ? title : (url ? getDomain(url) : 'Untitled Page');
@@ -61,14 +56,14 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
 
     const handlePressIn = () => {
         scale.value = withTiming(0.98, {
-            duration: TRANSITIONS.short,
+            duration: getDuration(TRANSITIONS.short),
             easing: Easing.inOut(Easing.ease),
         });
     };
 
     const handlePressOut = () => {
         scale.value = withTiming(1, {
-            duration: TRANSITIONS.short,
+            duration: getDuration(TRANSITIONS.short),
             easing: Easing.inOut(Easing.ease),
         });
     };
@@ -193,11 +188,11 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                         borderRadius: RADIUS.xl, // Premium larger rounding
                         overflow: 'hidden',
                         marginBottom: 24,
-                        borderWidth: isDark ? 1 : 0,
-                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'transparent',
+                        borderWidth: (isDark || highContrast) ? (highContrast ? 2 : 1) : 0,
+                        borderColor: highContrast ? colors.separator : (isDark ? 'rgba(255,255,255,0.05)' : 'transparent'),
                         ...Theme.shadows.medium, // Softer, more premium shadow
-                        shadowColor: isDark ? "#000000" : "#5A5A50",
-                        shadowOpacity: isDark ? 0.6 : 0.08,
+                        shadowColor: (isDark || highContrast) ? "#000000" : "#5A5A50",
+                        shadowOpacity: (isDark || highContrast) ? 0.6 : 0.08,
                     }}
                 >
                     {isPinned && (

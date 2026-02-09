@@ -74,11 +74,15 @@ create table if not exists public.profiles (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Ensure 'tier' column exists (if table was created without it)
+-- Ensure columns exist (if table was created without them)
 do $$
 begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'tier') then
     alter table public.profiles add column tier text default 'free' check (tier in ('free', 'plus', 'unlimited', 'admin'));
+  end if;
+
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'pin_style') then
+    alter table public.profiles add column pin_style text default 'pin' check (pin_style in ('pin', 'heart', 'star', 'bookmark', 'lightning'));
   end if;
 end $$;
 

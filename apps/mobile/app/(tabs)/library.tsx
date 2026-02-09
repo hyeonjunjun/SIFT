@@ -37,6 +37,7 @@ interface SiftItem {
     tags: string[];
     created_at: string;
     folder_id?: string;
+    is_pinned?: boolean;
     metadata?: {
         image_url?: string;
         category?: string;
@@ -78,7 +79,7 @@ export default function LibraryScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [activeCategory, setActiveCategory] = useState<string | null>(null);
+    const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
@@ -225,16 +226,16 @@ export default function LibraryScreen() {
     // Tab Bar Reset Logic
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('tabPress' as any, (e: any) => {
-            if (activeCategory) {
+            if (activeCategoryId) {
                 // If in a category, reset to main catalog
-                setActiveCategory(null);
+                setActiveCategoryId(null);
                 setIsCategoryEditing(false);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
         });
 
         return unsubscribe;
-    }, [navigation, activeCategory]);
+    }, [navigation, activeCategoryId]);
 
     useEffect(() => {
         const subscription = supabase
@@ -369,8 +370,8 @@ export default function LibraryScreen() {
         if (!id) return;
 
         // Optimistic Remove
-        const previousActive = activeCategory;
-        if (activeCategory) setActiveCategory(null);
+        const previousActiveId = activeCategoryId;
+        if (activeCategoryId === id) setActiveCategoryId(null);
         setCategoryModalVisible(false);
 
         const { error } = await supabase
@@ -382,7 +383,7 @@ export default function LibraryScreen() {
             console.error('Error deleting category:', error);
             Alert.alert('Error', 'Failed to delete category');
             // Revert state if needed, but for now just invalidate
-            if (previousActive) setActiveCategory(previousActive);
+            if (previousActiveId === id) setActiveCategoryId(previousActiveId);
         }
 
         queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
@@ -434,7 +435,8 @@ export default function LibraryScreen() {
     };
 
     const handleAddCategorySifts = async (selectedIds: string[]) => {
-        if (!activeCategory || !user?.id) return;
+        const activeCat = categories.find(c => c.id === activeCategoryId);
+        if (!activeCat || !user?.id) return;
 
         try {
             // Processing each update
@@ -442,9 +444,11 @@ export default function LibraryScreen() {
                 const page = pages.find(p => p.id === id);
                 if (!page) return;
 
-                const currentTags = page.tags || [];
-                if (!currentTags.includes(activeCategory)) { // Case-sensitive check? Logic mostly assumes uppercase
-                    const newTags = [...currentTags, activeCategory];
+                const currentTags = (page.tags || []).map(t => t.toUpperCase());
+                const categoryTag = activeCat.name.toUpperCase();
+
+                if (!currentTags.includes(categoryTag)) {
+                    const newTags = [...(page.tags || []), activeCat.name];
                     await supabase
                         .from('pages')
                         .update({ tags: newTags })
@@ -463,11 +467,14 @@ export default function LibraryScreen() {
     };
 
     const handleRemoveCategorySift = async (id: string) => {
-        if (!activeCategory) return;
+        const activeCat = categories.find(c => c.id === activeCategoryId);
+        if (!activeCat) return;
 
         // Optimistic removal
         const page = pages.find(p => p.id === id);
         if (!page) return;
+
+        const catNameUpper = activeCat.name.toUpperCase();
 
         // Optimistically update cache
         queryClient.setQueryData(['pages', user?.id], (old: SiftItem[] | undefined) => {
@@ -475,10 +482,10 @@ export default function LibraryScreen() {
             return old.map(p => {
                 if (p.id === id) {
                     // Start removing tag
-                    const newTags = (p.tags || []).filter(t => t.toUpperCase() !== activeCategory.toUpperCase());
+                    const newTags = (p.tags || []).filter(t => t.toUpperCase() !== catNameUpper);
                     // Also check metadata category
                     const newMetadata = { ...p.metadata };
-                    if (newMetadata.category?.toUpperCase() === activeCategory.toUpperCase()) {
+                    if (newMetadata.category?.toUpperCase() === catNameUpper) {
                         delete newMetadata.category;
                     }
                     return { ...p, tags: newTags, metadata: newMetadata };
@@ -492,11 +499,11 @@ export default function LibraryScreen() {
         try {
             const currentTags = page.tags || [];
             // Filter out the active category tag
-            const newTags = currentTags.filter(t => t.toUpperCase() !== activeCategory.toUpperCase());
+            const newTags = currentTags.filter(t => t.toUpperCase() !== catNameUpper);
 
             // Check metadata legacy field too
             let metadataUpdate = {};
-            if (page.metadata?.category?.toUpperCase() === activeCategory.toUpperCase()) {
+            if (page.metadata?.category?.toUpperCase() === catNameUpper) {
                 metadataUpdate = { metadata: { ...page.metadata, category: null } };
             }
 
@@ -510,6 +517,29 @@ export default function LibraryScreen() {
             console.error('Error removing sift from category:', error);
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }); // Revert
             Alert.alert('Error', 'Failed to remove sift');
+        }
+    };
+
+    const handlePin = async (id: string) => {
+        try {
+            const page = pages.find(p => p.id === id);
+            if (!page) return;
+
+            const newPinnedState = !page.is_pinned;
+
+            // Optimistic Update
+            queryClient.setQueryData(['pages', user?.id], (old: any[] | undefined) => {
+                if (!old) return [];
+                return old.map(p => p.id === id ? { ...p, is_pinned: newPinnedState } : p);
+            });
+
+            const { error } = await supabase.from('pages').update({ is_pinned: newPinnedState }).eq('id', id);
+            if (error) throw error;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } catch (error) {
+            console.error('[Library Pin] Action failed:', error);
+            // Rollback on error
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         }
     };
 
@@ -545,12 +575,18 @@ export default function LibraryScreen() {
     }, [pages, categories]);
 
     const activeCategoryPages = useMemo(() => {
-        if (!activeCategory) return [];
+        const activeCat = categories.find(c => c.id === activeCategoryId);
+        if (!activeCat) return [];
+
+        const catNameUpper = activeCat.name.toUpperCase();
+        const catTags = (activeCat.tags || []).map(t => t.toUpperCase());
+
         return pages.filter(p =>
-            p.tags?.some(t => t.toUpperCase() === activeCategory) ||
-            p.metadata?.category?.toUpperCase() === activeCategory
+            catTags.some(tag => p.tags?.some(t => t.toUpperCase() === tag)) ||
+            p.tags?.some(t => t.toUpperCase() === catNameUpper) ||
+            p.metadata?.category?.toUpperCase() === catNameUpper
         );
-    }, [pages, activeCategory]);
+    }, [pages, activeCategoryId, categories]);
 
     const filteredCategories = categoryData.filter(cat => {
         if (!debouncedSearchQuery.trim()) return true;
@@ -559,8 +595,8 @@ export default function LibraryScreen() {
 
     const swipeGesture = Gesture.Pan()
         .onUpdate((event) => {
-            if (activeCategory && event.translationX > 80 && Math.abs(event.translationY) < 30) {
-                runOnJS(setActiveCategory)(null);
+            if (activeCategoryId && event.translationX > 80 && Math.abs(event.translationY) < 30) {
+                runOnJS(setActiveCategoryId)(null);
                 runOnJS(setIsCategoryEditing)(false);
                 runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
             }
@@ -590,7 +626,7 @@ export default function LibraryScreen() {
             <ScreenWrapper edges={['top']}>
                 {/* 1. EDITORIAL HEADER */}
                 <View style={styles.header}>
-                    {activeCategory ? (
+                    {activeCategoryId ? (
                         isCategoryEditing ? (
                             <TouchableOpacity
                                 onPress={() => setIsCategoryEditing(false)}
@@ -600,19 +636,19 @@ export default function LibraryScreen() {
                             </TouchableOpacity>
                         ) : (
                             <TouchableOpacity
-                                onPress={() => setActiveCategory(null)}
+                                onPress={() => setActiveCategoryId(null)}
                                 style={styles.backButton}
                             >
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
                         )
                     ) : null}
-                    <View style={[styles.titleGroup, activeCategory ? { marginLeft: 12 } : {}]}>
+                    <View style={[styles.titleGroup, activeCategoryId ? { marginLeft: 12 } : {}]}>
                         <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            {activeCategory ? (isCategoryEditing ? 'MANAGING' : `CATEGORY / ${activeCategory}`) : 'YOUR COLLECTION'}
+                            {activeCategoryId ? (isCategoryEditing ? 'MANAGING' : `CATEGORY / ${categories.find(c => c.id === activeCategoryId)?.name?.toUpperCase() || ''}`) : 'YOUR COLLECTION'}
                         </Typography>
                         <Typography variant="h1" style={styles.serifTitle}>
-                            {activeCategory ? activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase() : 'Library'}
+                            {activeCategoryId ? (categories.find(c => c.id === activeCategoryId)?.name || '') : 'Library'}
                         </Typography>
                     </View>
 
@@ -631,12 +667,12 @@ export default function LibraryScreen() {
                                 )}
                             </TouchableOpacity>
                         )}
-                        {activeCategory && !isCategoryEditing && (
+                        {activeCategoryId && !isCategoryEditing && (
                             <TouchableOpacity
                                 style={styles.manageButton}
                                 onPress={() => {
                                     Haptics.selectionAsync();
-                                    const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+                                    const currentCat = categories.find(c => c.id === activeCategoryId);
                                     if (!currentCat) return;
                                     setEditingCategory(currentCat);
                                     setCategoryActionSheetVisible(true);
@@ -645,7 +681,7 @@ export default function LibraryScreen() {
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
                         )}
-                        {activeCategory && isCategoryEditing && (
+                        {activeCategoryId && isCategoryEditing && (
                             <TouchableOpacity
                                 style={styles.manageButton}
                                 onPress={() => {
@@ -660,7 +696,7 @@ export default function LibraryScreen() {
                 </View>
 
                 {/* 2. SEARCH INPUT (Only in main view) */}
-                {!activeCategory && (
+                {!activeCategoryId && (
                     <View style={[styles.searchContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                         <MagnifyingGlass size={18} color={colors.stone} weight="regular" />
                         <TextInput
@@ -675,11 +711,12 @@ export default function LibraryScreen() {
                 )}
 
                 {/* 3. BENTO GRID, SIFT FEED, or COMPACT LIST */}
-                {activeCategory ? (
+                {activeCategoryId ? (
                     <GestureDetector gesture={swipeGesture}>
                         <View style={{ flex: 1 }}>
                             <SiftFeed
                                 pages={activeCategoryPages as any}
+                                onPin={handlePin}
                                 onEditTags={handleEditTagsTrigger}
                                 loading={loading && fetchStatus !== 'paused'}
                                 mode={isCategoryEditing ? 'edit' : 'feed'}
@@ -757,7 +794,7 @@ export default function LibraryScreen() {
 
                         <View style={styles.bentoWrapper}>
                             {filteredCategories.map((cat) => (
-                                <Tile key={cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategory(cat.name)} />
+                                <Tile key={cat.id || cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategoryId(cat.id || null)} />
                             ))}
 
                             {(!filteredCategories || filteredCategories.length === 0) && (
@@ -770,7 +807,7 @@ export default function LibraryScreen() {
                 )}
 
                 {/* Floating Action Button - New Folder */}
-                {!activeCategory && viewMode === 'grid' && (
+                {!activeCategoryId && viewMode === 'grid' && (
                     <TouchableOpacity
                         style={[styles.fab, { backgroundColor: colors.ink }]}
                         onPress={() => openFolderModal()}
@@ -799,10 +836,10 @@ export default function LibraryScreen() {
                 <ActionSheet
                     visible={categoryActionSheetVisible}
                     onClose={() => setCategoryActionSheetVisible(false)}
-                    title={activeCategory || 'Options'}
+                    title={categories.find(c => c.id === activeCategoryId)?.name || 'Options'}
                     options={[
                         {
-                            label: `Manage ${activeCategory || 'Category'}`,
+                            label: `Manage ${categories.find(c => c.id === activeCategoryId)?.name || 'Category'}`,
                             onPress: () => {
                                 setIsCategoryEditing(true);
                             }
@@ -810,7 +847,7 @@ export default function LibraryScreen() {
                         {
                             label: 'Rename/Icon',
                             onPress: () => {
-                                const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+                                const currentCat = categories.find(c => c.id === activeCategoryId);
                                 if (currentCat) {
                                     setEditingCategory(currentCat);
                                     // Small delay to allow action sheet to close
@@ -822,7 +859,7 @@ export default function LibraryScreen() {
                             label: 'Delete Category',
                             isDestructive: true,
                             onPress: () => {
-                                const currentCat = categories.find(c => c.name?.toUpperCase() === activeCategory?.toUpperCase());
+                                const currentCat = categories.find(c => c.id === activeCategoryId);
                                 if (currentCat) {
                                     Alert.alert(
                                         "Delete Category",

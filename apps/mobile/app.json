@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "134",
+      "buildNumber": "135",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -51,7 +51,7 @@
       },
       "package": "com.hkjstudio.sift",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 135,
+      "versionCode": 136,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",

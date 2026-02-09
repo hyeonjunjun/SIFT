@@ -543,14 +543,25 @@ export default function HomeScreen() {
 
     const handlePin = async (id: string) => {
         try {
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
             const page = pages.find(p => p.id === id);
             if (!page) return;
-            const { error } = await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
+
+            const newPinnedState = !page.is_pinned;
+
+            // Optimistic Update
+            queryClient.setQueryData(['pages', user?.id], (old: any[] | undefined) => {
+                if (!old) return [];
+                return old.map(p => p.id === id ? { ...p, is_pinned: newPinnedState } : p);
+            });
+
+            const { error } = await supabase.from('pages').update({ is_pinned: newPinnedState }).eq('id', id);
             if (error) throw error;
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error) {
+            console.error('[Pin] Action failed:', error);
             showToast("Action failed");
+            // Rollback on error
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         }
     };
 
