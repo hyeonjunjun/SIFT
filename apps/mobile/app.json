@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "135",
+      "buildNumber": "136",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -25,10 +25,6 @@
         "com.apple.security.application-groups": [
           "group.com.hkjstudio.sift"
         ]
-      },
-      "config": {
-        "usesNonExemptEncryption": false,
-        "googleServicesFile": "./GoogleService-Info.plist"
       },
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -51,7 +47,7 @@
       },
       "package": "com.hkjstudio.sift",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 136,
+      "versionCode": 145,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
@@ -105,7 +101,20 @@
       ],
       "expo-apple-authentication",
       "./plugins/withShareExtensionExclusions.js",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "packagingOptions": {
+              "pickFirst": [
+                "lib/**/libc++_shared.so"
+              ]
+            }
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},

@@ -1,12 +1,14 @@
 import { Tabs } from "expo-router";
-import { DeviceEventEmitter, View, Platform } from "react-native";
+import { DeviceEventEmitter, View, Platform, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { House, Books, User, SquaresFour, UsersThree } from 'phosphor-react-native';
 import { useTheme } from "../../context/ThemeContext";
-import { COLORS } from "../../lib/theme";
+import { COLORS, SPACING, RADIUS } from "../../lib/theme";
 import * as Haptics from 'expo-haptics';
 
 export default function TabLayout() {
     const { colors, isDark } = useTheme();
+    const insets = useSafeAreaInsets();
 
     return (
         <Tabs
@@ -16,9 +18,9 @@ export default function TabLayout() {
                     backgroundColor: colors.canvas, // Global canvas color
                     borderTopWidth: 0, // CLEANER LOOK (No border)
                     // borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                    height: Platform.OS === 'ios' ? 90 : 70,
+                    height: Platform.OS === 'ios' ? 90 : 70 + insets.bottom,
                     paddingTop: 12,
-                    paddingBottom: Platform.OS === 'ios' ? 30 : 12,
+                    paddingBottom: Platform.OS === 'ios' ? 30 : 12 + insets.bottom,
                     elevation: 0,
                     shadowOpacity: 0,
                 },

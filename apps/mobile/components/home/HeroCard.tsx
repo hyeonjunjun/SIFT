@@ -3,7 +3,8 @@ import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Typography } from '../design-system/Typography';
 import { useRouter } from 'expo-router';
-import { COLORS, BORDER, Theme } from '../../lib/theme';
+import { COLORS, BORDER, RADIUS, Theme } from '../../lib/theme';
+import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import PinIcon from '../PinIcon';
@@ -17,6 +18,7 @@ interface HeroCardProps {
 }
 
 const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCardProps) => {
+    const { colors } = useTheme();
     const router = useRouter();
     const category = tags[0] || 'Uncategorized';
     const scale = useSharedValue(1);
@@ -44,7 +46,13 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCar
                 onPress={handlePress}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                style={styles.container}
+                style={[
+                    styles.container,
+                    {
+                        backgroundColor: colors.paper,
+                        ...Theme.shadows.soft
+                    }
+                ]}
             >
                 <View style={styles.imageContainer}>
                     {imageUrl ? (
@@ -55,7 +63,7 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCar
                             transition={500}
                         />
                     ) : (
-                        <View style={styles.placeholder} />
+                        <View style={[styles.placeholder, { backgroundColor: colors.subtle }]} />
                     )}
 
                     {isPinned && (
@@ -63,12 +71,12 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned }: HeroCar
                             position: 'absolute',
                             top: 10,
                             right: 10,
-                            backgroundColor: 'rgba(255,255,255,0.9)',
-                            padding: 5,
-                            borderRadius: 100,
-                            ...Theme.shadows.soft
+                            backgroundColor: colors.paper,
+                            padding: 6,
+                            borderRadius: RADIUS.pill,
+                            ...Theme.shadows.sharp
                         }}>
-                            <PinIcon size={10} color={COLORS.ink} weight="fill" />
+                            <PinIcon size={12} color={colors.ink} weight="fill" />
                         </View>
                     )}
                 </View>
@@ -91,21 +99,14 @@ const styles = StyleSheet.create({
     container: {
         width: 240,
         marginRight: 16,
+        borderRadius: RADIUS.m,
+        overflow: 'hidden',
     },
     imageContainer: {
         width: 240,
         height: 140, // 16:9ish
-        borderRadius: 12,
+        borderRadius: RADIUS.m,
         overflow: 'hidden',
-        borderWidth: BORDER.hairline,
-        borderColor: 'rgba(0,0,0,0.08)',
-        backgroundColor: '#F2F2F7',
-        // Soft Lift Shadow
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        elevation: 4,
         // @ts-ignore
         cornerCurve: 'continuous',
     },

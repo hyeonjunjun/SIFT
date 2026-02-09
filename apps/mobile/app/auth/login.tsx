@@ -286,18 +286,20 @@ export default function LoginScreen() {
                     )}
 
                     {Platform.OS !== 'ios' && (
-                        <Pressable
+                        <TouchableOpacity
                             onPress={handleAppleSignIn}
                             disabled={loading}
-                            style={({ hovered }: any) => [
+                            activeOpacity={0.8}
+                            style={[
                                 styles.socialButtonApple,
-                                loading && { opacity: 0.5 },
-                                hovered && Platform.OS === 'web' && { opacity: 0.8, transform: [{ scale: 1.01 }] }
+                                loading && { opacity: 0.5 }
                             ]}
                         >
-                            <AppleLogo size={20} color={COLORS.paper} weight="fill" />
-                            <Typography variant="label" style={styles.socialButtonAppleText}>Continue with Apple</Typography>
-                        </Pressable>
+                            <View style={styles.socialButtonContent}>
+                                <AppleLogo size={20} color={COLORS.paper} weight="fill" />
+                                <Typography variant="label" style={styles.socialButtonAppleText}>Continue with Apple</Typography>
+                            </View>
+                        </TouchableOpacity>
                     )}
 
                     <TouchableOpacity
@@ -342,8 +344,8 @@ const styles = StyleSheet.create({
     },
     logoText: {
         fontSize: 84,
-        fontFamily: 'PlayfairDisplay',
-        fontWeight: '400',
+        fontFamily: 'PlayfairDisplay_700Bold',
+        fontWeight: '700',
         letterSpacing: -4,
         color: COLORS.ink,
         lineHeight: 90,

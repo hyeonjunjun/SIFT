@@ -430,27 +430,24 @@ export default function HomeScreen() {
                 const newRecord = payload.new as any;
                 const oldRecord = payload.old as any;
 
-                // console.log(`[Realtime] ${payload.eventType} received:`, newRecord?.id || oldRecord?.id);
-
                 if (payload.eventType === 'INSERT') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
-                    await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
 
-                    // Optimization: Only invalidate if status becomes 'completed' or major flags change
                     const statusChanged = newRecord.metadata?.status === 'completed' && oldRecord.metadata?.status !== 'completed';
+                    const titleChanged = newRecord.title !== oldRecord.title;
                     const pinnedChanged = newRecord.is_pinned !== oldRecord.is_pinned;
                     const archivedChanged = newRecord.is_archived !== oldRecord.is_archived;
 
-                    if (statusChanged || pinnedChanged || archivedChanged) {
-                        // console.log(`[Realtime] Significant update detected, refreshing feed.`);
-                        await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+                    if (statusChanged || titleChanged || pinnedChanged || archivedChanged) {
+                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+                        if (statusChanged) triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                     }
                 } else if (payload.eventType === 'DELETE') {
-                    if (!oldRecord || !oldRecord.id) return;
-                    await queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+                    queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
                 }
             })
             .subscribe();
@@ -474,15 +471,17 @@ export default function HomeScreen() {
         triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
 
         try {
-            await queryClient.invalidateQueries({ queryKey: ['pages'] });
-            await refreshProfile();
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }),
+                refreshProfile()
+            ]);
         } catch (e) {
-            console.warn('[Home] Refresh failed:', e);
+            console.error('[Home] Refresh failed:', e);
         } finally {
             setRefreshing(false);
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         }
-    }, [queryClient, triggerHaptic, refreshProfile]);
+    }, [queryClient, user?.id, triggerHaptic, refreshProfile]);
 
     const handleArchive = async (id: string) => {
         if (!user?.id) {
@@ -658,10 +657,10 @@ export default function HomeScreen() {
                         delayLongPress={2000}
                         style={styles.greetingBox}
                     >
-                        <Typography variant="label" style={{ fontFamily: 'GeistMono_400Regular', textTransform: 'uppercase', letterSpacing: 2, fontSize: 11, color: COLORS.stone, marginBottom: 4 }}>
-                            {getGreeting()}
+                        <Typography variant="label" color={COLORS.stone} style={{ marginBottom: 2 }}>
+                            {getGreeting()},
                         </Typography>
-                        <Typography variant="h1" numberOfLines={1} style={{ fontSize: 36, fontFamily: 'PlayfairDisplay_600SemiBold', color: COLORS.ink }}>
+                        <Typography variant="h1" numberOfLines={1} style={{ fontSize: 36, fontFamily: 'PlayfairDisplay_700Bold', color: COLORS.ink }}>
                             {(profile?.display_name || "Guest").split(' ')[0]}
                         </Typography>
                     </TouchableOpacity>
@@ -773,7 +772,7 @@ export default function HomeScreen() {
             <View style={{ paddingHorizontal: SPACING.m }}>
                 <SiftLimitTracker />
             </View>
-        </View>
+        </View >
     ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage]);
 
     const HomeEmptyState = useMemo(() => (

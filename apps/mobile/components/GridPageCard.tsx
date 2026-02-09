@@ -7,7 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from '
 import { Typography } from './design-system/Typography';
 import { Card } from './design-system/Card';
 import PinIcon from './PinIcon';
-import { COLORS, RADIUS } from '../lib/theme';
+import { COLORS, RADIUS, Theme } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 
@@ -134,11 +134,12 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                             top: 8,
                             right: 8,
                             zIndex: 10,
-                            backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+                            backgroundColor: colors.paper,
                             padding: 6,
                             borderRadius: RADIUS.pill,
+                            ...Theme.shadows.sharp
                         }}>
-                            <PinIcon size={10} color={colors.accent} weight="fill" />
+                            <PinIcon size={12} color={colors.ink} weight="fill" />
                         </View>
                     )}
 
@@ -150,8 +151,8 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View style={{ width: '100%', height: '100%', backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' }}>
-                                <Typography variant="h3" style={{ color: '#CBD5E1' }}>S</Typography>
+                            <View style={{ width: '100%', height: '100%', backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }}>
+                                <Typography variant="h3" style={{ color: colors.stone, opacity: 0.3 }}>S</Typography>
                             </View>
                         )}
                     </View>
