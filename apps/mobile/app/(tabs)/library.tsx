@@ -603,7 +603,11 @@ export default function LibraryScreen() {
         })
         .runOnJS(true);
 
-    if (loading && !refreshing && fetchStatus === 'fetching') {
+
+
+    const isLoadingState = loading && !refreshing && fetchStatus === 'fetching';
+
+    if (isLoadingState) {
         return (
             <ScreenWrapper edges={['top']}>
                 <View style={[styles.header, { paddingBottom: 0 }]}>

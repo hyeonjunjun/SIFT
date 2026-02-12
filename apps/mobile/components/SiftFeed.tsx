@@ -329,17 +329,13 @@ export default function SiftFeed({
     // Filter out edit-action injection
     const data = pages;
 
-    // Only show full-screen loader if authenticating initial load AND no data
-    if (loading && data.length === 0) {
-        return (
-            <View style={{ flex: 1, backgroundColor: colors.canvas }}>
-                {ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}
-                <FeedLoadingScreen message="Loading your sifts..." />
-            </View>
-        );
-    }
-
-    return (
+    // LOADING STATE
+    return (loading && data.length === 0) ? (
+        <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+            {ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}
+            <FeedLoadingScreen message="Loading your sifts..." />
+        </View>
+    ) : (
         <FlashList
             data={data}
             keyExtractor={(item) => (item as any).id}
