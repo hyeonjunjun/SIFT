@@ -35,7 +35,7 @@ export default function ArchiveScreen() {
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
 
-    const { data: pages = [], isLoading: loading, refetch } = useQuery({
+    const { data: pages = [], isLoading: loading, refetch, fetchStatus } = useQuery({
         queryKey: ['pages', 'archived', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
@@ -128,7 +128,7 @@ export default function ArchiveScreen() {
                     <SiftFeed
                         pages={pages}
                         mode="archive"
-                        loading={loading}
+                        loading={loading && fetchStatus === 'fetching'}
                         onArchive={handleRestore}
                         onDeleteForever={handleDeleteForever}
                     />

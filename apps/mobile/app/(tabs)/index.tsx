@@ -808,7 +808,7 @@ export default function HomeScreen() {
                 onDeleteForever={handleDeleteForever}
                 onEditTags={handleEditTagsTrigger}
                 onOptions={handleSiftOptions}
-                loading={loading && fetchStatus !== 'paused'}
+                loading={loading && fetchStatus === 'fetching'}
                 ListHeaderComponent={HomeHeader}
                 ListEmptyComponent={HomeEmptyState}
                 onScroll={onScroll}

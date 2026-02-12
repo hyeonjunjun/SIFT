@@ -603,7 +603,7 @@ export default function LibraryScreen() {
         })
         .runOnJS(true);
 
-    if (loading && !refreshing && fetchStatus !== 'paused') {
+    if (loading && !refreshing && fetchStatus === 'fetching') {
         return (
             <ScreenWrapper edges={['top']}>
                 <View style={[styles.header, { paddingBottom: 0 }]}>
@@ -721,7 +721,7 @@ export default function LibraryScreen() {
                                 pages={activeCategoryPages as any}
                                 onPin={handlePin}
                                 onEditTags={handleEditTagsTrigger}
-                                loading={loading && fetchStatus !== 'paused'}
+                                loading={loading && fetchStatus === 'fetching'}
                                 mode={isCategoryEditing ? 'edit' : 'feed'}
                                 onRemove={handleRemoveCategorySift}
                                 refreshControl={

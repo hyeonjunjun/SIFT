@@ -79,7 +79,7 @@ export default function HistoryScreen() {
     const debouncedSearch = useDebounce(searchQuery, 300);
 
     // Fetch all sifts
-    const { data: allPages = [], isLoading } = useQuery({
+    const { data: allPages = [], isLoading, fetchStatus } = useQuery({
         queryKey: ['history-pages', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
@@ -191,7 +191,7 @@ export default function HistoryScreen() {
                 stickySectionHeadersEnabled={true}
                 ListEmptyComponent={() => (
                     <View style={styles.emptyState}>
-                        {isLoading ? (
+                        {isLoading && fetchStatus === 'fetching' ? (
                             <ActivityIndicator size="large" color={colors.ink} style={{ marginBottom: SPACING.m }} />
                         ) : (
                             <>

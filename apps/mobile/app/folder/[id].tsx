@@ -59,7 +59,7 @@ export default function FolderScreen() {
     });
 
     // Fetch pages in this folder
-    const { data: pages = [], isLoading, refetch } = useQuery({
+    const { data: pages = [], isLoading, refetch, fetchStatus } = useQuery({
         queryKey: ['folder-pages', id],
         queryFn: async () => {
             if (!id) return [];
@@ -248,7 +248,7 @@ export default function FolderScreen() {
             {/* Sift Feed */}
             <SiftFeed
                 pages={pages as any}
-                loading={isLoading}
+                loading={isLoading && fetchStatus === 'fetching'}
                 mode={isEditing ? 'edit' : 'feed'}
                 onRemove={handleRemoveSift}
                 refreshControl={
