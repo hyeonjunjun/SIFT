@@ -28,6 +28,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
 import { Plus, X, ArrowSquareOut, PlusCircle } from 'phosphor-react-native';
+import { ActionSheet } from '../../components/modals/ActionSheet';
 import { useAuth } from '../../lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SiftDetailSkeleton } from '../../components/SiftDetailSkeleton';
@@ -231,32 +232,10 @@ export default function PageDetail() {
         setRefreshing(false);
     };
 
+    const [actionSheetVisible, setActionSheetVisible] = useState(false);
+
     const handleMoreOptions = () => {
-        const options = ['Cancel', 'Edit Sift', 'Delete Sift'];
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options,
-                    cancelButtonIndex: 0,
-                    destructiveButtonIndex: 2,
-                    userInterfaceStyle: isDark ? 'dark' : 'light',
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) setIsEditing(true);
-                    if (buttonIndex === 2) handleDelete();
-                }
-            );
-        } else {
-            Alert.alert(
-                "Options",
-                "Manage this Sift",
-                [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Edit Sift", onPress: () => setIsEditing(true) },
-                    { text: "Delete", style: "destructive", onPress: handleDelete }
-                ]
-            );
-        }
+        setActionSheetVisible(true);
     };
 
     const handleDelete = async () => {
@@ -675,7 +654,31 @@ export default function PageDetail() {
                     </View>
                 </Modal>
             </View>
-        </GestureDetector>
+            <ActionSheet
+                visible={actionSheetVisible}
+                onClose={() => setActionSheetVisible(false)}
+                title="Manage Sift"
+                options={[
+                    {
+                        label: 'Edit Sift',
+                        icon: require('phosphor-react-native').PencilSimple,
+                        onPress: () => setIsEditing(true)
+                    },
+                    {
+                        label: 'Delete Sift',
+                        icon: require('phosphor-react-native').Trash,
+                        isDestructive: true,
+                        onPress: handleDelete
+                    },
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ]}
+            />
+        </View>
+    </GestureDetector >
     );
 }
 

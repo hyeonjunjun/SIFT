@@ -73,63 +73,11 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
         router.push(`/page/${id}`);
     };
 
+    const [actionSheetVisible, setActionSheetVisible] = React.useState(false);
+
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options: ['Cancel', 'Copy Link', 'Share Sift', 'Pin/Unpin Page', 'Archive Page', 'Delete Permanently'],
-                    destructiveButtonIndex: 5,
-                    cancelButtonIndex: 0,
-                    userInterfaceStyle: isDark ? 'dark' : 'light',
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) { // Copy Link
-                        if (url) Clipboard.setStringAsync(url);
-                    } else if (buttonIndex === 2) { // Share
-                        handleShare();
-                    } else if (buttonIndex === 3) { // Pin
-                        onPin?.(id);
-                    } else if (buttonIndex === 4) { // Archive
-                        onDelete?.(id);
-                    } else if (buttonIndex === 5) { // Delete Forever
-                        Alert.alert(
-                            "Delete Permanently",
-                            "This cannot be undone.",
-                            [
-                                { text: "Cancel", style: "cancel" },
-                                { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
-                            ]
-                        );
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                "Options",
-                displayTitle,
-                [
-                    { text: "Copy Link", onPress: () => url && Clipboard.setStringAsync(url) },
-                    { text: "Share Sift", onPress: handleShare },
-                    { text: "Pin/Unpin", onPress: () => onPin?.(id) },
-                    { text: "Archive", onPress: () => onDelete?.(id) },
-                    {
-                        text: "Delete Permanently", style: 'destructive', onPress: () => {
-                            Alert.alert(
-                                "Delete Permanently",
-                                "This cannot be undone.",
-                                [
-                                    { text: "Cancel", style: "cancel" },
-                                    { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
-                                ]
-                            );
-                        }
-                    },
-                    { text: "Cancel", style: "cancel" }
-                ]
-            );
-        }
+        setActionSheetVisible(true);
     };
 
     const handleShare = async () => {
@@ -142,32 +90,6 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
         } catch (error: any) {
             Alert.alert('Error', error.message);
         }
-    };
-
-    const handleDelete = () => {
-        Alert.alert(
-            "Delete Page",
-            "Are you sure you want to delete this page?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => onDelete?.(id)
-                }
-            ]
-        );
-    };
-
-    const RightAction = () => {
-        return (
-            <Pressable
-                onPress={handleDelete}
-                style={{ height: '100%', maxHeight: 300, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', width: 80, borderRadius: RADIUS.m, marginBottom: 12, marginLeft: 8 }}
-            >
-                <Trash size={24} color={isDark ? colors.paper : "white"} />
-            </Pressable>
-        );
     };
 
     return (
@@ -254,6 +176,53 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                     </View>
                 </View>
             </AnimatedPressable>
+
+            <ActionSheet
+                visible={actionSheetVisible}
+                onClose={() => setActionSheetVisible(false)}
+                title={displayTitle || 'Options'}
+                options={[
+                    {
+                        label: 'Copy Link',
+                        icon: require('phosphor-react-native').Link,
+                        onPress: () => {
+                            if (url) Clipboard.setStringAsync(url);
+                        }
+                    },
+                    {
+                        label: 'Share Sift',
+                        icon: require('phosphor-react-native').ShareNetwork,
+                        onPress: handleShare
+                    },
+                    {
+                        label: isPinned ? 'Unpin Sift' : 'Pin Sift',
+                        icon: require('phosphor-react-native').PushPin,
+                        onPress: () => onPin?.(id)
+                    },
+                    {
+                        label: 'Archive Sift',
+                        icon: require('phosphor-react-native').Archive,
+                        isDestructive: true,
+                        onPress: () => onDelete?.(id)
+                    },
+                    {
+                        label: 'Delete Permanently',
+                        icon: require('phosphor-react-native').Trash,
+                        isDestructive: true,
+                        onPress: () => {
+                            Alert.alert("Delete Permanently", "This cannot be undone.", [
+                                { text: "Cancel", style: "cancel" },
+                                { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
+                            ]);
+                        }
+                    },
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ]}
+            />
         </ReanimatedSwipeable >
     );
 };

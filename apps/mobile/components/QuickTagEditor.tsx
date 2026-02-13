@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Platform, KeyboardAvoidingView, ActionSheetIOS } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { Typography } from './design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../lib/theme';
 import { X, Plus, Check } from 'phosphor-react-native';

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActionSheetIOS, Alert, Platform, FlatList } from 'react-native';
+import { View, StyleSheet, Pressable, FlatList } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Typography } from './design-system/Typography';

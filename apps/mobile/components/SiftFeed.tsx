@@ -147,45 +147,48 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
     const [isHovered, setIsHovered] = React.useState(false);
     const { columnWidth } = getLayoutInfo(width);
 
-    // CLEANUP: If failed or stale (timed out), do not render.
-    if (item.status === 'failed' || isStale) {
-        return null;
-    }
+    // Hooks must be unconditional
+    const opacity = useSharedValue(1);
+    const shakeAnimation = useAnimatedStyle(() => {
+        if (mode === 'edit') {
+            return { transform: [{ scale: 0.95 }] };
+        }
+        return {};
+    });
 
-    if (item.status === 'pending') {
-        const opacity = useSharedValue(1);
-
-        React.useEffect(() => {
+    // Skeleton Animation Hook
+    React.useEffect(() => {
+        if (item.status === 'pending') {
             opacity.value = withRepeat(
                 withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
                 -1,
                 true
             );
-        }, []);
+        }
+    }, [item.status]);
 
-        const animatedStyle = useAnimatedStyle(() => ({
-            opacity: opacity.value,
-        }));
+    const skeletonStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+    }));
 
+    // Logic for conditional rendering
+    const isFailedOrStale = item.status === 'failed' || isStale;
+    const isPending = item.status === 'pending';
+
+    if (isFailedOrStale) {
+        return null;
+    }
+
+    if (isPending) {
         return (
             <Animated.View style={[{
                 width: columnWidth,
                 marginBottom: GRID_GAP,
-            }, animatedStyle]}>
+            }, skeletonStyle]}>
                 <SiftCardSkeleton />
             </Animated.View>
         );
     }
-
-    const shakeAnimation = useAnimatedStyle(() => {
-        // Optional: Add a subtle shake or scale effect in edit mode
-        if (mode === 'edit') {
-            return {
-                transform: [{ scale: 0.95 }]
-            };
-        }
-        return {};
-    });
 
     return (
         <Animated.View

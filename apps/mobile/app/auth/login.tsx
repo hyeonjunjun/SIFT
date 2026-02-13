@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ActionSheetIOS, Platform, View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, ScrollView, Pressable, NativeModules, Dimensions, Switch } from 'react-native';
+import { Platform, View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, ScrollView, Pressable, NativeModules, Dimensions, Switch } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
