@@ -242,3 +242,8 @@ end $$;
 
 -- Index for category queries
 create index if not exists idx_categories_user_id on public.categories(user_id);
+
+-- 8. Performance Indexes (Added 2026-02-13)
+-- Optimizes the main feed query: .eq('user_id', ...).order('is_pinned', ...).order('created_at', ...)
+create index if not exists idx_pages_user_feed on public.pages(user_id, is_pinned desc, created_at desc);
+

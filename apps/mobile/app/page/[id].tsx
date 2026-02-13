@@ -653,32 +653,32 @@ export default function PageDetail() {
                         </View>
                     </View>
                 </Modal>
+
+                <ActionSheet
+                    visible={actionSheetVisible}
+                    onClose={() => setActionSheetVisible(false)}
+                    title="Manage Sift"
+                    options={[
+                        {
+                            label: 'Edit Sift',
+                            icon: require('phosphor-react-native').PencilSimple,
+                            onPress: () => setIsEditing(true)
+                        },
+                        {
+                            label: 'Delete Sift',
+                            icon: require('phosphor-react-native').Trash,
+                            isDestructive: true,
+                            onPress: handleDelete
+                        },
+                        {
+                            label: 'Cancel',
+                            isCancel: true,
+                            onPress: () => { }
+                        }
+                    ]}
+                />
             </View>
-            <ActionSheet
-                visible={actionSheetVisible}
-                onClose={() => setActionSheetVisible(false)}
-                title="Manage Sift"
-                options={[
-                    {
-                        label: 'Edit Sift',
-                        icon: require('phosphor-react-native').PencilSimple,
-                        onPress: () => setIsEditing(true)
-                    },
-                    {
-                        label: 'Delete Sift',
-                        icon: require('phosphor-react-native').Trash,
-                        isDestructive: true,
-                        onPress: handleDelete
-                    },
-                    {
-                        label: 'Cancel',
-                        isCancel: true,
-                        onPress: () => { }
-                    }
-                ]}
-            />
-        </View>
-    </GestureDetector >
+        </GestureDetector>
     );
 }
 

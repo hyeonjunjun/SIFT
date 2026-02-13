@@ -93,11 +93,8 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
     };
 
     return (
-        <ReanimatedSwipeable
-            containerStyle={{ overflow: 'visible' }}
-            renderRightActions={RightAction}
-            overshootRight={false}
-        >
+        <>
+
             <AnimatedPressable
                 onPress={handlePress}
                 onLongPress={handleLongPress}
@@ -223,7 +220,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                     }
                 ]}
             />
-        </ReanimatedSwipeable >
+        </>
     );
 };
 

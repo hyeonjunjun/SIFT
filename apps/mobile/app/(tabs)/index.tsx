@@ -23,7 +23,7 @@ import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import Fuse from "fuse.js";
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { SiftLimitTracker } from "../../components/SiftLimitTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { ActionSheet } from "../../components/modals/ActionSheet";
@@ -56,32 +56,48 @@ export default function HomeScreen() {
     const PAGE_SIZE = 20;
 
     const {
-        data: pages = [],
-        isLoading: loading,
+        data,
+        isLoading,
         fetchStatus,
-        refetch
-    } = useQuery({
+        refetch,
+        isFetchingNextPage,
+        fetchNextPage,
+        hasNextPage
+    } = useInfiniteQuery({
         queryKey: ['pages', user?.id, tier],
-        queryFn: async () => {
+        queryFn: async ({ pageParam = 0 }) => {
             if (!user) return [];
-            // console.log(`[Fetch] Fetching all pages for user: ${user.id}`);
+
+            const from = pageParam * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            // console.log(`[Fetch] Fetching pages ${from}-${to} for user: ${user.id}`);
+
             const { data, error } = await supabase
                 .from('pages')
-                .select('id, title, summary, tags, created_at, url, is_pinned, metadata') // OPTIMIZE: Exclude 'content'
+                .select('id, title, summary, tags, created_at, url, is_pinned, metadata')
                 .eq('user_id', user.id)
                 .neq('is_archived', true)
                 .order('is_pinned', { ascending: false })
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .range(from, to);
 
-            if (error) {
-                // console.error('[Fetch] Supabase Error:', error);
-                throw error;
-            }
+            if (error) throw error;
             return (data || []) as Page[];
         },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, allPages) => {
+            return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
+        },
         enabled: !!user,
-        staleTime: 1000 * 60, // 1 minute - prevents redundant re-fetches
+        staleTime: 1000 * 60, // 1 minute
     });
+
+    const pages = useMemo(() => {
+        return data?.pages.flat() || [];
+    }, [data]);
+
+    const loading = isLoading; // Map to existing variable for compatibility
 
 
     // Quick Tag Modal State
@@ -817,6 +833,12 @@ export default function HomeScreen() {
                 }
                 contentContainerStyle={{ paddingBottom: 160 }}
                 viewMode={viewMode}
+                onEndReached={() => {
+                    if (hasNextPage && !isFetchingNextPage) {
+                        fetchNextPage();
+                    }
+                }}
+                onEndReachedThreshold={0.5}
             />
 
             {/* 6. MODALS */}

@@ -67,9 +67,10 @@ const getLayoutInfo = (screenWidth: number) => {
     return { numColumns, columnWidth };
 };
 
-const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed' }: {
+const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed' }: {
     item: Page,
     index: number,
+    numColumns?: number,
     onPin?: (id: string) => void,
     onArchive?: (id: string) => void,
     onDeleteForever?: (id: string) => void,
@@ -184,6 +185,7 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
             <Animated.View style={[{
                 width: columnWidth,
                 marginBottom: GRID_GAP,
+                marginRight: (index + 1) % numColumns === 0 ? 0 : GRID_GAP,
             }, skeletonStyle]}>
                 <SiftCardSkeleton />
             </Animated.View>
@@ -197,6 +199,7 @@ const Card = React.memo(({ item: page, index, onPin, onArchive, onDeleteForever,
             style={[{
                 width: columnWidth,
                 marginBottom: GRID_GAP,
+                marginRight: (index + 1) % numColumns === 0 ? 0 : GRID_GAP,
                 transform: Platform.OS === 'web' ? [{ scale: isHovered ? 1.02 : 1 }] : [],
             }, shakeAnimation]}
         >
@@ -362,6 +365,7 @@ export default function SiftFeed({
                     <Card
                         item={item}
                         index={index}
+                        numColumns={numColumns}
                         onPin={onPin}
                         onArchive={onArchive}
                         onDeleteForever={onDeleteForever}

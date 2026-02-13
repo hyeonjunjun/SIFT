@@ -1,62 +1,46 @@
 import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { Typography } from './design-system/Typography';
-import { useTheme } from '../context/ThemeContext';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
-import { Sparkle } from 'phosphor-react-native';
+import { View, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import { SiftCardSkeleton } from './SiftCardSkeleton';
 
 interface FeedLoadingScreenProps {
     message?: string;
 }
 
 export function FeedLoadingScreen({ message = 'Loading your sifts...' }: FeedLoadingScreenProps) {
-    const { colors } = useTheme();
-    const scale = useSharedValue(1);
-    const rotation = useSharedValue(0);
-    const opacity = useSharedValue(0.8);
+    const { width } = useWindowDimensions();
 
-    React.useEffect(() => {
-        // Gentle pulsing animation
-        scale.value = withRepeat(
-            withTiming(1.15, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-            -1,
-            true
-        );
+    // Replicate grid logic
+    const GRID_PADDING = 20;
+    const GRID_GAP = 15;
+    const isWeb = Platform.OS === 'web';
+    const maxAppWidth = isWeb ? 800 : width;
+    const effectiveWidth = Math.min(width, maxAppWidth);
 
-        // Slow rotation
-        rotation.value = withRepeat(
-            withTiming(360, { duration: 4000, easing: Easing.linear }),
-            -1,
-            false
-        );
+    let numColumns = 2;
+    if (isWeb && width > 600) numColumns = 3;
+    if (isWeb && width > 900) numColumns = 4;
 
-        // Subtle opacity pulse
-        opacity.value = withRepeat(
-            withSequence(
-                withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-                withTiming(0.7, { duration: 800, easing: Easing.inOut(Easing.ease) })
-            ),
-            -1,
-            false
-        );
-    }, []);
+    const columnWidth = (effectiveWidth - (GRID_PADDING * 2) - (GRID_GAP * (numColumns - 1))) / numColumns;
 
-    const animatedIconStyle = useAnimatedStyle(() => ({
-        transform: [
-            { scale: scale.value },
-            { rotate: `${rotation.value}deg` }
-        ] as const,
-        opacity: opacity.value,
-    }));
+    // Generate 6 skeleton items
+    const skeletons = Array(6).fill(0);
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.canvas }]}>
-            <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
-                <Sparkle size={48} color={colors.stone} weight="duotone" />
-            </Animated.View>
-            <Typography variant="body" style={[styles.message, { color: colors.stone }]}>
-                {message}
-            </Typography>
+        <View style={styles.container}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20 }}>
+                {skeletons.map((_, index) => (
+                    <View
+                        key={index}
+                        style={{
+                            width: columnWidth,
+                            marginBottom: GRID_GAP,
+                            marginRight: (index + 1) % numColumns === 0 ? 0 : GRID_GAP
+                        }}
+                    >
+                        <SiftCardSkeleton />
+                    </View>
+                ))}
+            </View>
         </View>
     );
 }
@@ -64,17 +48,6 @@ export function FeedLoadingScreen({ message = 'Loading your sifts...' }: FeedLoa
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 80,
-        minHeight: 300,
-    },
-    iconContainer: {
-        marginBottom: 20,
-    },
-    message: {
-        textAlign: 'center',
-        fontSize: 16,
-        letterSpacing: 0.3,
+        width: '100%',
     },
 });

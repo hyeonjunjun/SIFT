@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         .single();
 
                     const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
+                        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
                     );
 
                     const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
@@ -273,6 +273,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } catch (error) {
                 console.error('Error fetching session:', error);
             } finally {
+                // CRITICAL FIX: Always unblock the UI immediately after session check.
+                // Profile data can lazy-load.
                 if (isMounted) setLoading(false);
             }
         };
@@ -289,11 +291,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                 try {
                     if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-                        // Only show full loader if we don't have a cached profile matching this user
-                        const cached = await getCachedProfile();
-                        if (!cached) setLoading(true);
-
-                        await refreshProfile(currentUser);
+                        // Background refresh
+                        refreshProfile(currentUser);
                     } else if (_event === 'USER_UPDATED') {
                         await refreshProfile(currentUser);
                     } else if (_event === 'SIGNED_OUT') {
@@ -303,8 +302,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     }
                 } catch (err) {
                     console.error('[Auth] Event handler error:', err);
-                } finally {
-                    if (isMounted) setLoading(false);
                 }
             }
         });
