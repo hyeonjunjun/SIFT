@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from '
 import { Typography } from './design-system/Typography';
 import { Card } from './design-system/Card';
 import PinIcon from './PinIcon';
+import { ActionSheet } from './modals/ActionSheet';
 import { COLORS, RADIUS, Theme } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
@@ -63,42 +64,11 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
         router.push(`/page/${id}`);
     };
 
-    const handleLongPress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
-        const options = ['Cancel', 'Share Sift', isPinned ? 'Unpin Sift' : 'Pin Sift', 'Archive Sift', 'Delete Permanently'];
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options,
-                    cancelButtonIndex: 0,
-                    destructiveButtonIndex: 4,
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) handleShare();
-                    if (buttonIndex === 2) onPin?.(id);
-                    if (buttonIndex === 3) onDelete?.(id);
-                    if (buttonIndex === 4) {
-                        Alert.alert("Delete Permanently", "This cannot be undone.", [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
-                        ]);
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                "Options",
-                title,
-                [
-                    { text: "Share", onPress: handleShare },
-                    { text: isPinned ? "Unpin" : "Pin", onPress: () => onPin?.(id) },
-                    { text: "Archive", onPress: () => onDelete?.(id) },
-                    { text: "Delete Forever", style: 'destructive', onPress: () => onDeleteForever?.(id) },
-                    { text: "Cancel", style: "cancel" }
-                ]
-            );
-        }
+    const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setActionSheetVisible(true);
     };
 
     const handleShare = async () => {
@@ -181,6 +151,46 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                     </View>
                 </Card>
             </AnimatedPressable>
+
+            <ActionSheet
+                visible={actionSheetVisible}
+                onClose={() => setActionSheetVisible(false)}
+                title={title || 'Options'}
+                options={[
+                    {
+                        label: 'Share Sift',
+                        icon: require('phosphor-react-native').ShareNetwork,
+                        onPress: handleShare
+                    },
+                    {
+                        label: isPinned ? 'Unpin Sift' : 'Pin Sift',
+                        icon: require('phosphor-react-native').PushPin,
+                        onPress: () => onPin?.(id)
+                    },
+                    {
+                        label: 'Archive Sift',
+                        icon: require('phosphor-react-native').Archive,
+                        isDestructive: true,
+                        onPress: () => onDelete?.(id)
+                    },
+                    {
+                        label: 'Delete Permanently',
+                        icon: require('phosphor-react-native').Trash,
+                        isDestructive: true,
+                        onPress: () => {
+                            Alert.alert("Delete Permanently", "This cannot be undone.", [
+                                { text: "Cancel", style: "cancel" },
+                                { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(id) }
+                            ]);
+                        }
+                    },
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ]}
+            />
         </>
     );
 }

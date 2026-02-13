@@ -6,6 +6,7 @@ import { Typography } from './design-system/Typography';
 import { ArrowClockwise, Warning } from 'phosphor-react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '../context/ThemeContext';
+import { ActionSheet } from './modals/ActionSheet';
 import { RADIUS } from '../lib/theme';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -106,6 +107,20 @@ export default function CompactSiftList({
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
+    const [actionSheetVisible, setActionSheetVisible] = React.useState(false);
+    const [selectedItem, setSelectedItem] = React.useState<typeof combinedData[0] | null>(null);
+
+    const handleActionSheetClose = () => {
+        setActionSheetVisible(false);
+        setSelectedItem(null);
+    };
+
+    const handleLongPressItem = (item: typeof combinedData[0]) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setSelectedItem(item);
+        setActionSheetVisible(true);
+    };
+
     const renderItem = ({ item }: { item: typeof combinedData[0] }) => {
         if (item.type === 'pending') {
             return (
@@ -125,8 +140,7 @@ export default function CompactSiftList({
                 colors={colors}
                 isDark={isDark}
                 router={router}
-                onArchive={onArchive}
-                onEditTags={onEditTags}
+                onLongPress={() => handleLongPressItem(item)}
                 getDomain={getDomain}
                 formatDate={formatDate}
             />
@@ -138,21 +152,55 @@ export default function CompactSiftList({
     );
 
     return (
-        <FlatList
-            data={combinedData}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            refreshControl={refreshControl}
-            contentContainerStyle={contentContainerStyle}
-            onEndReached={onEndReached}
-            onEndReachedThreshold={0.5}
-            ItemSeparatorComponent={renderSeparator}
-            getItemLayout={(_, index) => ({
-                length: ROW_HEIGHT + 8, // Row + Separator
-                offset: (ROW_HEIGHT + 8) * index,
-                index,
-            })}
-        />
+        <>
+            <FlatList
+                data={combinedData}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                refreshControl={refreshControl}
+                contentContainerStyle={contentContainerStyle}
+                onEndReached={onEndReached}
+                onEndReachedThreshold={0.5}
+                ItemSeparatorComponent={renderSeparator}
+                getItemLayout={(_, index) => ({
+                    length: ROW_HEIGHT + 8, // Row + Separator
+                    offset: (ROW_HEIGHT + 8) * index,
+                    index,
+                })}
+            />
+
+            <ActionSheet
+                visible={actionSheetVisible}
+                onClose={handleActionSheetClose}
+                title={(selectedItem as any)?.title || 'Options'}
+                options={[
+                    {
+                        label: 'Edit Tags',
+                        icon: require('phosphor-react-native').Tag,
+                        onPress: () => {
+                            if (selectedItem && selectedItem.type === 'page') {
+                                onEditTags?.(selectedItem.id, selectedItem.tags);
+                            }
+                        }
+                    },
+                    {
+                        label: 'Archive',
+                        icon: require('phosphor-react-native').Archive,
+                        isDestructive: true,
+                        onPress: () => {
+                            if (selectedItem) {
+                                onArchive?.(selectedItem.id);
+                            }
+                        }
+                    },
+                    {
+                        label: 'Cancel',
+                        isCancel: true,
+                        onPress: () => { }
+                    }
+                ]}
+            />
+        </>
     );
 }
 
@@ -204,40 +252,16 @@ const PendingRow = React.memo(({ item, colors, onRetry, getDomain, formatDate }:
 });
 
 // Page row component
-export const PageRow = React.memo(({ item, colors, isDark, router, onArchive, onEditTags, getDomain, formatDate }: any) => {
+export const PageRow = React.memo(({ item, colors, isDark, router, onLongPress, getDomain, formatDate }: any) => {
     const handlePress = () => {
         Haptics.selectionAsync();
         router.push(`/page/${item.id}`);
     };
 
-    const handleLongPress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options: ['Cancel', 'Edit Tags', 'Archive'],
-                    destructiveButtonIndex: 2,
-                    cancelButtonIndex: 0,
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) onEditTags?.(item.id, item.tags);
-                    if (buttonIndex === 2) onArchive?.(item.id);
-                }
-            );
-        } else {
-            Alert.alert(item.title || 'Sift', 'Choose an action', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Edit Tags', onPress: () => onEditTags?.(item.id, item.tags) },
-                { text: 'Archive', style: 'destructive', onPress: () => onArchive?.(item.id) },
-            ]);
-        }
-    };
-
     return (
         <Pressable
             onPress={handlePress}
-            onLongPress={handleLongPress}
+            onLongPress={onLongPress}
             delayLongPress={300}
             style={({ pressed }) => [
                 styles.pageRow,

@@ -235,12 +235,7 @@ export default function ProfileScreen() {
                         onValueChange={toggleHaptics}
                         icon={<Vibrate size={20} color={colors.ink} />}
                     />
-                    <SettingsRow
-                        label="Personalization"
-                        description="Customize icons and appearance"
-                        onPress={() => router.push('/settings/personalization')}
-                        icon={<UserIcon size={20} color={colors.ink} />}
-                    />
+
                     <SettingsRow
                         label="Auto-grab Clipboard"
                         description="Scan for links on app launch"

@@ -11,6 +11,7 @@ import * as Clipboard from 'expo-clipboard';
 import { COLORS, RADIUS, Theme, LIGHT_COLORS, DARK_COLORS, TRANSITIONS } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
+import { ActionSheet } from './modals/ActionSheet';
 import { useTheme } from '../context/ThemeContext';
 
 interface PageCardProps {
