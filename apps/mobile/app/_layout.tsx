@@ -14,9 +14,7 @@ import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { PersonalizationProvider } from "../context/PersonalizationContext";
-import { QueryClient } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
@@ -32,9 +30,32 @@ const queryClient = new QueryClient({
     },
 });
 
-const asyncStoragePersister = createAsyncStoragePersister({
-    storage: AsyncStorage,
-});
+// Temporarily disabled persistence to bypass corrupted cache
+// const asyncStoragePersister = createAsyncStoragePersister({
+//     storage: AsyncStorage,
+//     serialize: (data) => {
+//         try {
+//             return JSON.stringify(data);
+//         } catch (e) {
+//             console.error('[Persister] Serialize error:', e);
+//             return '{}';
+//         }
+//     },
+//     deserialize: (data) => {
+//         try {
+//             const parsed = JSON.parse(data);
+//             // Validate structure for infinite queries
+//             if (parsed?.state?.data?.pages && !Array.isArray(parsed.state.data.pages)) {
+//                 console.warn('[Persister] Corrupted cache detected, resetting');
+//                 return { state: { data: { pages: [], pageParams: [] } } };
+//             }
+//             return parsed;
+//         } catch (e) {
+//             console.error('[Persister] Deserialize error:', e);
+//             return { state: { data: { pages: [], pageParams: [] } } };
+//         }
+//     },
+// });
 
 // Basic Error Boundary
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -303,16 +324,13 @@ export default function RootLayout() {
     return (
         <ErrorBoundary>
             <ThemeProvider>
-                <PersistQueryClientProvider
-                    client={queryClient}
-                    persistOptions={{ persister: asyncStoragePersister }}
-                >
+                <QueryClientProvider client={queryClient}>
                     <AuthProvider>
                         <PersonalizationProvider>
                             <RootLayoutNav />
                         </PersonalizationProvider>
                     </AuthProvider>
-                </PersistQueryClientProvider>
+                </QueryClientProvider>
             </ThemeProvider>
         </ErrorBoundary>
     );

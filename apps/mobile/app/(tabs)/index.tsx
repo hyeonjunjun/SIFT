@@ -87,15 +87,21 @@ export default function HomeScreen() {
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, allPages) => {
-            if (!lastPage) return undefined;
-            return lastPage.length === PAGE_SIZE ? (allPages?.length || 0) : undefined;
+            if (!lastPage || !Array.isArray(lastPage)) return undefined;
+            if (!allPages || !Array.isArray(allPages)) return undefined;
+            return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
         },
         enabled: !!user,
         staleTime: 1000 * 60, // 1 minute
     });
 
     const pages = useMemo(() => {
-        return data?.pages.flat() || [];
+        if (!data || !data.pages || !Array.isArray(data.pages)) return [];
+        try {
+            return data.pages.flat() || [];
+        } catch {
+            return [];
+        }
     }, [data]);
 
     const loading = isLoading; // Map to existing variable for compatibility

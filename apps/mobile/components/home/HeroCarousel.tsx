@@ -13,7 +13,7 @@ interface HeroCarouselProps {
 }
 
 export function HeroCarousel({ pages, onTogglePin }: HeroCarouselProps) {
-    const recentPages = pages.slice(0, 5); // Start with top 5
+    const recentPages = (pages || []).slice(0, 5); // Start with top 5
     const lastIndex = useRef(0);
 
     if (!recentPages || recentPages.length === 0) return null;

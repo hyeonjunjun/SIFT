@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Linking, Alert } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { COLORS } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -9,8 +9,44 @@ interface SafeContentRendererProps {
     content: string;
 }
 
+// Suppress known warning from react-native-markdown-display library
+const originalWarn = console.warn;
+console.warn = (...args) => {
+    if (
+        typeof args[0] === 'string' &&
+        args[0].includes('A props object containing a "key" prop is being spread into JSX')
+    ) {
+        return; // Suppress this specific warning
+    }
+    originalWarn(...args);
+};
+
 const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) => {
     const { colors, isDark } = useTheme();
+
+    // Safe link handler with error handling
+    const handleLinkPress = async (url: string) => {
+        try {
+            const canOpen = await Linking.canOpenURL(url);
+            if (canOpen) {
+                await Linking.openURL(url);
+            } else {
+                console.warn(`Cannot open URL: ${url}`);
+                Alert.alert(
+                    'Unable to Open Link',
+                    'This link cannot be opened on your device. The app that handles this type of link may not be installed.',
+                    [{ text: 'OK' }]
+                );
+            }
+        } catch (error) {
+            console.error('Error opening URL:', error);
+            Alert.alert(
+                'Link Error',
+                'Unable to open this link. Please try again later.',
+                [{ text: 'OK' }]
+            );
+        }
+    };
 
     // Guard Clause: If content is null/undefined, don't crash
     if (!content) return <Text style={{ color: colors.stone, fontStyle: 'italic', padding: 20 }}>No summary available.</Text>;
@@ -88,6 +124,10 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
             <View style={dynamicStyles.markdownContainer}>
                 <Markdown
                     style={markdownStyles as any}
+                    onLinkPress={(url) => {
+                        handleLinkPress(url);
+                        return false; // Prevent default behavior
+                    }}
                     rules={{
                         // Custom renderer for ordered list items could go here if we want the circle number
                         // For now we'll stick to clean typographic updates

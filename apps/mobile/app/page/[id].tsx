@@ -532,14 +532,26 @@ export default function PageDetail() {
                                         { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' },
                                         isEditing && { borderColor: colors.ink, borderWidth: 1 }
                                     ]}
-                                    onPress={() => {
+                                    onPress={async () => {
                                         if (isEditing) {
                                             handleSave();
                                         } else {
                                             if (isShared) {
                                                 handleSaveToLibrary();
                                             } else {
-                                                if (page?.url) Linking.openURL(page.url);
+                                                if (page?.url) {
+                                                    try {
+                                                        const canOpen = await Linking.canOpenURL(page.url);
+                                                        if (canOpen) {
+                                                            await Linking.openURL(page.url);
+                                                        } else {
+                                                            Alert.alert('Unable to Open', 'Cannot open this URL on your device.');
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Error opening URL:', error);
+                                                        Alert.alert('Error', 'Unable to open this link.');
+                                                    }
+                                                }
                                             }
                                         }
                                     }}

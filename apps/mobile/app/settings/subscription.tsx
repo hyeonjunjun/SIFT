@@ -84,7 +84,13 @@ export default function SubscriptionScreen() {
                         <Typography variant="caption" color={COLORS.stone}>Terms</Typography>
                     </TouchableOpacity>
                     <View style={styles.dot} />
-                    <TouchableOpacity onPress={() => Linking.openURL('https://sift.app/privacy')}>
+                    <TouchableOpacity onPress={async () => {
+                        try {
+                            await Linking.openURL('https://sift.app/privacy');
+                        } catch (error) {
+                            console.error('Error opening privacy policy:', error);
+                        }
+                    }}>
                         <Typography variant="caption" color={COLORS.stone}>Privacy</Typography>
                     </TouchableOpacity>
                 </View>

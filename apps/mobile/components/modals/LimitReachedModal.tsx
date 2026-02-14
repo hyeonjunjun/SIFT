@@ -15,12 +15,17 @@ interface LimitReachedModalProps {
 export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReachedModalProps) => {
     const { tier, maxSiftsTotal, description } = useSubscription();
 
-    const handleUpgrade = () => {
-        if (upgradeUrl) {
-            Linking.openURL(upgradeUrl);
-        } else {
-            // Fallback or default upgrade URL
-            Linking.openURL('https://sift.so/upgrade');
+    const handleUpgrade = async () => {
+        const url = upgradeUrl || 'https://sift.so/upgrade';
+        try {
+            const canOpen = await Linking.canOpenURL(url);
+            if (canOpen) {
+                await Linking.openURL(url);
+            } else {
+                console.warn(`Cannot open upgrade URL: ${url}`);
+            }
+        } catch (error) {
+            console.error('Error opening upgrade URL:', error);
         }
     };
 
