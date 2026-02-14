@@ -16,7 +16,7 @@ export function HeroCarousel({ pages, onTogglePin }: HeroCarouselProps) {
     const recentPages = pages.slice(0, 5); // Start with top 5
     const lastIndex = useRef(0);
 
-    if (recentPages.length === 0) return null;
+    if (!recentPages || recentPages.length === 0) return null;
 
     const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const contentOffsetX = event.nativeEvent.contentOffset.x;

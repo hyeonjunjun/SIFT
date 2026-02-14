@@ -87,7 +87,8 @@ export default function HomeScreen() {
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, allPages) => {
-            return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
+            if (!lastPage) return undefined;
+            return lastPage.length === PAGE_SIZE ? (allPages?.length || 0) : undefined;
         },
         enabled: !!user,
         staleTime: 1000 * 60, // 1 minute
@@ -382,9 +383,7 @@ export default function HomeScreen() {
             }
         }));
 
-        // Apple-grade Reactivity: Refetch Home screen data immediately
-        console.log('[QUEUE] All processing complete. Invalidating cache...');
-        queryClient.invalidateQueries({ queryKey: ['pages'] });
+
         queryClient.invalidateQueries({ queryKey: ['saved-pages'] });
 
         triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
@@ -507,7 +506,7 @@ export default function HomeScreen() {
 
         try {
             const apiUrl = `${API_URL}/api/archive`;
-            console.log(`[Archive] PUT to ${apiUrl} for item ${id}`);
+
 
             const response = await fetch(apiUrl, {
                 method: 'PUT',
@@ -538,7 +537,7 @@ export default function HomeScreen() {
 
         try {
             const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user.id}`;
-            console.log(`[Delete] DELETE to ${apiUrl}`);
+
             const response = await fetch(apiUrl, { method: 'DELETE' });
 
             if (!response.ok) {

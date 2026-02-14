@@ -14,7 +14,8 @@
     "build:ios": "eas build --platform ios --profile production",
     "build:android": "eas build --platform android --profile production",
     "lint": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "eas-build-pre-install": "cp $GOOGLE_SERVICES_JSON ./google-services.json && cp $GOOGLE_SERVICE_INFO_PLIST ./GoogleService-Info.plist"
   },
   "dependencies": {
     "@expo-google-fonts/geist-mono": "^0.4.1",

@@ -333,7 +333,7 @@ export default function SiftFeed({
     const columnWidth = viewMode === 'list' ? (width - 40) : layout.columnWidth;
 
     // Filter out edit-action injection
-    const data = pages;
+    const data = pages || [];
 
     // LOADING STATE
     return (loading && data.length === 0) ? (
