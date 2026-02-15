@@ -137,6 +137,7 @@ export default function LibraryScreen() {
         },
         enabled: !!user?.id,
         staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     // Fetch folders
@@ -168,6 +169,7 @@ export default function LibraryScreen() {
         },
         enabled: !!user?.id,
         staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     // Fetch Categories (Smart Folders)
@@ -211,7 +213,8 @@ export default function LibraryScreen() {
             return data as CategoryData[];
         },
         enabled: !!user?.id,
-        // No staleTime for dev to see changes immediately, or keep it short
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     // Derive unique used tags for suggestions

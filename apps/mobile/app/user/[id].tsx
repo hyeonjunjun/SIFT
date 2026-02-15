@@ -30,7 +30,9 @@ export default function UserProfileScreen() {
             if (error) throw error;
             return data;
         },
-        enabled: !!id
+        enabled: !!id,
+        staleTime: 1000 * 60 * 10, // 10 minutes cache
+        retry: 2,
     });
 
     const { data: friendship } = useQuery({
@@ -45,7 +47,9 @@ export default function UserProfileScreen() {
             if (error && error.code !== 'PGRST116') throw error;
             return data;
         },
-        enabled: !!user?.id && !!id
+        enabled: !!user?.id && !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     const sendFriendRequest = async () => {

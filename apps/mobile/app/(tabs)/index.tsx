@@ -93,6 +93,7 @@ export default function HomeScreen() {
         },
         enabled: !!user,
         staleTime: 1000 * 60, // 1 minute
+        retry: 2,
     });
 
     const pages = useMemo(() => {

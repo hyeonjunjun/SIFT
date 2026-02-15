@@ -56,6 +56,8 @@ export default function FolderScreen() {
             return data as FolderItem;
         },
         enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        retry: 2,
     });
 
     // Fetch pages in this folder
@@ -74,6 +76,8 @@ export default function FolderScreen() {
             return data || [];
         },
         enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        retry: 2,
     });
 
     const onRefresh = async () => {

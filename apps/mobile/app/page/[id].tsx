@@ -81,7 +81,8 @@ export default function PageDetail() {
             return data.map(row => row.id);
         },
         enabled: !!user?.id && !!contextType,
-        staleTime: 1000 * 60 * 5 // Cache for 5 mins
+        staleTime: 1000 * 60 * 5, // Cache for 5 mins
+        retry: 2,
     });
 
     const { prevId, nextId } = useMemo(() => {
@@ -169,10 +170,12 @@ export default function PageDetail() {
             if (error) throw error;
             return data.map((f: any) => f.user_id === user.id ? f.receiver : f.requester);
         },
-        enabled: !!user?.id && showDirectShare
+        enabled: !!user?.id && showDirectShare,
+        staleTime: 1000 * 60 * 5, // 5 mins
+        retry: 2,
     });
 
-    const { data: page, isLoading: loading, isError, refetch } = useQuery({
+    const { data: page, isLoading: loading, isError, error, refetch } = useQuery({
         queryKey: ['page', id],
         queryFn: async () => {
             if (!id) return null;
@@ -190,6 +193,8 @@ export default function PageDetail() {
             return data;
         },
         enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutes - prevent unnecessary refetches
+        retry: 2, // Retry failed requests
     });
 
     useEffect(() => {
@@ -267,22 +272,32 @@ export default function PageDetail() {
 
     if (isError || (!loading && !page)) {
         return (
-            <ScreenWrapper edges={['top', 'bottom']}>
+            <ScreenWrapper edges={['top']} style={{ backgroundColor: colors.canvas }}>
+                <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.navBar}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
-                        <CaretLeft size={28} color={colors.ink} />
+                        <CaretLeft size={28} color={colors.ink} weight="bold" />
                     </TouchableOpacity>
                 </View>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-                    <Typography variant="h1" style={{ marginBottom: 12, textAlign: 'center' }}>Sift not found</Typography>
-                    <Typography variant="body" color="stone" style={{ textAlign: 'center', marginBottom: 24 }}>
-                        This sift may have been deleted or moved.
+                    <Typography variant="h2" style={{ marginBottom: 16, textAlign: 'center' }}>
+                        Unable to Load Sift
+                    </Typography>
+                    <Typography variant="body" color="stone" style={{ textAlign: 'center', marginBottom: 32 }}>
+                        {error ? `Error: ${(error as any)?.message || 'Unknown error'}` : 'This sift could not be found.'}
                     </Typography>
                     <TouchableOpacity
-                        onPress={() => router.back()}
-                        style={[styles.bentoCard, { backgroundColor: colors.ink }]}
+                        onPress={() => refetch()}
+                        style={{
+                            backgroundColor: colors.ink,
+                            paddingHorizontal: 24,
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                        }}
                     >
-                        <Typography variant="label" style={{ color: colors.paper }}>Go Back</Typography>
+                        <Typography variant="label" style={{ color: colors.paper }}>
+                            Try Again
+                        </Typography>
                     </TouchableOpacity>
                 </View>
             </ScreenWrapper>

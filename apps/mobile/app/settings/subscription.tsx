@@ -19,15 +19,15 @@ export default function SubscriptionScreen() {
 
     const tiers: { id: Tier; name: string; icon: any; sub: string; price: string }[] = [
         { id: 'free', name: 'Starter', icon: Star, sub: 'For casual curators', price: 'Free' },
-        { id: 'plus', name: 'Pro', icon: Crown, sub: 'Power through noise', price: '$9.99/mo' },
-        { id: 'unlimited', name: 'Unlimited', icon: InfinityIcon, sub: 'Gems without limits', price: '$19.99/mo' },
+        { id: 'plus', name: 'Pro', icon: Crown, sub: 'Power through noise', price: 'Coming Soon' },
+        { id: 'unlimited', name: 'Unlimited', icon: InfinityIcon, sub: 'Gems without limits', price: 'Coming Soon' },
     ];
 
     const handleUpgrade = (tierName: string) => {
         Alert.alert(
-            "Upgrade to " + tierName,
-            "We are finalizing our secure payment connection through Apple/Google. Check back in a few days!",
-            [{ text: "Can't wait", style: 'default' }]
+            tierName + " Coming Soon",
+            "We are currently rolling out SIFT in selective beta. Professional tiers and advanced AI features will be available via In-App Purchase shortly.",
+            [{ text: "Got it", style: 'default' }]
         );
     };
 
@@ -86,7 +86,11 @@ export default function SubscriptionScreen() {
                     <View style={styles.dot} />
                     <TouchableOpacity onPress={async () => {
                         try {
-                            await Linking.openURL('https://sift.app/privacy');
+                            const url = 'https://sift.app/privacy';
+                            const canOpen = await Linking.canOpenURL(url);
+                            if (canOpen) {
+                                await Linking.openURL(url);
+                            }
                         } catch (error) {
                             console.error('Error opening privacy policy:', error);
                         }

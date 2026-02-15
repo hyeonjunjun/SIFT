@@ -10,6 +10,9 @@ import PinIcon from './PinIcon';
 import Animated, { FadeIn, FadeOut, Layout, Easing, useSharedValue, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Minus, SquaresFour, Rows } from 'phosphor-react-native';
+import { useAuth } from '../lib/auth';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
 import { FeedLoadingScreen } from './FeedLoadingScreen';
 import { PageCard } from './PageCard';
@@ -393,8 +396,6 @@ export default function SiftFeed({
     );
 }
 
-import { LinearGradient } from 'expo-linear-gradient';
-import { Minus } from 'phosphor-react-native';
 
 const styles = StyleSheet.create({
     cardContainer: {

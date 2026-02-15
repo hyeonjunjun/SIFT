@@ -30,33 +30,6 @@ const queryClient = new QueryClient({
     },
 });
 
-// Temporarily disabled persistence to bypass corrupted cache
-// const asyncStoragePersister = createAsyncStoragePersister({
-//     storage: AsyncStorage,
-//     serialize: (data) => {
-//         try {
-//             return JSON.stringify(data);
-//         } catch (e) {
-//             console.error('[Persister] Serialize error:', e);
-//             return '{}';
-//         }
-//     },
-//     deserialize: (data) => {
-//         try {
-//             const parsed = JSON.parse(data);
-//             // Validate structure for infinite queries
-//             if (parsed?.state?.data?.pages && !Array.isArray(parsed.state.data.pages)) {
-//                 console.warn('[Persister] Corrupted cache detected, resetting');
-//                 return { state: { data: { pages: [], pageParams: [] } } };
-//             }
-//             return parsed;
-//         } catch (e) {
-//             console.error('[Persister] Deserialize error:', e);
-//             return { state: { data: { pages: [], pageParams: [] } } };
-//         }
-//     },
-// });
-
 // Basic Error Boundary
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
     constructor(props: any) {

@@ -41,7 +41,9 @@ export default function SocialScreen() {
             if (error) throw error;
             return data;
         },
-        enabled: !!user?.id
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     // 2. Fetch Shared Sifts
@@ -61,7 +63,9 @@ export default function SocialScreen() {
             if (error) throw error;
             return data;
         },
-        enabled: !!user?.id
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     // 3. Discovery (Search)

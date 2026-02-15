@@ -42,10 +42,13 @@ export default function ArchiveScreen() {
             console.log(`[Fetch] Fetching archived pages for user: ${user.id}`);
             const apiUrl = `${API_URL}/api/archive?user_id=${user.id}`;
             const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error('Failed to fetch archived pages');
             const data = await response.json();
             return Array.isArray(data) ? data : [];
         },
         enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        retry: 2,
     });
 
     const onRefresh = async () => {
