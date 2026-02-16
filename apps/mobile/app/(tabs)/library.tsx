@@ -24,6 +24,7 @@ import { CategoryModal, CategoryData } from '../../components/modals/CategoryMod
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { FolderModal, FolderData } from '../../components/modals/FolderModal';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
+import { SiftActionSheet } from '../../components/modals/SiftActionSheet';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -97,6 +98,10 @@ export default function LibraryScreen() {
     const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null);
     const [isCategoryEditing, setIsCategoryEditing] = useState(false);
     const [siftPickerVisible, setSiftPickerVisible] = useState(false);
+
+    // Action Sheet State
+    const [selectedSift, setSelectedSift] = useState<any | null>(null);
+    const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
     // Load saved view preference
     useEffect(() => {
@@ -728,6 +733,10 @@ export default function LibraryScreen() {
                                 pages={activeCategoryPages as any}
                                 onPin={handlePin}
                                 onEditTags={handleEditTagsTrigger}
+                                onOptions={(item) => {
+                                    setSelectedSift(item);
+                                    setActionSheetVisible(true);
+                                }}
                                 loading={loading && fetchStatus === 'fetching'}
                                 mode={isCategoryEditing ? 'edit' : 'feed'}
                                 onRemove={handleRemoveCategorySift}
@@ -748,6 +757,7 @@ export default function LibraryScreen() {
                     /* COMPACT LIST VIEW */
                     <CompactSiftList
                         pages={pages as any}
+                        onPin={(id) => handlePin(id)}
                         onArchive={(id) => handleArchive(id)}
                         onEditTags={handleEditTagsTrigger}
                         refreshControl={
@@ -902,6 +912,15 @@ export default function LibraryScreen() {
                     onDelete={handleDeleteFolder}
                     onPin={handlePinFolder}
                     existingFolder={editingFolder}
+                />
+
+                <SiftActionSheet
+                    visible={actionSheetVisible}
+                    onClose={() => setActionSheetVisible(false)}
+                    sift={selectedSift}
+                    onPin={handlePin}
+                    onArchive={handleArchive}
+                    onEditTags={handleEditTagsTrigger}
                 />
 
                 <SiftPickerModal

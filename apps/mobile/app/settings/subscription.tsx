@@ -10,39 +10,118 @@ import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../context/ThemeContext';
 import { useSubscription, Tier } from '../../hooks/useSubscription';
 import { MotiView } from 'moti';
+import Purchases, { PurchasesOffering } from 'react-native-purchases';
+import { useEffect, useState } from 'react';
 
 export default function SubscriptionScreen() {
-    const { tier: currentTier, updateProfileInDB } = useAuth();
+    const { tier: currentTier, refreshProfile } = useAuth();
     const { colors, isDark } = useTheme();
     const router = useRouter();
-    const { maxSiftsTotal, currentCount, refreshCount } = useSubscription();
+    const { refreshCount } = useSubscription();
+    const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const tiers: { id: Tier; name: string; icon: any; sub: string; price: string }[] = [
+    useEffect(() => {
+        const fetchOfferings = async () => {
+            try {
+                const availableOfferings = await Purchases.getOfferings();
+                if (availableOfferings.current !== null) {
+                    setOfferings(availableOfferings.current);
+                }
+            } catch (e) {
+                console.error('[Subscription] Error fetching offerings:', e);
+            }
+        };
+        fetchOfferings();
+    }, []);
+
+    const tiers: { id: Tier; name: string; icon: any; sub: string; price: string | null }[] = [
         { id: 'free', name: 'Starter', icon: Star, sub: 'For casual curators', price: 'Free' },
-        { id: 'plus', name: 'Pro', icon: Crown, sub: 'Power through noise', price: 'Coming Soon' },
-        { id: 'unlimited', name: 'Unlimited', icon: InfinityIcon, sub: 'Gems without limits', price: 'Coming Soon' },
+        {
+            id: 'plus',
+            name: 'Pro',
+            icon: Crown,
+            sub: 'Power through noise',
+            price: offerings?.monthly?.product.priceString || null
+        },
+        {
+            id: 'unlimited',
+            name: 'Unlimited',
+            icon: InfinityIcon,
+            sub: 'Gems without limits',
+            price: offerings?.annual?.product.priceString || null
+        },
     ];
 
-    const handleUpgrade = (tierName: string) => {
-        Alert.alert(
-            tierName + " Coming Soon",
-            "We are currently rolling out SIFT in selective beta. Professional tiers and advanced AI features will be available via In-App Purchase shortly.",
-            [{ text: "Got it", style: 'default' }]
-        );
-    };
+    const handleUpgrade = async (tierId: Tier) => {
+        if (tierId === 'free') return;
 
-    const handleSimulateUnlimited = async () => {
+        const packageToBuy = tierId === 'plus' ? offerings?.monthly : offerings?.annual;
+
+        if (!packageToBuy) {
+            Alert.alert("Plan Unavailable", "We couldn't load the plan details. Please try again or check your internet connection.");
+            return;
+        }
+
+        setLoading(true);
         try {
-            await updateProfileInDB({ tier: 'unlimited' });
-            await refreshCount();
-            Alert.alert("Success", "You are now an Unlimited member (Simulation).");
-        } catch (e) {
-            Alert.alert("Error", "Failed to simulate upgrade.");
+            const { customerInfo } = await Purchases.purchasePackage(packageToBuy);
+
+            // Success Case
+            if (customerInfo.entitlements.active[tierId] || customerInfo.entitlements.active['unlimited']) {
+                Alert.alert(
+                    "Success!",
+                    `You are now a ${tierId.toUpperCase()} member. Thank you for supporting Sift!`,
+                    [{ text: "Great", onPress: () => router.back() }]
+                );
+                await refreshProfile();
+                await refreshCount();
+            }
+        } catch (e: any) {
+            // Error handling
+            if (!e.userCancelled) {
+                console.warn('[Subscription] Purchase Failed:', e.code, e.message);
+
+                let errorTitle = "Purchase Failed";
+                let errorMessage = e.message || "We couldn't process your transaction. Please try again.";
+
+                if (e.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_INVALID_ERROR) {
+                    errorTitle = "Invalid Purchase";
+                } else if (e.code === Purchases.PURCHASES_ERROR_CODE.STORE_PROBLEM_ERROR) {
+                    errorTitle = "Store Error";
+                    errorMessage = "There was a problem with the App Store. Please try again later.";
+                }
+
+                Alert.alert(errorTitle, errorMessage);
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleRestore = () => {
-        Alert.alert("Restore", "Checking for previous purchases...");
+    const handleRestore = async () => {
+        setLoading(true);
+        try {
+            const customerInfo = await Purchases.restorePurchases();
+
+            if (Object.keys(customerInfo.entitlements.active).length > 0) {
+                Alert.alert(
+                    "Restore Successful",
+                    "We've found your previous purchases and updated your account.",
+                    [{ text: "OK", onPress: () => router.back() }]
+                );
+            } else {
+                Alert.alert("No Purchases Found", "We couldn't find any active subscriptions associated with your Apple/Google ID.");
+            }
+
+            await refreshProfile();
+            await refreshCount();
+        } catch (e: any) {
+            console.warn('[Subscription] Restore Failed:', e);
+            Alert.alert("Restore Failed", e.message || "Something went wrong while restoring your purchases.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -70,7 +149,7 @@ export default function SubscriptionScreen() {
                         key={tier.id}
                         tier={tier}
                         isCurrent={currentTier === tier.id || (tier.id === 'unlimited' && currentTier === 'admin')}
-                        onPress={() => (tier.id !== currentTier && !(tier.id === 'unlimited' && currentTier === 'admin')) && handleUpgrade(tier.name)}
+                        onPress={() => (tier.id !== currentTier && !(tier.id === 'unlimited' && currentTier === 'admin')) && handleUpgrade(tier.id)}
                         index={index}
                     />
                 ))}
@@ -98,16 +177,6 @@ export default function SubscriptionScreen() {
                         <Typography variant="caption" color={COLORS.stone}>Privacy</Typography>
                     </TouchableOpacity>
                 </View>
-
-                {__DEV__ && (
-                    <TouchableOpacity
-                        style={[styles.simulateButton, { borderColor: colors.separator }]}
-                        onPress={handleSimulateUnlimited}
-                    >
-                        <Star size={18} color={COLORS.accent} weight="fill" />
-                        <Typography variant="label" style={{ marginLeft: 8, color: COLORS.accent }}>SIMULATE UNLIMITED (DEV ONLY)</Typography>
-                    </TouchableOpacity>
-                )}
 
                 <View style={styles.legalInfo}>
                     <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5 }}>
@@ -158,7 +227,11 @@ function TierCard({ tier, isCurrent, onPress, index }: {
                         <Typography variant="caption" color={COLORS.stone}>{tier.sub}</Typography>
                     </View>
                     <View style={styles.priceContainer}>
-                        <Typography variant="h3">{tier.price}</Typography>
+                        {tier.price ? (
+                            <Typography variant="h3">{tier.price}</Typography>
+                        ) : isCurrent ? (
+                            <Typography variant="label" color={COLORS.stone} style={{ fontSize: 10 }}>INCLUDED</Typography>
+                        ) : null}
                     </View>
                 </View>
 

@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View as MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface OnboardingProps {
     onComplete: () => void;
@@ -99,6 +100,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     }));
 
     const isLastSlide = activeIndex === SLIDES.length - 1;
+    const insets = useSafeAreaInsets();
 
     return (
         <View style={styles.container}>
@@ -111,7 +113,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.canvas, zIndex: -2 }]}
             />
 
-            <SafeAreaView style={styles.safeArea}>
+            <View style={[styles.safeArea, { paddingTop: insets.top }]}>
                 {/* Skip */}
                 <View style={styles.skipContainer}>
                     <TouchableOpacity
@@ -211,7 +213,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </View>
 
                 {/* Footer */}
-                <View style={styles.footer}>
+                <View style={[styles.footer, { paddingBottom: Math.max(32, insets.bottom + 24) }]}>
                     {/* Pagination */}
                     <View style={styles.pagination}>
                         {SLIDES.map((_, i) => (
@@ -257,7 +259,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         </TouchableOpacity>
                     </Animated.View>
                 </View>
-            </SafeAreaView>
+            </View>
         </View>
     );
 }
@@ -348,7 +350,6 @@ const styles = StyleSheet.create({
         opacity: 0.8,
     },
     footer: {
-        paddingBottom: Platform.OS === 'ios' ? 50 : 40,
         paddingHorizontal: 32,
         alignItems: 'center',
     },

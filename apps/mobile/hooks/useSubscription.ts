@@ -1,6 +1,8 @@
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
+import Purchases, { CustomerInfo } from 'react-native-purchases';
+import { useEffect, useState } from 'react';
 
 export type Tier = 'free' | 'plus' | 'unlimited' | 'admin';
 
@@ -26,7 +28,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     },
     plus: {
         maxImagesPerSift: 99,
-        maxSiftsTotal: 50, // Increased for Pro
+        maxSiftsTotal: 50,
         price: '$9.99',
         description: 'Pro',
         canUseSmartExtraction: true,
@@ -54,7 +56,49 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
 };
 
 export const useSubscription = () => {
-    const { user, tier } = useAuth();
+    const { user, profile, updateProfileInDB } = useAuth();
+    const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+
+    // Initial fetch of RevenueCat customer info
+    useEffect(() => {
+        const fetchInfo = async () => {
+            try {
+                const info = await Purchases.getCustomerInfo();
+                setCustomerInfo(info);
+            } catch (e) {
+                console.error('[useSubscription] Error fetching customer info:', e);
+            }
+        };
+
+        fetchInfo();
+
+        const listener = (info: CustomerInfo) => setCustomerInfo(info);
+        Purchases.addCustomerInfoUpdateListener(listener);
+
+        return () => {
+            // Cleanup listener if needed (though Purchases.removeCustomerInfoUpdateListener is not in some versions)
+        };
+    }, []);
+
+    // Derived Tier from RevenueCat Entitlements
+    const tier: Tier = (() => {
+        if (!user) return 'free';
+        // Admin override first
+        if (profile?.tier === 'admin') return 'admin';
+
+        if (customerInfo?.entitlements.active['unlimited']) return 'unlimited';
+        if (customerInfo?.entitlements.active['plus']) return 'plus';
+
+        return 'free';
+    })();
+
+    // Synchronize Tier back to Supabase if it changed
+    useEffect(() => {
+        if (user && profile && tier !== profile.tier && profile.tier !== 'admin') {
+            console.log(`[useSubscription] Syncing tier change: ${profile.tier} -> ${tier}`);
+            updateProfileInDB({ tier });
+        }
+    }, [tier, user, profile?.tier]);
 
     // Fetch actual count from DB
     const { data: currentCount = 0, isLoading: loadingCount, refetch: refreshCount } = useQuery({
@@ -70,7 +114,7 @@ export const useSubscription = () => {
             return count || 0;
         },
         enabled: !!user,
-        staleTime: 1000 * 60 * 5, // 5 minutes - prevents redundant re-fetches
+        staleTime: 1000 * 60 * 5,
     });
 
     const capabilities = TIER_LIMITS[tier] || TIER_LIMITS.free;

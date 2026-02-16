@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Platform } from 'react-native';
+import Purchases from 'react-native-purchases';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -152,6 +153,42 @@ function RootLayoutNav() {
             NavigationBar.setBehaviorAsync('overlay-swipe');
         }
     }, []);
+
+    // RevenueCat Initialization
+    useEffect(() => {
+        const initPurchases = async () => {
+            if (Platform.OS === 'ios') {
+                if (process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY) {
+                    await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY });
+                }
+            } else if (Platform.OS === 'android') {
+                if (process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY) {
+                    await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY });
+                }
+            }
+        };
+        initPurchases();
+    }, []);
+
+    // RevenueCat User Identification
+    useEffect(() => {
+        const syncUser = async () => {
+            try {
+                if (session?.user?.id) {
+                    await Purchases.logIn(session.user.id);
+                } else {
+                    // Check if we even need to log out (avoids error if already anonymous)
+                    const customerInfo = await Purchases.getCustomerInfo();
+                    if (customerInfo?.originalAppUserId && !customerInfo.originalAppUserId.startsWith("$RCAnonymousID")) {
+                        await Purchases.logOut();
+                    }
+                }
+            } catch (error) {
+                console.warn('[RevenueCat] Sync error:', error);
+            }
+        };
+        syncUser();
+    }, [session?.user?.id]);
 
     const [fontsLoaded] = useFonts({
         PlayfairDisplay_700Bold,

@@ -73,22 +73,28 @@ export default function SocialScreen() {
     const [isSearching, setIsSearching] = useState(false);
 
     const handleSearch = async (text: string) => {
+        const sanitized = text.trim();
         setSearchQuery(text);
-        if (text.length < 3) {
+
+        if (sanitized.length < 3) {
             setSearchResults([]);
             return;
         }
+
         setIsSearching(true);
         try {
-            // Search by username, exact email, or Sift ID
-            const { data } = await supabase
+            // Search by username (ilike), exact email (eq), or Sift ID (ilike)
+            const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, display_name, avatar_url, email, sift_id')
-                .or(`username.ilike.%${text}%,email.eq.${text.toLowerCase()},sift_id.eq.${text.toUpperCase()}`)
+                .or(`username.ilike.%${sanitized}%,email.eq.${sanitized.toLowerCase()},sift_id.ilike.%${sanitized}%`)
                 .neq('id', user?.id)
                 .limit(5);
 
+            if (error) throw error;
             if (data) setSearchResults(data);
+        } catch (e) {
+            console.error('[Social] Search error:', e);
         } finally {
             setIsSearching(false);
         }

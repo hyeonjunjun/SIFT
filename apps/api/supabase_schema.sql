@@ -247,3 +247,82 @@ create index if not exists idx_categories_user_id on public.categories(user_id);
 -- Optimizes the main feed query: .eq('user_id', ...).order('is_pinned', ...).order('created_at', ...)
 create index if not exists idx_pages_user_feed on public.pages(user_id, is_pinned desc, created_at desc);
 
+-- 9. Social Features (Added 2026-02-16)
+
+-- Friendships table
+create table if not exists public.friendships (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  user_id uuid references auth.users(id) not null,
+  friend_id uuid references auth.users(id) not null,
+  status text default 'pending' check (status in ('pending', 'accepted', 'blocked')),
+  unique(user_id, friend_id)
+);
+
+-- Sift Shares table
+create table if not exists public.sift_shares (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  sender_id uuid references auth.users(id) not null,
+  receiver_id uuid references auth.users(id) not null,
+  sift_id uuid references public.pages(id) on delete cascade not null
+);
+
+-- Enable RLS
+alter table public.friendships enable row level security;
+alter table public.sift_shares enable row level security;
+
+-- RLS Policies for Friendships
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own friendships' and tablename = 'friendships') then
+    create policy "Users can manage their own friendships" on public.friendships
+      for all to authenticated
+      using (auth.uid() = user_id or auth.uid() = friend_id);
+  end if;
+end $$;
+
+-- RLS Policies for Sift Shares
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can see shares sent to them' and tablename = 'sift_shares') then
+    create policy "Users can see shares sent to them" on public.sift_shares
+      for select to authenticated
+      using (auth.uid() = receiver_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can send shares' and tablename = 'sift_shares') then
+    create policy "Users can send shares" on public.sift_shares
+      for insert to authenticated
+      with check (auth.uid() = sender_id);
+  end if;
+end $$;
+
+-- Update trigger for auto-profile creation on signup
+-- Now includes username and sift_id initialization
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  new_username text;
+  new_sift_id text;
+begin
+  -- Generate unique username from email if not provided
+  new_username := coalesce(
+    new.raw_user_meta_data->>'username',
+    split_part(new.email, '@', 1) || '_' || substr(md5(random()::text), 1, 4)
+  );
+  
+  -- Generate unique 8-char sift_id
+  new_sift_id := 'SIFT-' || upper(substr(md5(random()::text), 1, 4));
+
+  insert into public.profiles (id, display_name, username, sift_id)
+  values (
+    new.id, 
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    new_username,
+    new_sift_id
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+

@@ -235,6 +235,18 @@ export default function ProfileScreen() {
                         onValueChange={toggleHaptics}
                         icon={<Vibrate size={20} color={colors.ink} />}
                     />
+                    <SettingsRow
+                        label="Personalization"
+                        description="App icons, themes, and styles"
+                        onPress={() => router.push('/settings/personalization')}
+                        icon={<Star size={20} color={colors.ink} />}
+                    />
+                    <SettingsRow
+                        label="Alerts"
+                        description="Notification and digest settings"
+                        onPress={() => router.push('/settings/alerts')}
+                        icon={<Bell size={20} color={colors.ink} />}
+                    />
 
                     <SettingsRow
                         label="Auto-grab Clipboard"

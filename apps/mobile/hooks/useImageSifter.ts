@@ -10,12 +10,17 @@ import { Alert } from 'react-native';
 
 export const useImageSifter = (onSuccess?: () => void) => {
     const { user } = useAuth();
-    const { maxImagesPerSift } = useSubscription();
+    const { maxImagesPerSift, isOverLimit } = useSubscription();
     const [loading, setLoading] = useState(false);
 
     const pickAndSift = async () => {
         if (!user) {
             Alert.alert('Error', 'You must be signed in to sift images.');
+            return;
+        }
+
+        if (isOverLimit) {
+            // We'll let the UI handle the modal, but prevent proceeding here
             return;
         }
 

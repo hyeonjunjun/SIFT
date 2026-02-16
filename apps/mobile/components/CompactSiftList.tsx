@@ -6,7 +6,7 @@ import { Typography } from './design-system/Typography';
 import { ArrowClockwise, Warning } from 'phosphor-react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '../context/ThemeContext';
-import { ActionSheet } from './modals/ActionSheet';
+import { SiftActionSheet } from './modals/SiftActionSheet';
 import { RADIUS } from '../lib/theme';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -36,6 +36,7 @@ interface CompactSiftListProps {
     pages: SiftItem[];
     pendingSifts?: PendingSift[];
     onRetry?: (id: string, url: string) => void;
+    onPin?: (id: string) => void;
     onArchive?: (id: string) => void;
     onEditTags?: (id: string, currentTags: string[]) => void;
     refreshControl?: any;
@@ -51,6 +52,7 @@ export default function CompactSiftList({
     pages,
     pendingSifts = [],
     onRetry,
+    onPin,
     onArchive,
     onEditTags,
     refreshControl,
@@ -169,36 +171,19 @@ export default function CompactSiftList({
                 })}
             />
 
-            <ActionSheet
+            <SiftActionSheet
                 visible={actionSheetVisible}
                 onClose={handleActionSheetClose}
-                title={(selectedItem as any)?.title || 'Options'}
-                options={[
-                    {
-                        label: 'Edit Tags',
-                        icon: require('phosphor-react-native').Tag,
-                        onPress: () => {
-                            if (selectedItem && selectedItem.type === 'page') {
-                                onEditTags?.(selectedItem.id, selectedItem.tags);
-                            }
-                        }
-                    },
-                    {
-                        label: 'Archive',
-                        icon: require('phosphor-react-native').Archive,
-                        isDestructive: true,
-                        onPress: () => {
-                            if (selectedItem) {
-                                onArchive?.(selectedItem.id);
-                            }
-                        }
-                    },
-                    {
-                        label: 'Cancel',
-                        isCancel: true,
-                        onPress: () => { }
-                    }
-                ]}
+                sift={selectedItem ? {
+                    id: selectedItem.id,
+                    title: (selectedItem as any).title || 'Untitled',
+                    url: selectedItem.url,
+                    is_pinned: (selectedItem as any).is_pinned,
+                    tags: (selectedItem as any).tags
+                } : null}
+                onPin={onPin}
+                onArchive={onArchive}
+                onEditTags={onEditTags}
             />
         </>
     );

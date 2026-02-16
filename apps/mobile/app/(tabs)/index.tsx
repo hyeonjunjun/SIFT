@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle } from 'phosphor-react-native';
+import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle, Trash } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
@@ -27,6 +27,7 @@ import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-quer
 import { SiftLimitTracker } from "../../components/SiftLimitTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { ActionSheet } from "../../components/modals/ActionSheet";
+import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
 
 interface Page {
     id: string;
@@ -45,9 +46,11 @@ const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Profe
 
 import { useAuth } from "../../lib/auth";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useSubscription } from "../../hooks/useSubscription";
 
 export default function HomeScreen() {
     const { user, tier, profile, loading: authLoading, refreshProfile } = useAuth(); // Get authenticated user
+    const { isOverLimit } = useSubscription();
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -117,6 +120,7 @@ export default function HomeScreen() {
     const [toastAction, setToastAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
     const [toastSecondaryAction, setToastSecondaryAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
     const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
     const [manualUrl, setManualUrl] = useState("");
     const lastCheckedUrl = useRef<string | null>(null);
     const processingUrls = useRef<Set<string>>(new Set());
@@ -588,6 +592,12 @@ export default function HomeScreen() {
 
 
     const handleSubmitUrl = () => {
+        if (isOverLimit) {
+            setLimitReachedVisible(true);
+            triggerHaptic('notification', Haptics.NotificationFeedbackType.Warning);
+            return;
+        }
+
         if (manualUrl.trim()) {
             const url = manualUrl.trim();
             Keyboard.dismiss();
@@ -712,7 +722,14 @@ export default function HomeScreen() {
 
                 <View style={styles.inputContainer}>
                     <TouchableOpacity
-                        onPress={pickAndSift}
+                        onPress={() => {
+                            if (isOverLimit) {
+                                setLimitReachedVisible(true);
+                                triggerHaptic('notification', Haptics.NotificationFeedbackType.Warning);
+                            } else {
+                                pickAndSift();
+                            }
+                        }}
                         style={styles.imageUploadIcon}
                     >
                         <ImageSquare size={22} color={COLORS.stone} weight="regular" />
@@ -881,33 +898,21 @@ export default function HomeScreen() {
                 ]}
             />
 
-            <ActionSheet
+            <SiftActionSheet
                 visible={siftActionSheetVisible}
                 onClose={() => setSiftActionSheetVisible(false)}
-                title={selectedSift?.title || 'Sift Options'}
-                options={[
-                    {
-                        label: selectedSift?.is_pinned ? 'Unpin Sift' : 'Pin Sift',
-                        onPress: () => {
-                            if (selectedSift) handlePin(selectedSift.id);
-                        }
-                    },
-                    {
-                        label: 'Edit Tags',
-                        onPress: () => {
-                            setTimeout(() => {
-                                if (selectedSift) handleEditTagsTrigger(selectedSift.id, selectedSift.rawTags || []);
-                            }, 100);
-                        }
-                    },
-                    {
-                        label: 'Archive Sift',
-                        onPress: () => {
-                            if (selectedSift) handleArchive(selectedSift.id);
-                        }
-                    },
+                sift={selectedSift}
+                onPin={handlePin}
+                onArchive={handleArchive}
+                onEditTags={(id, tags) => {
+                    setSelectedSiftId(id);
+                    setSelectedSiftTags(tags);
+                    setQuickTagModalVisible(true);
+                }}
+                additionalOptions={[
                     {
                         label: 'Delete Forever',
+                        icon: Trash,
                         isDestructive: true,
                         onPress: () => {
                             if (selectedSift) handleDeleteForever(selectedSift.id);
@@ -919,11 +924,6 @@ export default function HomeScreen() {
                             Alert.alert("Sift Diagnostics", selectedSift.debug_info || "No details", [{ text: "Close" }]);
                         }
                     } : null,
-                    {
-                        label: 'Cancel',
-                        isCancel: true,
-                        onPress: () => { }
-                    }
                 ].filter(Boolean) as any}
             />
 
