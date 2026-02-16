@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Platform, Alert, Pressable, ActionSheetIOS, Modal } from 'react-native';
+import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Alert, Pressable, ActionSheetIOS, Modal } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -20,11 +20,12 @@ import { useDebounce } from '../../hooks/useDebounce';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CompactSiftList from '../../components/CompactSiftList';
-import { CategoryModal, CategoryData } from '../../components/modals/CategoryModal';
+import { SmartCollectionModal, SmartCollectionData } from '../../components/modals/SmartCollectionModal';
 import { ActionSheet } from '../../components/modals/ActionSheet';
-import { FolderModal, FolderData } from '../../components/modals/FolderModal';
+import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import { SiftActionSheet } from '../../components/modals/SiftActionSheet';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -45,19 +46,7 @@ interface SiftItem {
     };
 }
 
-interface FolderItem {
-    id: string;
-    name: string;
-    color: string;
-    icon: string;
-    sort_order: number;
-    created_at: string;
-    is_pinned?: boolean;
-}
-
-
-
-const DEFAULT_CATEGORIES = [
+const DEFAULT_SMART_COLLECTIONS = [
     { name: 'COOKING', icon: 'Cooking', tags: ['COOKING', 'RECIPES', 'FOOD'] },
     { name: 'BAKING', icon: 'Baking', tags: ['BAKING', 'DESSERT', 'BREAD'] },
     { name: 'TECH', icon: 'Tech', tags: ['TECH', 'CODING', 'SOFTWARE'] },
@@ -65,8 +54,6 @@ const DEFAULT_CATEGORIES = [
     { name: 'LIFESTYLE', icon: 'Lifestyle', tags: ['LIFESTYLE', 'HOME', 'DECOR'] },
     { name: 'PROFESSIONAL', icon: 'Professional', tags: ['WORK', 'CAREER', 'BUSINESS'] },
 ];
-
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const PAGE_SIZE = 20;
 
@@ -87,15 +74,14 @@ export default function LibraryScreen() {
     const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
     const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
 
-    // Folder Modal State
-    const [folderModalVisible, setFolderModalVisible] = useState(false);
-    const [editingFolder, setEditingFolder] = useState<FolderData | null>(null);
+    // Collection Modal State
+    const [collectionModalVisible, setCollectionModalVisible] = useState(false);
+    const [editingCollection, setEditingCollection] = useState<CollectionData | null>(null);
 
-    // Category Modal State
-    // Category Modal State
-    const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+    // Smart Collection Modal State
+    const [smartCollectionModalVisible, setSmartCollectionModalVisible] = useState(false);
     const [categoryActionSheetVisible, setCategoryActionSheetVisible] = useState(false);
-    const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null);
+    const [editingSmartCollection, setEditingSmartCollection] = useState<SmartCollectionData | null>(null);
     const [isCategoryEditing, setIsCategoryEditing] = useState(false);
     const [siftPickerVisible, setSiftPickerVisible] = useState(false);
 
@@ -135,7 +121,7 @@ export default function LibraryScreen() {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error fetching sifts:', error);
+                console.error('Error fetching gems:', error);
                 throw error;
             }
             return (data || []) as SiftItem[];
@@ -145,10 +131,10 @@ export default function LibraryScreen() {
         retry: 2,
     });
 
-    // Fetch folders
+    // Fetch collections
     const {
-        data: folders = [],
-        refetch: refetchFolders,
+        data: collections = [],
+        refetch: refetchCollections,
     } = useQuery({
         queryKey: ['folders', user?.id],
         queryFn: async () => {
@@ -162,13 +148,12 @@ export default function LibraryScreen() {
                     .order('sort_order', { ascending: true });
 
                 if (error) {
-                    // Silently fail if table doesn't exist yet
-                    console.warn('Folders query error (table may not exist):', error.message);
+                    console.warn('Collections query error:', error.message);
                     return [];
                 }
-                return (data || []) as FolderItem[];
+                return (data || []) as CollectionData[];
             } catch (e) {
-                console.warn('Folders query failed:', e);
+                console.warn('Collections query failed:', e);
                 return [];
             }
         },
@@ -177,13 +162,12 @@ export default function LibraryScreen() {
         retry: 2,
     });
 
-    // Fetch Categories (Smart Folders)
-    const { data: categories = [], refetch: refetchCategories } = useQuery({
+    // Fetch Smart Collections
+    const { data: smartCollections = [], refetch: refetchSmartCollections } = useQuery({
         queryKey: ['categories', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
 
-            // 1. Fetch existing
             const { data, error } = await supabase
                 .from('categories')
                 .select('*')
@@ -191,14 +175,13 @@ export default function LibraryScreen() {
                 .order('sort_order', { ascending: true });
 
             if (error) {
-                console.warn('Categories query error:', error.message);
+                console.warn('Smart collections query error:', error.message);
                 return [];
             }
 
-            // 2. Seed defaults if empty
             if (!data || data.length === 0) {
-                console.log('Seeding default categories...');
-                const seedData = DEFAULT_CATEGORIES.map((cat, index) => ({
+                console.log('Seeding default smart collections...');
+                const seedData = DEFAULT_SMART_COLLECTIONS.map((cat, index) => ({
                     user_id: user.id,
                     name: cat.name,
                     icon: cat.icon,
@@ -212,10 +195,10 @@ export default function LibraryScreen() {
                     .select();
 
                 if (seedError) console.error('Seeding failed:', seedError);
-                return seeded || [];
+                return (seeded || []) as SmartCollectionData[];
             }
 
-            return data as CategoryData[];
+            return data as SmartCollectionData[];
         },
         enabled: !!user?.id,
         staleTime: 1000 * 60 * 5, // 5 minutes cache
@@ -225,23 +208,20 @@ export default function LibraryScreen() {
     // Derive unique used tags for suggestions
     const allUsedTags = useMemo(() => {
         const tagSet = new Set<string>();
-        // Add tags from existing pages
         pages.forEach(p => p.tags?.forEach(t => tagSet.add(t.toUpperCase())));
-        // Add tags from default categories as fallback suggestions
-        DEFAULT_CATEGORIES.forEach(c => c.tags.forEach(t => tagSet.add(t)));
+        DEFAULT_SMART_COLLECTIONS.forEach(c => c.tags.forEach(t => tagSet.add(t)));
         return Array.from(tagSet).sort();
     }, [pages]);
+
     // Tab Bar Reset Logic
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('tabPress' as any, (e: any) => {
             if (activeCategoryId) {
-                // If in a category, reset to main catalog
                 setActiveCategoryId(null);
                 setIsCategoryEditing(false);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
         });
-
         return unsubscribe;
     }, [navigation, activeCategoryId]);
 
@@ -249,7 +229,6 @@ export default function LibraryScreen() {
         const subscription = supabase
             .channel('library_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
-                // console.log('[Library Realtime] Update received:', payload.eventType);
                 queryClient.resetQueries({ queryKey: ['pages', user?.id] });
             })
             .subscribe();
@@ -267,8 +246,6 @@ export default function LibraryScreen() {
 
     const handleSaveTags = async (newTags: string[]) => {
         if (!selectedSiftId) return;
-
-        // Optimistic update could be added here
         try {
             const { error } = await supabase
                 .from('pages')
@@ -286,8 +263,9 @@ export default function LibraryScreen() {
     useFocusEffect(
         useCallback(() => {
             refetch();
-            refetchFolders();
-        }, [refetch, refetchFolders])
+            refetchCollections();
+            refetchSmartCollections();
+        }, [refetch, refetchCollections, refetchSmartCollections])
     );
 
     const onRefresh = async () => {
@@ -295,6 +273,7 @@ export default function LibraryScreen() {
         await Promise.all([
             queryClient.resetQueries({ queryKey: ['pages', user?.id] }),
             queryClient.resetQueries({ queryKey: ['folders', user?.id] }),
+            queryClient.resetQueries({ queryKey: ['categories', user?.id] }),
         ]);
         setRefreshing(false);
     };
@@ -309,18 +288,17 @@ export default function LibraryScreen() {
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // Optimistic update
             queryClient.setQueryData(['pages', user?.id], (old: SiftItem[] | undefined) =>
                 old ? old.filter(p => p.id !== id) : []
             );
         } catch (error: any) {
-            console.error("Error archiving sift:", error);
-            Alert.alert("Error", "Failed to archive sift");
+            console.error("Error archiving gem:", error);
+            Alert.alert("Error", "Failed to archive gem");
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         }
     };
 
-    const handleSaveCategory = async (cat: CategoryData) => {
+    const handleSaveSmartCollection = async (cat: SmartCollectionData) => {
         try {
             const { error } = await supabase
                 .from('categories')
@@ -338,49 +316,42 @@ export default function LibraryScreen() {
             if (error) throw error;
 
             queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
-            setCategoryModalVisible(false);
+            setSmartCollectionModalVisible(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
-            console.error("Error saving category:", error);
-            Alert.alert("Error", "Failed to save category");
+            console.error("Error saving smart collection:", error);
+            Alert.alert("Error", "Failed to save smart collection");
         }
     };
 
-    // Folder CRUD handlers
-    const handleSaveFolder = async (folder: FolderData) => {
+    const handleSaveCollection = async (collection: CollectionData) => {
         if (!user?.id) return;
-
-        if (folder.id) {
-            // Update existing folder
+        if (collection.id) {
             const { error } = await supabase
                 .from('folders')
-                .update({ name: folder.name, color: folder.color, icon: folder.icon })
-                .eq('id', folder.id);
+                .update({ name: collection.name, color: collection.color, icon: collection.icon, is_pinned: collection.is_pinned })
+                .eq('id', collection.id);
             if (error) throw error;
         } else {
-            // Create new folder
             const { error } = await supabase
                 .from('folders')
                 .insert({
                     user_id: user.id,
-                    name: folder.name,
-                    color: folder.color,
-                    icon: folder.icon,
-                    sort_order: folders.length,
+                    name: collection.name,
+                    color: collection.color,
+                    icon: collection.icon,
+                    sort_order: collections.length,
+                    is_pinned: collection.is_pinned || false
                 });
             if (error) throw error;
         }
-
-        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
     };
 
-    const handleDeleteCategory = async (id: string) => {
+    const handleDeleteSmartCollection = async (id: string) => {
         if (!id) return;
-
-        // Optimistic Remove
-        const previousActiveId = activeCategoryId;
         if (activeCategoryId === id) setActiveCategoryId(null);
-        setCategoryModalVisible(false);
+        setSmartCollectionModalVisible(false);
 
         const { error } = await supabase
             .from('categories')
@@ -388,73 +359,54 @@ export default function LibraryScreen() {
             .eq('id', id);
 
         if (error) {
-            console.error('Error deleting category:', error);
-            Alert.alert('Error', 'Failed to delete category');
-            // Revert state if needed, but for now just invalidate
-            if (previousActiveId === id) setActiveCategoryId(previousActiveId);
+            console.error('Error deleting smart collection:', error);
+            Alert.alert('Error', 'Failed to delete smart collection');
         }
-
         queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
     };
 
-    const handleDeleteFolder = async (folderId: string) => {
-        // First unassign all sifts from this folder
+    const handleDeleteCollection = async (collectionId: string) => {
         await supabase
             .from('pages')
             .update({ folder_id: null })
-            .eq('folder_id', folderId);
+            .eq('folder_id', collectionId);
 
-        // Then delete the folder
         const { error } = await supabase
             .from('folders')
             .delete()
-            .eq('id', folderId);
+            .eq('id', collectionId);
 
         if (error) throw error;
-        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
-        queryClient.resetQueries({ queryKey: ['pages', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
     };
 
-    const handlePinFolder = async (folderId: string, isPinned: boolean) => {
+    const handlePinCollection = async (collectionId: string, isPinned: boolean) => {
         const { error } = await supabase
             .from('folders')
             .update({ is_pinned: isPinned })
-            .eq('id', folderId);
+            .eq('id', collectionId);
 
         if (error) {
-            console.error('Error pinning folder:', error);
+            console.error('Error pinning collection:', error);
             Alert.alert('Error', 'Failed to update pin status');
-            // Revert on error
             queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
             return;
         }
-
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        // Optimistic update: manually sort locally
-        queryClient.setQueryData(['folders', user?.id], (old: FolderItem[] | undefined) => {
-            if (!old) return [];
-            return old.map(f => f.id === folderId ? { ...f, is_pinned: isPinned } : f)
-                .sort((a, b) => {
-                    if (a.is_pinned === b.is_pinned) return a.sort_order - b.sort_order;
-                    return a.is_pinned ? -1 : 1;
-                });
-        });
+        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
     };
 
-    const handleAddCategorySifts = async (selectedIds: string[]) => {
-        const activeCat = categories.find(c => c.id === activeCategoryId);
+    const handleAddSmartCollectionGems = async (selectedIds: string[]) => {
+        const activeCat = smartCollections.find(c => c.id === activeCategoryId);
         if (!activeCat || !user?.id) return;
 
         try {
-            // Processing each update
             const updates = selectedIds.map(async (id) => {
                 const page = pages.find(p => p.id === id);
                 if (!page) return;
-
                 const currentTags = (page.tags || []).map(t => t.toUpperCase());
                 const categoryTag = activeCat.name.toUpperCase();
-
                 if (!currentTags.includes(categoryTag)) {
                     const newTags = [...(page.tags || []), activeCat.name];
                     await supabase
@@ -463,68 +415,41 @@ export default function LibraryScreen() {
                         .eq('id', id);
                 }
             });
-
             await Promise.all(updates);
-
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         } catch (error) {
-            console.error('Error adding sifts to category:', error);
-            Alert.alert('Error', 'Failed to add sifts');
+            console.error('Error adding gems to smart collection:', error);
+            Alert.alert('Error', 'Failed to add gems');
         }
     };
 
-    const handleRemoveCategorySift = async (id: string) => {
-        const activeCat = categories.find(c => c.id === activeCategoryId);
+    const handleRemoveSmartCollectionGem = async (id: string) => {
+        const activeCat = smartCollections.find(c => c.id === activeCategoryId);
         if (!activeCat) return;
 
-        // Optimistic removal
         const page = pages.find(p => p.id === id);
         if (!page) return;
 
         const catNameUpper = activeCat.name.toUpperCase();
-
-        // Optimistically update cache
-        queryClient.setQueryData(['pages', user?.id], (old: SiftItem[] | undefined) => {
-            if (!old) return [];
-            return old.map(p => {
-                if (p.id === id) {
-                    // Start removing tag
-                    const newTags = (p.tags || []).filter(t => t.toUpperCase() !== catNameUpper);
-                    // Also check metadata category
-                    const newMetadata = { ...p.metadata };
-                    if (newMetadata.category?.toUpperCase() === catNameUpper) {
-                        delete newMetadata.category;
-                    }
-                    return { ...p, tags: newTags, metadata: newMetadata };
-                }
-                return p;
-            });
-        });
-
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         try {
             const currentTags = page.tags || [];
-            // Filter out the active category tag
             const newTags = currentTags.filter(t => t.toUpperCase() !== catNameUpper);
-
-            // Check metadata legacy field too
             let metadataUpdate = {};
             if (page.metadata?.category?.toUpperCase() === catNameUpper) {
                 metadataUpdate = { metadata: { ...page.metadata, category: null } };
             }
-
             const { error } = await supabase
                 .from('pages')
                 .update({ tags: newTags, ...metadataUpdate })
                 .eq('id', id);
-
             if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         } catch (error) {
-            console.error('Error removing sift from category:', error);
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }); // Revert
-            Alert.alert('Error', 'Failed to remove sift');
+            console.error('Error removing gem from smart collection:', error);
+            Alert.alert('Error', 'Failed to remove gem');
         }
     };
 
@@ -532,71 +457,51 @@ export default function LibraryScreen() {
         try {
             const page = pages.find(p => p.id === id);
             if (!page) return;
-
             const newPinnedState = !page.is_pinned;
-
-            // Optimistic Update
-            queryClient.setQueryData(['pages', user?.id], (old: any[] | undefined) => {
-                if (!old) return [];
-                return old.map(p => p.id === id ? { ...p, is_pinned: newPinnedState } : p);
-            });
-
             const { error } = await supabase.from('pages').update({ is_pinned: newPinnedState }).eq('id', id);
             if (error) throw error;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         } catch (error) {
             console.error('[Library Pin] Action failed:', error);
-            // Rollback on error
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
         }
     };
 
-    const openFolderModal = (folder?: FolderItem) => {
-        if (folder) {
-            setEditingFolder({ id: folder.id, name: folder.name, color: folder.color, icon: folder.icon });
+    const openCollectionModal = (collection?: CollectionData) => {
+        if (collection) {
+            setEditingCollection(collection);
         } else {
-            setEditingFolder(null);
+            setEditingCollection(null);
         }
-        setFolderModalVisible(true);
+        setCollectionModalVisible(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
-    const categoryData = useMemo(() => {
-        return categories.map((cat) => {
+    const smartCollectionUIData = useMemo(() => {
+        return smartCollections.map((cat) => {
             const catPages = pages.filter(p =>
-                // Match any of the category's tags
-                (cat.tags && cat.tags.length > 0 && p.tags?.some(t => cat.tags.includes(t.toUpperCase()))) ||
-                // Fallback to metadata category if it matches name (legacy)
-                p.metadata?.category?.toUpperCase() === cat.name
+                (cat.tags && cat.tags.length > 0 && p.tags?.some(t => cat.tags.includes(t.toUpperCase())))
             );
-
-            const height = 240; // Standard longer uniform height
-
             return {
                 ...cat,
                 pages: catPages,
                 count: catPages.length,
-                height,
+                height: 240,
                 latestImage: catPages[0]?.metadata?.image_url
             };
         });
-    }, [pages, categories]);
+    }, [pages, smartCollections]);
 
     const activeCategoryPages = useMemo(() => {
-        const activeCat = categories.find(c => c.id === activeCategoryId);
+        const activeCat = smartCollections.find(c => c.id === activeCategoryId);
         if (!activeCat) return [];
-
-        const catNameUpper = activeCat.name.toUpperCase();
         const catTags = (activeCat.tags || []).map(t => t.toUpperCase());
-
         return pages.filter(p =>
-            catTags.some(tag => p.tags?.some(t => t.toUpperCase() === tag)) ||
-            p.tags?.some(t => t.toUpperCase() === catNameUpper) ||
-            p.metadata?.category?.toUpperCase() === catNameUpper
+            catTags.some(tag => p.tags?.some(t => t.toUpperCase() === tag))
         );
-    }, [pages, activeCategoryId, categories]);
+    }, [pages, activeCategoryId, smartCollections]);
 
-    const filteredCategories = categoryData.filter(cat => {
+    const filteredSmartCollections = smartCollectionUIData.filter(cat => {
         if (!debouncedSearchQuery.trim()) return true;
         return cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     });
@@ -611,8 +516,6 @@ export default function LibraryScreen() {
         })
         .runOnJS(true);
 
-
-
     const isLoadingState = loading && !refreshing && fetchStatus === 'fetching';
 
     if (isLoadingState) {
@@ -621,7 +524,7 @@ export default function LibraryScreen() {
                 <View style={[styles.header, { paddingBottom: 0 }]}>
                     <View style={styles.titleGroup}>
                         <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            YOUR COLLECTION
+                            YOUR MISSION
                         </Typography>
                         <Typography variant="h1" style={styles.serifTitle}>
                             Library
@@ -636,42 +539,30 @@ export default function LibraryScreen() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <ScreenWrapper edges={['top']}>
-                {/* 1. EDITORIAL HEADER */}
                 <View style={styles.header}>
                     {activeCategoryId ? (
                         isCategoryEditing ? (
-                            <TouchableOpacity
-                                onPress={() => setIsCategoryEditing(false)}
-                                style={styles.backButton}
-                            >
+                            <TouchableOpacity onPress={() => setIsCategoryEditing(false)} style={styles.backButton}>
                                 <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
                             </TouchableOpacity>
                         ) : (
-                            <TouchableOpacity
-                                onPress={() => setActiveCategoryId(null)}
-                                style={styles.backButton}
-                            >
+                            <TouchableOpacity onPress={() => setActiveCategoryId(null)} style={styles.backButton}>
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
                         )
                     ) : null}
                     <View style={[styles.titleGroup, activeCategoryId ? { marginLeft: 12 } : {}]}>
                         <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            {activeCategoryId ? (isCategoryEditing ? 'MANAGING' : `CATEGORY • ${categories.find(c => c.id === activeCategoryId)?.name?.toUpperCase() || ''}`) : 'YOUR COLLECTION'}
+                            {activeCategoryId ? (isCategoryEditing ? 'MANAGING' : `SMART COLLECTION • ${smartCollections.find(c => c.id === activeCategoryId)?.name?.toUpperCase() || ''}`) : 'YOUR MISSION'}
                         </Typography>
                         <Typography variant="h1" style={styles.serifTitle}>
-                            {activeCategoryId ? (categories.find(c => c.id === activeCategoryId)?.name || '') : 'Library'}
+                            {activeCategoryId ? (smartCollections.find(c => c.id === activeCategoryId)?.name || '') : 'Library'}
                         </Typography>
                     </View>
 
-                    {/* View Toggle + Options */}
                     <View style={styles.headerActions}>
                         {!isCategoryEditing && (
-                            <TouchableOpacity
-                                style={styles.viewToggle}
-                                onPress={toggleViewMode}
-                                activeOpacity={0.7}
-                            >
+                            <TouchableOpacity style={styles.viewToggle} onPress={toggleViewMode} activeOpacity={0.7}>
                                 {viewMode === 'grid' ? (
                                     <Rows size={22} color={colors.ink} weight="bold" />
                                 ) : (
@@ -684,9 +575,9 @@ export default function LibraryScreen() {
                                 style={styles.manageButton}
                                 onPress={() => {
                                     Haptics.selectionAsync();
-                                    const currentCat = categories.find(c => c.id === activeCategoryId);
+                                    const currentCat = smartCollections.find(c => c.id === activeCategoryId);
                                     if (!currentCat) return;
-                                    setEditingCategory(currentCat);
+                                    setEditingSmartCollection(currentCat);
                                     setCategoryActionSheetVisible(true);
                                 }}
                             >
@@ -707,14 +598,13 @@ export default function LibraryScreen() {
                     </View>
                 </View>
 
-                {/* 2. SEARCH INPUT (Only in main view) */}
                 {!activeCategoryId && (
                     <View style={styles.searchContainer}>
                         <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                             <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
                             <TextInput
                                 style={[styles.searchInput, { color: colors.ink }]}
-                                placeholder="Search your mind..."
+                                placeholder="Search your gems..."
                                 placeholderTextColor={colors.stone}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
@@ -725,7 +615,6 @@ export default function LibraryScreen() {
                     </View>
                 )}
 
-                {/* 3. BENTO GRID, SIFT FEED, or COMPACT LIST */}
                 {activeCategoryId ? (
                     <GestureDetector gesture={swipeGesture}>
                         <View style={{ flex: 1 }}>
@@ -739,7 +628,7 @@ export default function LibraryScreen() {
                                 }}
                                 loading={loading && fetchStatus === 'fetching'}
                                 mode={isCategoryEditing ? 'edit' : 'feed'}
-                                onRemove={handleRemoveCategorySift}
+                                onRemove={handleRemoveSmartCollectionGem}
                                 refreshControl={
                                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                                 }
@@ -748,13 +637,12 @@ export default function LibraryScreen() {
                             />
                             {(!activeCategoryPages || activeCategoryPages.length === 0) && !loading && (
                                 <View style={styles.emptyState}>
-                                    <Typography variant="body" color={COLORS.stone}>No sifts in this category yet.</Typography>
+                                    <Typography variant="body" color={COLORS.stone}>No gems in this collection yet.</Typography>
                                 </View>
                             )}
                         </View>
                     </GestureDetector>
                 ) : viewMode === 'list' ? (
-                    /* COMPACT LIST VIEW */
                     <CompactSiftList
                         pages={pages as any}
                         onPin={(id) => handlePin(id)}
@@ -766,7 +654,6 @@ export default function LibraryScreen() {
                         contentContainerStyle={styles.feedContainer}
                     />
                 ) : (
-                    /* GRID VIEW (Categories) */
                     <ScrollView
                         contentContainerStyle={styles.gridContainer}
                         showsVerticalScrollIndicator={false}
@@ -774,63 +661,60 @@ export default function LibraryScreen() {
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                         }
                     >
-                        {/* FOLDERS SECTION */}
-                        {folders.length > 0 && (
+                        {collections.length > 0 && (
                             <>
                                 <Typography variant="label" color="stone" style={styles.sectionLabel}>
-                                    YOUR FOLDERS
+                                    COLLECTIONS
                                 </Typography>
                                 <View style={styles.folderRow}>
-                                    {folders.map((folder) => (
+                                    {collections.map((collection) => (
                                         <Pressable
-                                            key={folder.id}
+                                            key={collection.id}
                                             style={({ pressed }) => [
                                                 styles.folderTile,
                                                 {
-                                                    backgroundColor: folder.color,
+                                                    backgroundColor: collection.color,
                                                     opacity: pressed ? 0.8 : 1,
                                                     transform: [{ scale: pressed ? 0.98 : 1 }]
                                                 }
                                             ]}
-                                            onPress={() => router.push(`/folder/${folder.id}`)}
+                                            onPress={() => router.push(`/collection/${collection.id}`)}
                                             onLongPress={() => {
                                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                                openFolderModal(folder);
+                                                openCollectionModal(collection);
                                             }}
-                                            delayLongPress={300} // Shorter delay for better responsiveness
+                                            delayLongPress={300}
                                         >
                                             <Folder size={24} color="#FFFFFF" weight="fill" />
                                             <Typography variant="caption" style={styles.folderName} numberOfLines={1}>
-                                                {folder.name}
+                                                {collection.name}
                                             </Typography>
                                         </Pressable>
                                     ))}
                                 </View>
                                 <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
-                                    CATEGORIES
+                                    SMART COLLECTIONS
                                 </Typography>
                             </>
                         )}
 
                         <View style={styles.bentoWrapper}>
-                            {filteredCategories.map((cat) => (
-                                <Tile key={cat.id || cat.name} cat={cat} colors={colors} isDark={isDark} onPress={() => setActiveCategoryId(cat.id || null)} />
+                            {filteredSmartCollections.map((cat) => (
+                                <Tile key={cat.id || cat.name} cat={cat as any} colors={colors} isDark={isDark} onPress={() => setActiveCategoryId(cat.id || null)} />
                             ))}
-
-                            {(!filteredCategories || filteredCategories.length === 0) && (
+                            {(!filteredSmartCollections || filteredSmartCollections.length === 0) && (
                                 <View style={styles.emptyState}>
-                                    <Typography variant="body" color="stone">No categories match your search.</Typography>
+                                    <Typography variant="body" color="stone">No collections match your search.</Typography>
                                 </View>
                             )}
                         </View>
                     </ScrollView>
                 )}
 
-                {/* Floating Action Button - New Folder */}
                 {!activeCategoryId && viewMode === 'grid' && (
                     <TouchableOpacity
                         style={[styles.fab, { backgroundColor: colors.ink }]}
-                        onPress={() => openFolderModal()}
+                        onPress={() => openCollectionModal()}
                         activeOpacity={0.8}
                     >
                         <Plus size={24} color={colors.paper} weight="bold" />
@@ -844,22 +728,22 @@ export default function LibraryScreen() {
                     onSave={handleSaveTags}
                 />
 
-                <CategoryModal
-                    visible={categoryModalVisible}
-                    onClose={() => setCategoryModalVisible(false)}
-                    onSave={handleSaveCategory}
-                    onDelete={handleDeleteCategory}
-                    existingCategory={editingCategory}
+                <SmartCollectionModal
+                    visible={smartCollectionModalVisible}
+                    onClose={() => setSmartCollectionModalVisible(false)}
+                    onSave={handleSaveSmartCollection}
+                    onDelete={handleDeleteSmartCollection}
+                    existingCategory={editingSmartCollection}
                     suggestedTags={allUsedTags}
                 />
 
                 <ActionSheet
                     visible={categoryActionSheetVisible}
                     onClose={() => setCategoryActionSheetVisible(false)}
-                    title={categories.find(c => c.id === activeCategoryId)?.name || 'Options'}
+                    title={smartCollections.find(c => c.id === activeCategoryId)?.name || 'Options'}
                     options={[
                         {
-                            label: `Manage ${categories.find(c => c.id === activeCategoryId)?.name || 'Category'}`,
+                            label: `Manage ${smartCollections.find(c => c.id === activeCategoryId)?.name || 'Smart Collection'}`,
                             onPress: () => {
                                 setIsCategoryEditing(true);
                             }
@@ -867,29 +751,28 @@ export default function LibraryScreen() {
                         {
                             label: 'Rename/Icon',
                             onPress: () => {
-                                const currentCat = categories.find(c => c.id === activeCategoryId);
+                                const currentCat = smartCollections.find(c => c.id === activeCategoryId);
                                 if (currentCat) {
-                                    setEditingCategory(currentCat);
-                                    // Small delay to allow action sheet to close
-                                    setTimeout(() => setCategoryModalVisible(true), 100);
+                                    setEditingSmartCollection(currentCat);
+                                    setTimeout(() => setSmartCollectionModalVisible(true), 100);
                                 }
                             }
                         },
                         {
-                            label: 'Delete Category',
+                            label: 'Delete Smart Collection',
                             isDestructive: true,
                             onPress: () => {
-                                const currentCat = categories.find(c => c.id === activeCategoryId);
+                                const currentCat = smartCollections.find(c => c.id === activeCategoryId);
                                 if (currentCat) {
                                     Alert.alert(
-                                        "Delete Category",
-                                        "Are you sure? Sifts inside won't be deleted.",
+                                        "Delete Smart Collection",
+                                        "Are you sure? Gems inside won't be deleted.",
                                         [
                                             { text: 'Cancel', style: 'cancel' },
                                             {
                                                 text: 'Delete',
                                                 style: 'destructive',
-                                                onPress: () => handleDeleteCategory(currentCat.id)
+                                                onPress: () => handleDeleteSmartCollection(currentCat.id!)
                                             }
                                         ]
                                     );
@@ -904,14 +787,13 @@ export default function LibraryScreen() {
                     ]}
                 />
 
-
-                <FolderModal
-                    visible={folderModalVisible}
-                    onClose={() => setFolderModalVisible(false)}
-                    onSave={handleSaveFolder}
-                    onDelete={handleDeleteFolder}
-                    onPin={handlePinFolder}
-                    existingFolder={editingFolder}
+                <CollectionModal
+                    visible={collectionModalVisible}
+                    onClose={() => setCollectionModalVisible(false)}
+                    onSave={handleSaveCollection}
+                    onDelete={handleDeleteCollection}
+                    onPin={handlePinCollection}
+                    existingFolder={editingCollection}
                 />
 
                 <SiftActionSheet
@@ -926,7 +808,7 @@ export default function LibraryScreen() {
                 <SiftPickerModal
                     visible={siftPickerVisible}
                     onClose={() => setSiftPickerVisible(false)}
-                    onSelect={handleAddCategorySifts}
+                    onSelect={handleAddSmartCollectionGems}
                     currentFolderSiftIds={activeCategoryPages.map(p => p.id)}
                 />
             </ScreenWrapper>
@@ -934,10 +816,7 @@ export default function LibraryScreen() {
     );
 }
 
-
-
-// Extended interface for UI presentation
-interface CategoryUI extends CategoryData {
+interface CategoryUI extends SmartCollectionData {
     pages: SiftItem[];
     count: number;
     height: number;
@@ -1008,20 +887,14 @@ const Tile = ({ cat, colors, isDark, onPress }: { cat: CategoryUI, colors: any, 
                     color={hasImage ? "rgba(255,255,255,0.7)" : colors.stone}
                     style={styles.issueCount}
                 >
-                    {cat.count > 0 ? `${cat.count} ISSUES` : 'START SIFTING'}
+                    {cat.count > 0 ? `${cat.count} GEMS` : 'START COLLECTING'}
                 </Typography>
             </View>
         </TouchableOpacity>
     );
 };
 
-
 const styles = StyleSheet.create({
-    loaderContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     header: {
         flexDirection: 'row',
         paddingHorizontal: 20,
@@ -1034,6 +907,8 @@ const styles = StyleSheet.create({
     },
     smallCapsLabel: {
         marginBottom: 4,
+        letterSpacing: 2,
+        fontWeight: '700',
     },
     serifTitle: {
         fontSize: 36,
@@ -1088,9 +963,6 @@ const styles = StyleSheet.create({
     feedContainer: {
         paddingBottom: 160,
     },
-    feedWrapper: {
-        flex: 1,
-    },
     bentoWrapper: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -1122,18 +994,6 @@ const styles = StyleSheet.create({
         marginTop: 4,
         letterSpacing: 0.5,
     },
-    emptyContent: {
-        alignItems: 'center',
-    },
-    emptyLabel: {
-        fontSize: 12,
-        letterSpacing: 1,
-        fontWeight: '700',
-    },
-    startSifting: {
-        fontSize: 12,
-        marginTop: 4,
-    },
     newTag: {
         position: 'absolute',
         top: 10,
@@ -1163,7 +1023,8 @@ const styles = StyleSheet.create({
     sectionLabel: {
         width: '100%',
         marginBottom: SPACING.s,
-        letterSpacing: 1,
+        letterSpacing: 1.5,
+        fontWeight: '700',
     },
     folderRow: {
         flexDirection: 'row',
@@ -1186,11 +1047,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         textAlign: 'center',
         maxWidth: 70,
+        fontSize: 11,
     },
     fab: {
         position: 'absolute',
-        bottom: 24, // 24px from bottom (very low, might overlap tab bar on some devices)
-        right: 24, // 24px off right edge
+        bottom: 40,
+        right: 24,
         width: 56,
         height: 56,
         borderRadius: 28,
@@ -1199,4 +1061,3 @@ const styles = StyleSheet.create({
         ...Theme.shadows.medium,
     },
 });
-

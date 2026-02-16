@@ -46,9 +46,14 @@ export default function SocialScreen() {
         retry: 2,
     });
 
-    // 2. Fetch Shared Sifts
-    const { data: sharedSifts = [] } = useQuery({
-        queryKey: ['shared_sifts', user?.id],
+    // Derived states for easier UX
+    const incomingRequests = friendships.filter((f: any) => f.friend_id === user?.id && f.status === 'pending');
+    const myNetwork = friendships.filter((f: any) => f.status === 'accepted');
+    const outgoingRequests = friendships.filter((f: any) => f.user_id === user?.id && f.status === 'pending');
+
+    // 2. Fetch Shared Gems
+    const { data: sharedGems = [] } = useQuery({
+        queryKey: ['shared_gems', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
             const { data, error } = await supabase
@@ -83,7 +88,7 @@ export default function SocialScreen() {
 
         setIsSearching(true);
         try {
-            // Search by username (ilike), exact email (eq), or Sift ID (ilike)
+            // Search by username (ilike), exact email (eq), or Gem ID (ilike)
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, display_name, avatar_url, email, sift_id')
@@ -139,7 +144,7 @@ export default function SocialScreen() {
         setRefreshing(true);
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] }),
-            queryClient.invalidateQueries({ queryKey: ['shared_sifts', user?.id] })
+            queryClient.invalidateQueries({ queryKey: ['shared_gems', user?.id] })
         ]);
         setRefreshing(false);
     };
@@ -175,7 +180,7 @@ export default function SocialScreen() {
                     <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
                     <TextInput
                         style={[styles.searchInput, { color: colors.ink }]}
-                        placeholder="Search by Sift ID or username..."
+                        placeholder="Find friends by @username or ID..."
                         placeholderTextColor={colors.stone}
                         value={searchQuery}
                         onChangeText={handleSearch}
@@ -215,7 +220,16 @@ export default function SocialScreen() {
                     <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"}>Shared</Typography>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setActiveTab('friends')} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 2 }]}>
-                    <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"}>Friends</Typography>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"}>Friends</Typography>
+                        {incomingRequests.length > 0 && (
+                            <View style={[styles.badge, { backgroundColor: COLORS.danger }]}>
+                                <Typography variant="caption" style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+                                    {incomingRequests.length}
+                                </Typography>
+                            </View>
+                        )}
+                    </View>
                 </TouchableOpacity>
             </View>
 
@@ -224,20 +238,43 @@ export default function SocialScreen() {
                     <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
                         {activeTab === 'shared' ? (
                             <View style={styles.feed}>
-                                {sharedSifts.length === 0 ? (
-                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No sifts yet" subtitle="Gems shared by friends will land here." />
+                                {sharedGems.length === 0 ? (
+                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No shared gems yet" subtitle="Gems shared by friends will land here." />
                                 ) : (
-                                    sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} colors={colors} />)
+                                    sharedGems.map((share: any) => <SharedSiftCard key={share.id} share={share} colors={colors} />)
                                 )}
                             </View>
                         ) : (
                             <View style={styles.friendsList}>
-                                {friendships.length === 0 ? (
-                                    <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing gems." />
+                                {incomingRequests.length > 0 && (
+                                    <View style={styles.section}>
+                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
+                                        {incomingRequests.map((f: any) => (
+                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} />
+                                        ))}
+                                    </View>
+                                )}
+
+                                {myNetwork.length > 0 ? (
+                                    <View style={styles.section}>
+                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
+                                        {myNetwork.map((f: any) => (
+                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} />
+                                        ))}
+                                    </View>
                                 ) : (
-                                    friendships.map((f: any) => (
-                                        <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} />
-                                    ))
+                                    incomingRequests.length === 0 && (
+                                        <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing gems." />
+                                    )
+                                )}
+
+                                {outgoingRequests.length > 0 && (
+                                    <View style={[styles.section, { opacity: 0.6 }]}>
+                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
+                                        {outgoingRequests.map((f: any) => (
+                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onDecline={() => handleDecline(f.id)} />
+                                        ))}
+                                    </View>
                                 )}
                             </View>
                         )}
@@ -308,10 +345,18 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline }: 
                 <Typography variant="caption" color="stone">@{friend.username}</Typography>
             </View>
             {isPending ? (
-                amRequester ? <Typography variant="caption" color="stone">Sent</Typography> : (
+                amRequester ? (
+                    <View style={[styles.statusBadge, { backgroundColor: colors.subtle }]}>
+                        <Typography variant="caption" color="stone">Pending</Typography>
+                    </View>
+                ) : (
                     <View style={styles.actionRow}>
-                        <TouchableOpacity onPress={onAccept}><Check size={20} color={COLORS.success} /></TouchableOpacity>
-                        <TouchableOpacity onPress={onDecline}><X size={20} color={COLORS.danger} /></TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.success }]} onPress={onAccept}>
+                            <Check size={16} color="white" weight="bold" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: 'rgba(255,59,48,0.1)' }]} onPress={onDecline}>
+                            <X size={16} color={COLORS.danger} weight="bold" />
+                        </TouchableOpacity>
                     </View>
                 )
             ) : <ChatCircleText size={20} color={colors.stone} />}
@@ -373,8 +418,21 @@ const styles = StyleSheet.create({
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     collectButton: { backgroundColor: COLORS.ink, paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.pill },
     friendItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
-    actionRow: { flexDirection: 'row', gap: 16 },
+    actionRow: { flexDirection: 'row', gap: 12 },
+    actionButton: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.pill },
     feed: { gap: 16 },
     friendsList: {},
+    section: { marginBottom: 32 },
+    sectionTitle: { marginBottom: 12, letterSpacing: 1 },
+    badge: {
+        marginLeft: 6,
+        minWidth: 16,
+        height: 16,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+    },
     emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }
 });

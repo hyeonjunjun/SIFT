@@ -8,7 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 // Folder colors palette
-const FOLDER_COLORS = [
+const COLLECTION_COLORS = [
     '#3B82F6', // Blue
     '#8B5CF6', // Purple
     '#EC4899', // Pink
@@ -22,7 +22,7 @@ const FOLDER_COLORS = [
 ];
 
 // Icon options
-const FOLDER_ICONS = [
+const COLLECTION_ICONS = [
     { name: 'Folder', icon: Folder },
     { name: 'FolderOpen', icon: FolderOpen },
     { name: 'FolderStar', icon: FolderStar },
@@ -46,27 +46,29 @@ const FOLDER_ICONS = [
     { name: 'Rocket', icon: Rocket },
 ];
 
-export interface FolderData {
+export interface CollectionData {
     id?: string;
     name: string;
     color: string;
     icon: string;
     is_pinned?: boolean;
+    sort_order?: number;
+    created_at?: string;
 }
 
-interface FolderModalProps {
+interface CollectionModalProps {
     visible: boolean;
     onClose: () => void;
-    onSave: (folder: FolderData) => Promise<void>;
+    onSave: (folder: CollectionData) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
     onPin?: (id: string, isPinned: boolean) => Promise<void>;
-    existingFolder?: FolderData | null;
+    existingFolder?: CollectionData | null;
 }
 
-export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existingFolder }: FolderModalProps) => {
+export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, existingFolder }: CollectionModalProps) => {
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
-    const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0]);
+    const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
     const [selectedIcon, setSelectedIcon] = useState('Folder');
     const [isPinned, setIsPinned] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -78,12 +80,12 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
         if (visible) {
             if (existingFolder) {
                 setName(existingFolder.name);
-                setSelectedColor(existingFolder.color || FOLDER_COLORS[0]);
+                setSelectedColor(existingFolder.color || COLLECTION_COLORS[0]);
                 setSelectedIcon(existingFolder.icon || 'Folder');
                 setIsPinned(!!existingFolder.is_pinned);
             } else {
                 setName('');
-                setSelectedColor(FOLDER_COLORS[0]);
+                setSelectedColor(COLLECTION_COLORS[0]);
                 setSelectedIcon('Folder');
                 setIsPinned(false);
             }
@@ -118,8 +120,8 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
         if (!existingFolder?.id || !onDelete) return;
 
         Alert.alert(
-            'Delete Folder',
-            `Are you sure you want to delete "${existingFolder.name}"? Sifts in this folder won't be deleted.`,
+            'Delete Collection',
+            `Are you sure you want to delete "${existingFolder.name}"? Gems in this collection won't be deleted.`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -139,7 +141,7 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
         );
     };
 
-    const SelectedIconComponent = FOLDER_ICONS.find(i => i.name === selectedIcon)?.icon || Folder;
+    const SelectedIconComponent = COLLECTION_ICONS.find(i => i.name === selectedIcon)?.icon || Folder;
 
     return (
         <Modal
@@ -153,7 +155,7 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
                     {/* Header */}
                     <View style={styles.header}>
                         <Typography variant="h3">
-                            {isEditMode ? 'Edit Folder' : 'New Folder'}
+                            {isEditMode ? 'Edit Collection' : 'New Collection'}
                         </Typography>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
                             {isEditMode && onPin && existingFolder?.id && (
@@ -185,19 +187,19 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
                                 <SelectedIconComponent size={32} color="#FFFFFF" weight="fill" />
                             </View>
                             <Typography variant="body" weight="medium" style={{ marginTop: 8 }}>
-                                {name || 'Folder Name'}
+                                {name || 'Collection Name'}
                             </Typography>
                         </View>
 
                         {/* Name Input */}
                         <Typography variant="label" color="stone" style={styles.sectionLabel}>
-                            NAME
+                            COLLECTION NAME
                         </Typography>
                         <TextInput
                             style={[styles.input, { backgroundColor: colors.subtle, color: colors.ink, borderColor: colors.separator }]}
                             value={name}
                             onChangeText={setName}
-                            placeholder="Enter folder name..."
+                            placeholder="Enter collection name..."
                             placeholderTextColor={colors.stone}
                             autoFocus={!isEditMode}
                             maxLength={30}
@@ -208,7 +210,7 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
                             COLOR
                         </Typography>
                         <View style={styles.colorGrid}>
-                            {FOLDER_COLORS.map((color) => (
+                            {COLLECTION_COLORS.map((color) => (
                                 <TouchableOpacity
                                     key={color}
                                     style={[
@@ -233,7 +235,7 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
                             ICON
                         </Typography>
                         <View style={styles.iconGrid}>
-                            {FOLDER_ICONS.map(({ name: iconName, icon: IconComponent }) => (
+                            {COLLECTION_ICONS.map(({ name: iconName, icon: IconComponent }) => (
                                 <TouchableOpacity
                                     key={iconName}
                                     style={[
@@ -264,7 +266,7 @@ export const FolderModal = ({ visible, onClose, onSave, onDelete, onPin, existin
                             </TouchableOpacity>
                         )}
                         <Button
-                            label={saving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Folder')}
+                            label={saving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Collection')}
                             onPress={handleSave}
                             variant="primary"
                             style={[styles.saveButton, isEditMode && { flex: 1 }]}

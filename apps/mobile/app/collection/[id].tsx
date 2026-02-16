@@ -11,24 +11,15 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import SiftFeed from '../../components/SiftFeed';
-import { FolderModal, FolderData } from '../../components/modals/FolderModal';
+import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Minus, Trash } from 'phosphor-react-native';
 
-interface FolderItem {
-    id: string;
-    name: string;
-    color: string;
-    icon: string;
-    sort_order: number;
-    created_at: string;
-    is_pinned?: boolean;
-}
 
-export default function FolderScreen() {
+export default function CollectionScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const { colors } = useTheme();
@@ -53,7 +44,7 @@ export default function FolderScreen() {
                 .eq('id', id)
                 .single();
             if (error) throw error;
-            return data as FolderItem;
+            return data as CollectionData;
         },
         enabled: !!id,
         staleTime: 1000 * 60 * 5, // 5 minutes
@@ -86,7 +77,7 @@ export default function FolderScreen() {
         setRefreshing(false);
     };
 
-    const handleUpdateFolder = async (folderData: FolderData) => {
+    const handleUpdateCollection = async (folderData: CollectionData) => {
         const { error } = await supabase
             .from('folders')
             .update({
@@ -124,7 +115,7 @@ export default function FolderScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "Failed to add sifts.");
+            Alert.alert("Error", "Failed to add gems.");
         }
     };
 
@@ -140,11 +131,11 @@ export default function FolderScreen() {
 
         if (error) {
             queryClient.setQueryData(['folder-pages', id], previousPages);
-            Alert.alert("Error", "Failed to remove sift.");
+            Alert.alert("Error", "Failed to remove gem.");
         }
     };
 
-    const handleDeleteFolder = async (folderId: string) => {
+    const handleDeleteCollection = async (folderId: string) => {
         // Unassign sifts
         await supabase
             .from('pages')
@@ -167,7 +158,7 @@ export default function FolderScreen() {
 
     const handleShare = async () => {
         if (!folder) return;
-        const deepLink = `sift://folder/${folder.id}`;
+        const deepLink = `sift://collection/${folder.id}`;
         await Clipboard.setStringAsync(deepLink);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert('Link Copied', `Share this link:\n${deepLink}`);
@@ -245,7 +236,7 @@ export default function FolderScreen() {
             {/* Stats */}
             <View style={[styles.statsBar, { backgroundColor: colors.subtle, borderColor: colors.separator }]}>
                 <Typography variant="caption" color="stone">
-                    {pages.length} {pages.length === 1 ? 'sift' : 'sifts'} in this folder
+                    {pages.length} {pages.length === 1 ? 'gem' : 'gems'} in this collection
                 </Typography>
             </View>
 
@@ -265,19 +256,19 @@ export default function FolderScreen() {
                 <View style={styles.emptyState}>
                     <Folder size={48} color={COLORS.stone} weight="thin" />
                     <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
-                        No sifts in this folder yet.
+                        No gems in this collection yet.
                     </Typography>
                     <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>
-                        Long-press any sift to add it here.
+                        Long-press any gem to add it here.
                     </Typography>
                 </View>
             )}
 
-            <FolderModal
+            <CollectionModal
                 visible={editModalVisible}
                 onClose={() => setEditModalVisible(false)}
-                onSave={handleUpdateFolder}
-                onDelete={handleDeleteFolder}
+                onSave={handleUpdateCollection}
+                onDelete={handleDeleteCollection}
                 existingFolder={{
                     id: folder.id,
                     name: folder.name,
@@ -299,21 +290,21 @@ export default function FolderScreen() {
                         }
                     },
                     {
-                        label: 'Edit Folder Details',
+                        label: 'Edit Collection Details',
                         onPress: () => {
                             setTimeout(() => setEditModalVisible(true), 200);
                         }
                     },
                     {
-                        label: 'Delete Folder',
+                        label: 'Delete Collection',
                         isDestructive: true,
                         onPress: () => {
                             Alert.alert(
-                                "Delete Folder",
-                                "Are you sure you want to delete this folder? This action cannot be undone.",
+                                "Delete Collection",
+                                "Are you sure you want to delete this collection? This action cannot be undone.",
                                 [
                                     { text: "Cancel", style: "cancel" },
-                                    { text: "Delete", style: "destructive", onPress: () => handleDeleteFolder(id as string) }
+                                    { text: "Delete", style: "destructive", onPress: () => handleDeleteCollection(id as string) }
                                 ]
                             );
                         }

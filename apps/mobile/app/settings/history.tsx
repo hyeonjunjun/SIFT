@@ -198,7 +198,7 @@ export default function HistoryScreen() {
                             <>
                                 <ClockCounterClockwise size={48} color={COLORS.stone} weight="thin" />
                                 <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
-                                    {searchQuery ? 'No results found.' : 'No sifts yet.'}
+                                    {searchQuery ? 'No results found.' : 'No gems yet.'}
                                 </Typography>
                             </>
                         )}

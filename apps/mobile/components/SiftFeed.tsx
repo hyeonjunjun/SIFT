@@ -342,7 +342,7 @@ export default function SiftFeed({
     return (loading && data.length === 0) ? (
         <View style={{ flex: 1, backgroundColor: colors.canvas }}>
             {ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}
-            <FeedLoadingScreen message="Loading your sifts..." />
+            <FeedLoadingScreen message="Loading your gems..." />
         </View>
     ) : (
         <FlashList

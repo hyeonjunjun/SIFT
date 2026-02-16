@@ -159,21 +159,11 @@ export default function SubscriptionScreen() {
                         <Typography variant="caption" color={COLORS.stone}>Restore Purchases</Typography>
                     </TouchableOpacity>
                     <View style={styles.dot} />
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => router.push('/settings/terms')}>
                         <Typography variant="caption" color={COLORS.stone}>Terms</Typography>
                     </TouchableOpacity>
                     <View style={styles.dot} />
-                    <TouchableOpacity onPress={async () => {
-                        try {
-                            const url = 'https://sift.app/privacy';
-                            const canOpen = await Linking.canOpenURL(url);
-                            if (canOpen) {
-                                await Linking.openURL(url);
-                            }
-                        } catch (error) {
-                            console.error('Error opening privacy policy:', error);
-                        }
-                    }}>
+                    <TouchableOpacity onPress={() => router.push('/settings/privacy')}>
                         <Typography variant="caption" color={COLORS.stone}>Privacy</Typography>
                     </TouchableOpacity>
                 </View>

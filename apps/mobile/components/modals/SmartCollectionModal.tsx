@@ -14,8 +14,8 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
-// Extended Icon options for Categories
-const CATEGORY_ICONS = [
+// Extended Smart Collection icons
+const COLLECTION_ICONS = [
     { name: 'Cooking', icon: CookingPot },
     { name: 'Baking', icon: CookingPot }, // Fallback/Duplicate
     { name: 'Tech', icon: Monitor },
@@ -36,7 +36,7 @@ const CATEGORY_ICONS = [
     { name: 'Goal', icon: Target },
 ];
 
-export interface CategoryData {
+export interface SmartCollectionData {
     id?: string;
     name: string;
     icon: string;
@@ -44,16 +44,16 @@ export interface CategoryData {
     sort_order?: number;
 }
 
-interface CategoryModalProps {
+interface SmartCollectionModalProps {
     visible: boolean;
     onClose: () => void;
-    onSave: (category: CategoryData) => Promise<void>;
+    onSave: (category: SmartCollectionData) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
-    existingCategory?: CategoryData | null;
+    existingCategory?: SmartCollectionData | null;
     suggestedTags?: string[];
 }
 
-export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCategory, suggestedTags = [] }: CategoryModalProps) => {
+export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, existingCategory, suggestedTags = [] }: SmartCollectionModalProps) => {
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('Folder');
@@ -96,7 +96,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
 
     const handleSave = async () => {
         if (!name.trim()) {
-            Alert.alert('Name Required', 'Please enter a category name.');
+            Alert.alert('Name Required', 'Please enter a smart collection name.');
             return;
         }
 
@@ -111,7 +111,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onClose();
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to save category');
+            Alert.alert('Error', error.message || 'Failed to save smart collection');
         } finally {
             setSaving(false);
         }
@@ -121,7 +121,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
         if (!existingCategory?.id || !onDelete) return;
 
         Alert.alert(
-            'Delete Category',
+            'Delete Collection',
             `Are you sure you want to delete "${existingCategory.name}"?`,
             [
                 { text: 'Cancel', style: 'cancel' },
@@ -134,7 +134,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             onClose();
                         } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to delete category');
+                            Alert.alert('Error', error.message || 'Failed to delete smart collection');
                         }
                     },
                 },
@@ -142,7 +142,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
         );
     };
 
-    const SelectedIconComponent = CATEGORY_ICONS.find(i => i.name === selectedIcon)?.icon || Folder;
+    const SelectedIconComponent = COLLECTION_ICONS.find(i => i.name === selectedIcon)?.icon || Folder;
 
     return (
         <Modal
@@ -159,7 +159,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
                     {/* Header */}
                     <View style={styles.header}>
                         <Typography variant="h3">
-                            {isEditMode ? 'Edit Category' : 'New Category'}
+                            {isEditMode ? 'Edit Smart Collection' : 'New Smart Collection'}
                         </Typography>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <X size={22} color={colors.stone} />
@@ -173,19 +173,19 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
                                 <SelectedIconComponent size={32} color={colors.ink} weight="fill" />
                             </View>
                             <Typography variant="body" weight="medium" style={{ marginTop: 8 }}>
-                                {name || 'Category Name'}
+                                {name || 'Smart Collection Name'}
                             </Typography>
                         </View>
 
                         {/* Name Input */}
                         <Typography variant="label" color="stone" style={styles.sectionLabel}>
-                            NAME
+                            COLLECTION NAME
                         </Typography>
                         <TextInput
                             style={[styles.input, { backgroundColor: colors.subtle, color: colors.ink, borderColor: colors.separator }]}
                             value={name}
                             onChangeText={setName}
-                            placeholder="Enter category name..."
+                            placeholder="Enter smart collection name..."
                             placeholderTextColor={colors.stone}
                             autoFocus={!isEditMode}
                             maxLength={30}
@@ -259,7 +259,7 @@ export const CategoryModal = ({ visible, onClose, onSave, onDelete, existingCate
                             </TouchableOpacity>
                         )}
                         <Button
-                            label={saving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Category')}
+                            label={saving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Smart Collection')}
                             onPress={handleSave}
                             variant="primary"
                             style={[styles.saveButton, isEditMode && { flex: 1 }]}

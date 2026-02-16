@@ -323,9 +323,9 @@ export default function HomeScreen() {
 
         const count = urlsToProcess.length;
         if (count > 1) {
-            showToast(`Sifting ${count} links...`, 2000);
+            showToast(`Collecting ${count} gems...`, 2000);
         } else {
-            showToast("Sifting...", 1500);
+            showToast("Collecting...", 1500);
         }
 
 
@@ -341,7 +341,7 @@ export default function HomeScreen() {
                     .insert({
                         user_id: user?.id,
                         url,
-                        title: "Sifting...",
+                        title: "Collecting...",
                         summary: "Synthesizing content...",
                         tags: ["Lifestyle"],
                         metadata: { status: 'pending', source: domain }
@@ -378,8 +378,8 @@ export default function HomeScreen() {
 
                     const isTimeout = apiError.message.toLowerCase().includes('time') || apiError.message.toLowerCase().includes('deadline');
                     const errorMsg = isTimeout
-                        ? "Sift taking longer than expected"
-                        : (apiError.message || "Sift failed");
+                        ? "Collection taking longer than expected"
+                        : (apiError.message || "Gem retrieval failed");
 
                     showToast(
                         errorMsg,
@@ -737,7 +737,7 @@ export default function HomeScreen() {
                     <TextInput
                         ref={inputRef}
                         style={styles.textInput}
-                        placeholder="A link to sift..."
+                        placeholder="A link to gem..."
                         placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}
@@ -775,7 +775,7 @@ export default function HomeScreen() {
                     <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" style={{ marginRight: 10 }} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Find a sift..."
+                        placeholder="Find a gem..."
                         placeholderTextColor={COLORS.stone}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -823,9 +823,9 @@ export default function HomeScreen() {
         <View style={{ paddingTop: 40 }}>
             <EmptyState
                 type={searchQuery ? 'no-results' : 'no-sifts'}
-                title={searchQuery ? "No sifts found" : "Time to Sift"}
+                title={searchQuery ? "No gems found" : "Time to Gem"}
                 description={searchQuery ? `We couldn't find any results for "${searchQuery}"` : "Paste a link above or scan a photo to start building your library."}
-                actionLabel={searchQuery ? "Clear Search" : "Browse Categories"}
+                actionLabel={searchQuery ? "Clear Search" : "Browse Collections"}
                 onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
             />
             {(!pages || pages.length === 0) && !loading && (!filteredPages || filteredPages.length === 0) && (
@@ -875,7 +875,7 @@ export default function HomeScreen() {
             <ActionSheet
                 visible={addMenuVisible}
                 onClose={() => setAddMenuVisible(false)}
-                title="Add to Sift"
+                title="New Gem"
                 options={[
                     {
                         label: 'Scan from Gallery',
@@ -921,7 +921,7 @@ export default function HomeScreen() {
                     (__DEV__ && selectedSift?.debug_info) ? {
                         label: 'View Diagnostics',
                         onPress: () => {
-                            Alert.alert("Sift Diagnostics", selectedSift.debug_info || "No details", [{ text: "Close" }]);
+                            Alert.alert("Gem Diagnostics", selectedSift.debug_info || "No details", [{ text: "Close" }]);
                         }
                     } : null,
                 ].filter(Boolean) as any}

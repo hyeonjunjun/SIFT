@@ -74,7 +74,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                                 marginBottom: 24,
                                 lineHeight: 24
                             }}>
-                                Sift encountered an unexpected error. We've been notified and are looking into it.
+                                Something encountered an unexpected error. We've been notified and are looking into it.
                             </Text>
 
                             {this.state.error && (
