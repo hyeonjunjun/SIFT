@@ -8,9 +8,30 @@ import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, Theme, RADIUS } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
-import { MagnifyingGlass, CaretLeft, DotsThree, SquaresFour, List, Plus, Folder, Rows } from 'phosphor-react-native';
+import {
+    Folder,
+    Plus,
+    Gear,
+    Folders,
+    SelectionBackground,
+    Users,
+    CaretRight,
+    Trash,
+    DotsThreeVertical,
+    PushPin as Pin,
+    MagnifyingGlass,
+    ChatCircleText,
+    Check,
+    X,
+    FolderSimplePlus,
+    CaretLeft,
+    Rows,
+    SquaresFour,
+    DotsThree,
+    Sparkle
+} from 'phosphor-react-native';
+import { MotiView, AnimatePresence } from 'moti';
 import { supabase } from '../../lib/supabase';
-import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import SiftFeed from '../../components/SiftFeed';
@@ -25,12 +46,14 @@ import { ActionSheet } from '../../components/modals/ActionSheet';
 import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import { SiftActionSheet } from '../../components/modals/SiftActionSheet';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { EmptyState } from '../../components/design-system/EmptyState';
+import ScreenWrapper from '../../components/ScreenWrapper';
 
 const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
 const GRID_GAP = 15;
-const TILE_WIDTH = (width - (GRID_PADDING * 2) - GRID_GAP) / 2;
+const TILE_WIDTH = (width - (SPACING.xl * 2) - 15) / 2;
 
 interface SiftItem {
     id: string;
@@ -71,8 +94,8 @@ export default function LibraryScreen() {
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
-    const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
-    const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
+    const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
+    const [selectedGemTags, setSelectedGemTags] = useState<string[]>([]);
 
     // Collection Modal State
     const [collectionModalVisible, setCollectionModalVisible] = useState(false);
@@ -83,10 +106,10 @@ export default function LibraryScreen() {
     const [categoryActionSheetVisible, setCategoryActionSheetVisible] = useState(false);
     const [editingSmartCollection, setEditingSmartCollection] = useState<SmartCollectionData | null>(null);
     const [isCategoryEditing, setIsCategoryEditing] = useState(false);
-    const [siftPickerVisible, setSiftPickerVisible] = useState(false);
+    const [gemPickerVisible, setGemPickerVisible] = useState(false);
 
     // Action Sheet State
-    const [selectedSift, setSelectedSift] = useState<any | null>(null);
+    const [selectedGem, setSelectedGem] = useState<any | null>(null);
     const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
     // Load saved view preference
@@ -186,352 +209,220 @@ export default function LibraryScreen() {
                     name: cat.name,
                     icon: cat.icon,
                     tags: cat.tags,
-                    sort_order: index
+                    sort_order: index,
                 }));
-
                 const { data: seeded, error: seedError } = await supabase
                     .from('categories')
                     .insert(seedData)
                     .select();
-
-                if (seedError) console.error('Seeding failed:', seedError);
-                return (seeded || []) as SmartCollectionData[];
+                return seeded || [];
             }
-
-            return data as SmartCollectionData[];
+            return data;
         },
         enabled: !!user?.id,
-        staleTime: 1000 * 60 * 5, // 5 minutes cache
-        retry: 2,
     });
 
-    // Derive unique used tags for suggestions
-    const allUsedTags = useMemo(() => {
-        const tagSet = new Set<string>();
-        pages.forEach(p => p.tags?.forEach(t => tagSet.add(t.toUpperCase())));
-        DEFAULT_SMART_COLLECTIONS.forEach(c => c.tags.forEach(t => tagSet.add(t)));
-        return Array.from(tagSet).sort();
-    }, [pages]);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await Promise.all([refetch(), refetchCollections(), refetchSmartCollections()]);
+        setRefreshing(false);
+    }, [refetch, refetchCollections, refetchSmartCollections]);
 
-    // Tab Bar Reset Logic
-    React.useEffect(() => {
-        const unsubscribe = navigation.addListener('tabPress' as any, (e: any) => {
-            if (activeCategoryId) {
-                setActiveCategoryId(null);
-                setIsCategoryEditing(false);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }
-        });
-        return unsubscribe;
-    }, [navigation, activeCategoryId]);
+    // Derived filtering
+    const filteredPages = useMemo(() => {
+        if (!debouncedSearchQuery) return pages;
+        const q = debouncedSearchQuery.toLowerCase();
+        return pages.filter(p =>
+            p.title.toLowerCase().includes(q) ||
+            p.url.toLowerCase().includes(q) ||
+            p.tags.some(t => t.toLowerCase().includes(q))
+        );
+    }, [pages, debouncedSearchQuery]);
 
-    useEffect(() => {
-        const subscription = supabase
-            .channel('library_realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
-                queryClient.resetQueries({ queryKey: ['pages', user?.id] });
-            })
-            .subscribe();
+    const activeCollection = useMemo(() => {
+        if (!activeCategoryId) return null;
+        return smartCollections.find(c => c.id === activeCategoryId);
+    }, [smartCollections, activeCategoryId]);
 
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, [user?.id, queryClient]);
+    const activeCategoryPages = useMemo(() => {
+        if (!activeCollection) return [];
+        return pages.filter(p => p.tags.some(t => activeCollection.tags.includes(t.toUpperCase())));
+    }, [pages, activeCollection]);
 
-    const handleEditTagsTrigger = (id: string, currentTags: string[]) => {
-        setSelectedSiftId(id);
-        setSelectedSiftTags(currentTags);
+    // Handlers
+    const handlePin = async (id: string, isPinned: boolean) => {
+        const { error } = await supabase.from('pages').update({ is_pinned: isPinned }).eq('id', id);
+        if (!error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+    };
+
+    const handleArchive = async (id: string) => {
+        const { error } = await supabase.from('pages').update({ is_archived: true }).eq('id', id);
+        if (!error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+    };
+
+    const handleDeleteForever = async (id: string) => {
+        const { error } = await supabase.from('pages').delete().eq('id', id);
+        if (!error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+    };
+
+    const handleEditTagsTrigger = (id: string, tags: string[]) => {
+        setSelectedGemId(id);
+        setSelectedGemTags(tags);
         setQuickTagModalVisible(true);
     };
 
     const handleSaveTags = async (newTags: string[]) => {
-        if (!selectedSiftId) return;
-        try {
-            const { error } = await supabase
-                .from('pages')
-                .update({ tags: newTags })
-                .eq('id', selectedSiftId);
-
-            if (error) throw error;
-            queryClient.resetQueries({ queryKey: ['pages', user?.id] });
-        } catch (error: any) {
-            console.error("Error updating tags:", error);
-            Alert.alert("Error", "Failed to update tags");
-        }
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            refetch();
-            refetchCollections();
-            refetchSmartCollections();
-        }, [refetch, refetchCollections, refetchSmartCollections])
-    );
-
-    const onRefresh = async () => {
-        setRefreshing(true);
-        await Promise.all([
-            queryClient.resetQueries({ queryKey: ['pages', user?.id] }),
-            queryClient.resetQueries({ queryKey: ['folders', user?.id] }),
-            queryClient.resetQueries({ queryKey: ['categories', user?.id] }),
-        ]);
-        setRefreshing(false);
-    };
-
-    const handleArchive = async (id: string) => {
-        try {
-            const { error } = await supabase
-                .from('pages')
-                .update({ is_archived: true })
-                .eq('id', id);
-
-            if (error) throw error;
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-            queryClient.setQueryData(['pages', user?.id], (old: SiftItem[] | undefined) =>
-                old ? old.filter(p => p.id !== id) : []
-            );
-        } catch (error: any) {
-            console.error("Error archiving gem:", error);
-            Alert.alert("Error", "Failed to archive gem");
+        if (!selectedGemId) return;
+        const { error } = await supabase.from('pages').update({ tags: newTags }).eq('id', selectedGemId);
+        if (!error) {
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+            setQuickTagModalVisible(false);
         }
     };
 
-    const handleSaveSmartCollection = async (cat: SmartCollectionData) => {
-        try {
-            const { error } = await supabase
-                .from('categories')
-                .upsert({
-                    id: cat.id || undefined,
-                    name: cat.name,
-                    icon: cat.icon,
-                    tags: cat.tags,
-                    user_id: user?.id,
-                    sort_order: cat.sort_order || 999
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
-            setSmartCollectionModalVisible(false);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (error: any) {
-            console.error("Error saving smart collection:", error);
-            Alert.alert("Error", "Failed to save smart collection");
-        }
+    const handleGemOptions = (item: any) => {
+        setSelectedGem(item);
+        setActionSheetVisible(true);
     };
 
-    const handleSaveCollection = async (collection: CollectionData) => {
-        if (!user?.id) return;
-        if (collection.id) {
-            const { error } = await supabase
-                .from('folders')
-                .update({ name: collection.name, color: collection.color, icon: collection.icon, is_pinned: collection.is_pinned })
-                .eq('id', collection.id);
-            if (error) throw error;
+    const handleCreateCollection = () => {
+        setEditingCollection(null);
+        setCollectionModalVisible(true);
+    };
+
+    const openCollectionModal = (collection: CollectionData) => {
+        setEditingCollection(collection);
+        setCollectionModalVisible(true);
+    };
+
+    const handleSaveCollection = async (data: Partial<CollectionData>) => {
+        if (editingCollection) {
+            await supabase.from('folders').update(data).eq('id', editingCollection.id);
         } else {
-            const { error } = await supabase
-                .from('folders')
-                .insert({
-                    user_id: user.id,
-                    name: collection.name,
-                    color: collection.color,
-                    icon: collection.icon,
-                    sort_order: collections.length,
-                    is_pinned: collection.is_pinned || false
-                });
-            if (error) throw error;
+            await supabase.from('folders').insert({ ...data, user_id: user?.id });
         }
         queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        setCollectionModalVisible(false);
     };
 
-    const handleDeleteSmartCollection = async (id: string) => {
-        if (!id) return;
-        if (activeCategoryId === id) setActiveCategoryId(null);
-        setSmartCollectionModalVisible(false);
-
-        const { error } = await supabase
-            .from('categories')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error deleting smart collection:', error);
-            Alert.alert('Error', 'Failed to delete smart collection');
-        }
-        queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+    const handlePinCollection = async (id: string, isPinned: boolean) => {
+        await supabase.from('folders').update({ is_pinned: isPinned }).eq('id', id);
+        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
     };
 
     const handleDeleteCollection = async (collectionId: string) => {
-        await supabase
-            .from('pages')
-            .update({ folder_id: null })
-            .eq('folder_id', collectionId);
-
-        const { error } = await supabase
-            .from('folders')
-            .delete()
-            .eq('id', collectionId);
-
-        if (error) throw error;
-        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
-        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        Alert.alert(
+            "Delete Collection",
+            "Are you sure? The gems inside will remain in your library but will be uncollected.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        await supabase.from('pages').update({ folder_id: null }).eq('folder_id', collectionId);
+                        await supabase.from('folders').delete().eq('id', collectionId);
+                        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+                        setCollectionModalVisible(false);
+                    }
+                }
+            ]
+        );
     };
 
-    const handlePinCollection = async (collectionId: string, isPinned: boolean) => {
-        const { error } = await supabase
-            .from('folders')
-            .update({ is_pinned: isPinned })
-            .eq('id', collectionId);
-
-        if (error) {
-            console.error('Error pinning collection:', error);
-            Alert.alert('Error', 'Failed to update pin status');
-            queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
-            return;
-        }
+    const handleLongPressCollection = (item: any) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        openCollectionModal(item);
+    };
+
+    const handleLongPressSmartCollection = (item: any) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setEditingSmartCollection(item);
+        setSmartCollectionModalVisible(true);
+    };
+
+    const getIcon = (name: string, size: number, color: string) => {
+        switch (name) {
+            case 'Cooking': return <SelectionBackground size={size} color={color} weight="fill" />;
+            case 'Baking': return <SelectionBackground size={size} color={color} weight="fill" />;
+            case 'Tech': return <SelectionBackground size={size} color={color} weight="fill" />;
+            case 'Health': return <SelectionBackground size={size} color={color} weight="fill" />;
+            case 'Lifestyle': return <SelectionBackground size={size} color={color} weight="fill" />;
+            case 'Professional': return <SelectionBackground size={size} color={color} weight="fill" />;
+            default: return <Folder size={size} color={color} weight="fill" />;
+        }
+    };
+
+    const getSmartCollectionCover = (targetTags: string[]) => {
+        if (!pages || pages.length === 0) return null;
+        const matchingGem = pages.find(p =>
+            p.tags && p.tags.some(t => targetTags.includes(t.toUpperCase())) &&
+            p.metadata?.image_url
+        );
+        return matchingGem?.metadata?.image_url;
     };
 
     const handleAddSmartCollectionGems = async (selectedIds: string[]) => {
-        const activeCat = smartCollections.find(c => c.id === activeCategoryId);
-        if (!activeCat || !user?.id) return;
+        if (!editingSmartCollection) return;
+        const targetTags = editingSmartCollection.tags;
 
-        try {
-            const updates = selectedIds.map(async (id) => {
-                const page = pages.find(p => p.id === id);
-                if (!page) return;
-                const currentTags = (page.tags || []).map(t => t.toUpperCase());
-                const categoryTag = activeCat.name.toUpperCase();
-                if (!currentTags.includes(categoryTag)) {
-                    const newTags = [...(page.tags || []), activeCat.name];
-                    await supabase
-                        .from('pages')
-                        .update({ tags: newTags })
-                        .eq('id', id);
-                }
-            });
-            await Promise.all(updates);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
-        } catch (error) {
-            console.error('Error adding gems to smart collection:', error);
-            Alert.alert('Error', 'Failed to add gems');
-        }
-    };
-
-    const handleRemoveSmartCollectionGem = async (id: string) => {
-        const activeCat = smartCollections.find(c => c.id === activeCategoryId);
-        if (!activeCat) return;
-
-        const page = pages.find(p => p.id === id);
-        if (!page) return;
-
-        const catNameUpper = activeCat.name.toUpperCase();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        try {
-            const currentTags = page.tags || [];
-            const newTags = currentTags.filter(t => t.toUpperCase() !== catNameUpper);
-            let metadataUpdate = {};
-            if (page.metadata?.category?.toUpperCase() === catNameUpper) {
-                metadataUpdate = { metadata: { ...page.metadata, category: null } };
-            }
-            const { error } = await supabase
-                .from('pages')
-                .update({ tags: newTags, ...metadataUpdate })
-                .eq('id', id);
-            if (error) throw error;
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
-        } catch (error) {
-            console.error('Error removing gem from smart collection:', error);
-            Alert.alert('Error', 'Failed to remove gem');
-        }
-    };
-
-    const handlePin = async (id: string) => {
-        try {
+        for (const id of selectedIds) {
             const page = pages.find(p => p.id === id);
-            if (!page) return;
-            const newPinnedState = !page.is_pinned;
-            const { error } = await supabase.from('pages').update({ is_pinned: newPinnedState }).eq('id', id);
-            if (error) throw error;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
-        } catch (error) {
-            console.error('[Library Pin] Action failed:', error);
-        }
-    };
-
-    const openCollectionModal = (collection?: CollectionData) => {
-        if (collection) {
-            setEditingCollection(collection);
-        } else {
-            setEditingCollection(null);
-        }
-        setCollectionModalVisible(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
-    const smartCollectionUIData = useMemo(() => {
-        return smartCollections.map((cat) => {
-            const catPages = pages.filter(p =>
-                (cat.tags && cat.tags.length > 0 && p.tags?.some(t => cat.tags.includes(t.toUpperCase())))
-            );
-            return {
-                ...cat,
-                pages: catPages,
-                count: catPages.length,
-                height: 240,
-                latestImage: catPages[0]?.metadata?.image_url
-            };
-        });
-    }, [pages, smartCollections]);
-
-    const activeCategoryPages = useMemo(() => {
-        const activeCat = smartCollections.find(c => c.id === activeCategoryId);
-        if (!activeCat) return [];
-        const catTags = (activeCat.tags || []).map(t => t.toUpperCase());
-        return pages.filter(p =>
-            catTags.some(tag => p.tags?.some(t => t.toUpperCase() === tag))
-        );
-    }, [pages, activeCategoryId, smartCollections]);
-
-    const filteredSmartCollections = smartCollectionUIData.filter(cat => {
-        if (!debouncedSearchQuery.trim()) return true;
-        return cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
-    });
-
-    const swipeGesture = Gesture.Pan()
-        .onUpdate((event) => {
-            if (activeCategoryId && event.translationX > 80 && Math.abs(event.translationY) < 30) {
-                runOnJS(setActiveCategoryId)(null);
-                runOnJS(setIsCategoryEditing)(false);
-                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+            if (page) {
+                const newTags = [...new Set([...page.tags, ...targetTags])];
+                await supabase.from('pages').update({ tags: newTags }).eq('id', id);
             }
-        })
-        .runOnJS(true);
+        }
 
-    const isLoadingState = loading && !refreshing && fetchStatus === 'fetching';
+        queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        setGemPickerVisible(false);
+    };
 
-    if (isLoadingState) {
+    if (activeCategoryId && activeCollection) {
         return (
             <ScreenWrapper edges={['top']}>
-                <View style={[styles.header, { paddingBottom: 0 }]}>
-                    <View style={styles.titleGroup}>
-                        <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            YOUR MISSION
-                        </Typography>
-                        <Typography variant="h1" style={styles.serifTitle}>
-                            Library
-                        </Typography>
-                    </View>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => setActiveCategoryId(null)} style={styles.backButton}>
+                        <CaretLeft size={24} color={colors.ink} />
+                    </TouchableOpacity>
+                    <Typography variant="h2">{activeCollection.name}</Typography>
                 </View>
-                <FeedLoadingScreen message="Loading your collection..." />
+
+                <SiftFeed
+                    pages={activeCategoryPages as any}
+                    onPin={(id) => handlePin(id, true)}
+                    onArchive={handleArchive}
+                    onDeleteForever={handleDeleteForever}
+                    onEditTags={handleEditTagsTrigger}
+                    onOptions={handleGemOptions}
+                    loading={false}
+                    viewMode={viewMode}
+                    ListHeaderComponent={() => (
+                        <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+                            <TouchableOpacity
+                                style={[styles.addGemsButton, { backgroundColor: colors.paper, borderColor: colors.separator }]}
+                                onPress={() => setGemPickerVisible(true)}
+                            >
+                                <Plus size={20} color={colors.ink} />
+                                <Typography variant="body" style={{ marginLeft: 8 }}>Add Gems to this Collection</Typography>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                />
+
+                <TouchableOpacity
+                    style={[styles.fab, { backgroundColor: COLORS.ink }]}
+                    onPress={() => setGemPickerVisible(true)}
+                >
+                    <Plus size={28} color="white" weight="bold" />
+                </TouchableOpacity>
+
+                <SiftPickerModal
+                    visible={gemPickerVisible}
+                    onClose={() => setGemPickerVisible(false)}
+                    onSelect={handleAddSmartCollectionGems}
+                    currentFolderSiftIds={activeCategoryPages.map(p => p.id)}
+                />
             </ScreenWrapper>
         );
     }
@@ -540,252 +431,216 @@ export default function LibraryScreen() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <ScreenWrapper edges={['top']}>
                 <View style={styles.header}>
-                    {activeCategoryId ? (
-                        isCategoryEditing ? (
-                            <TouchableOpacity onPress={() => setIsCategoryEditing(false)} style={styles.backButton}>
-                                <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
-                            </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity onPress={() => setActiveCategoryId(null)} style={styles.backButton}>
-                                <CaretLeft size={28} color={colors.ink} />
-                            </TouchableOpacity>
-                        )
-                    ) : null}
-                    <View style={[styles.titleGroup, activeCategoryId ? { marginLeft: 12 } : {}]}>
-                        <Typography variant="label" color="stone" style={styles.smallCapsLabel}>
-                            {activeCategoryId ? (isCategoryEditing ? 'MANAGING' : `SMART COLLECTION • ${smartCollections.find(c => c.id === activeCategoryId)?.name?.toUpperCase() || ''}`) : 'YOUR MISSION'}
-                        </Typography>
-                        <Typography variant="h1" style={styles.serifTitle}>
-                            {activeCategoryId ? (smartCollections.find(c => c.id === activeCategoryId)?.name || '') : 'Library'}
-                        </Typography>
-                    </View>
-
-                    <View style={styles.headerActions}>
-                        {!isCategoryEditing && (
-                            <TouchableOpacity style={styles.viewToggle} onPress={toggleViewMode} activeOpacity={0.7}>
-                                {viewMode === 'grid' ? (
-                                    <Rows size={22} color={colors.ink} weight="bold" />
-                                ) : (
-                                    <SquaresFour size={22} color={colors.ink} weight="bold" />
-                                )}
-                            </TouchableOpacity>
-                        )}
-                        {activeCategoryId && !isCategoryEditing && (
-                            <TouchableOpacity
-                                style={styles.manageButton}
-                                onPress={() => {
-                                    Haptics.selectionAsync();
-                                    const currentCat = smartCollections.find(c => c.id === activeCategoryId);
-                                    if (!currentCat) return;
-                                    setEditingSmartCollection(currentCat);
-                                    setCategoryActionSheetVisible(true);
-                                }}
-                            >
-                                <DotsThree size={28} color={colors.ink} />
-                            </TouchableOpacity>
-                        )}
-                        {activeCategoryId && isCategoryEditing && (
-                            <TouchableOpacity
-                                style={styles.manageButton}
-                                onPress={() => {
-                                    Haptics.selectionAsync();
-                                    setSiftPickerVisible(true);
-                                }}
-                            >
-                                <Plus size={24} color={colors.ink} weight="regular" />
-                            </TouchableOpacity>
-                        )}
+                    <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold' }}>Library</Typography>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <TouchableOpacity onPress={toggleViewMode}>
+                            {viewMode === 'grid' ? <Rows size={24} color={colors.ink} /> : <SquaresFour size={24} color={colors.ink} />}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.push('/settings')}>
+                            <Gear size={24} color={colors.ink} />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
-                {!activeCategoryId && (
+                <ScrollView
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                >
                     <View style={styles.searchContainer}>
-                        <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                            <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
+                        <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper }]}>
+                            <MagnifyingGlass size={20} color={colors.stone} weight="bold" />
                             <TextInput
                                 style={[styles.searchInput, { color: colors.ink }]}
-                                placeholder="Search your gems..."
+                                placeholder="Search your collections..."
                                 placeholderTextColor={colors.stone}
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
-                                autoCapitalize="none"
-                                autoCorrect={false}
                             />
                         </View>
                     </View>
-                )}
 
-                {activeCategoryId ? (
-                    <GestureDetector gesture={swipeGesture}>
-                        <View style={{ flex: 1 }}>
-                            <SiftFeed
-                                pages={activeCategoryPages as any}
-                                onPin={handlePin}
-                                onEditTags={handleEditTagsTrigger}
-                                onOptions={(item) => {
-                                    setSelectedSift(item);
-                                    setActionSheetVisible(true);
-                                }}
-                                loading={loading && fetchStatus === 'fetching'}
-                                mode={isCategoryEditing ? 'edit' : 'feed'}
-                                onRemove={handleRemoveSmartCollectionGem}
-                                refreshControl={
-                                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
-                                }
-                                contentContainerStyle={styles.feedContainer}
-                                viewMode={viewMode}
-                            />
-                            {(!activeCategoryPages || activeCategoryPages.length === 0) && !loading && (
-                                <View style={styles.emptyState}>
-                                    <Typography variant="body" color={COLORS.stone}>No gems in this collection yet.</Typography>
-                                </View>
-                            )}
+                    <View style={{ paddingHorizontal: 20 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+                            <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>COLLECTIONS</Typography>
+                            <TouchableOpacity onPress={handleCreateCollection}>
+                                <Plus size={20} color={colors.ink} />
+                            </TouchableOpacity>
                         </View>
-                    </GestureDetector>
-                ) : viewMode === 'list' ? (
-                    <CompactSiftList
-                        pages={pages as any}
-                        onPin={(id) => handlePin(id)}
-                        onArchive={(id) => handleArchive(id)}
-                        onEditTags={handleEditTagsTrigger}
-                        refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
-                        }
-                        contentContainerStyle={styles.feedContainer}
-                    />
-                ) : (
-                    <ScrollView
-                        contentContainerStyle={styles.gridContainer}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
-                        }
-                    >
-                        {collections.length > 0 && (
-                            <>
-                                <Typography variant="label" color="stone" style={styles.sectionLabel}>
-                                    COLLECTIONS
-                                </Typography>
-                                <View style={styles.folderRow}>
-                                    {collections.map((collection) => (
-                                        <Pressable
-                                            key={collection.id}
-                                            style={({ pressed }) => [
-                                                styles.folderTile,
-                                                {
-                                                    backgroundColor: collection.color,
-                                                    opacity: pressed ? 0.8 : 1,
-                                                    transform: [{ scale: pressed ? 0.98 : 1 }]
-                                                }
+
+                        {collections.length > 0 ? (
+                            viewMode === 'grid' ? (
+                                <View style={styles.collectionRow}>
+                                    {collections.map((item: any, index: number) => (
+                                        <MotiView
+                                            key={item.id}
+                                            from={{ opacity: 0, scale: 0.9, translateY: 10 }}
+                                            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                            transition={{ type: 'timing', duration: 400, delay: index * 50 }}
+                                            style={[
+                                                styles.collectionTile,
+                                                { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
                                             ]}
-                                            onPress={() => router.push(`/collection/${collection.id}`)}
-                                            onLongPress={() => {
-                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                                openCollectionModal(collection);
-                                            }}
-                                            delayLongPress={300}
                                         >
-                                            <Folder size={24} color="#FFFFFF" weight="fill" />
-                                            <Typography variant="caption" style={styles.folderName} numberOfLines={1}>
-                                                {collection.name}
-                                            </Typography>
-                                        </Pressable>
+                                            <TouchableOpacity
+                                                activeOpacity={0.7}
+                                                style={{ alignItems: 'center', width: '100%' }}
+                                                onPress={() => router.push(`/collection/${item.id}`)}
+                                                onLongPress={() => handleLongPressCollection(item)}
+                                            >
+                                                <View style={styles.iconStackContainer}>
+                                                    <View style={[styles.stackBack, { backgroundColor: item.color || colors.subtle, transform: [{ rotate: '-3deg' }, { translateX: -2 }] }]} />
+                                                    <View style={[styles.stackMid, { backgroundColor: item.color || colors.subtle, transform: [{ rotate: '2deg' }, { translateX: 2 }] }]} />
+
+                                                    <View style={[styles.iconContainer, { backgroundColor: item.color || colors.subtle }]}>
+                                                        {getIcon(item.icon, 24, '#FFFFFF')}
+                                                        {item.is_pinned && (
+                                                            <View style={styles.pinIndicator}>
+                                                                <Pin size={10} color={colors.ink} weight="fill" />
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                </View>
+                                                <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
+                                                    {item.name}
+                                                </Typography>
+                                            </TouchableOpacity>
+                                        </MotiView>
                                     ))}
                                 </View>
-                                <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
-                                    SMART COLLECTIONS
-                                </Typography>
-                            </>
+                            ) : (
+                                <View style={styles.listContainer}>
+                                    {collections.map((item: any, index: number) => (
+                                        <MotiView
+                                            key={item.id}
+                                            from={{ opacity: 0, translateX: -10 }}
+                                            animate={{ opacity: 1, translateX: 0 }}
+                                            transition={{ type: 'timing', duration: 300, delay: index * 30 }}
+                                        >
+                                            <TouchableOpacity
+                                                activeOpacity={0.7}
+                                                style={[styles.listItem, { borderBottomColor: colors.separator }]}
+                                                onPress={() => router.push(`/collection/${item.id}`)}
+                                                onLongPress={() => handleLongPressCollection(item)}
+                                            >
+                                                <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.subtle }]}>
+                                                    {getIcon(item.icon, 18, '#FFFFFF')}
+                                                </View>
+                                                <View style={styles.listItemText}>
+                                                    <Typography variant="body" weight="600">{item.name}</Typography>
+                                                    {item.is_pinned && <Pin size={12} color={colors.stone} weight="fill" />}
+                                                </View>
+                                                <CaretRight size={16} color={colors.stone} />
+                                            </TouchableOpacity>
+                                        </MotiView>
+                                    ))}
+                                </View>
+                            )
+                        ) : (
+                            <EmptyState
+                                type="no-collections"
+                                title="No Collections"
+                                description="Organize your gems into bespoke collections."
+                                actionLabel="New Collection"
+                                onAction={handleCreateCollection}
+                            />
                         )}
 
-                        <View style={styles.bentoWrapper}>
-                            {filteredSmartCollections.map((cat) => (
-                                <Tile key={cat.id || cat.name} cat={cat as any} colors={colors} isDark={isDark} onPress={() => setActiveCategoryId(cat.id || null)} />
+                        <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
+                            SMART COLLECTIONS
+                        </Typography>
+                        <View style={viewMode === 'grid' ? styles.collectionRow : styles.listContainer}>
+                            {smartCollections.map((item: any, index: number) => (
+                                viewMode === 'grid' ? (
+                                    <MotiView
+                                        key={item.id}
+                                        from={{ opacity: 0, scale: 0.9, translateY: 10 }}
+                                        animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                        transition={{ type: 'timing', duration: 400, delay: index * 50 + 200 }}
+                                        style={[
+                                            styles.collectionTile,
+                                            { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
+                                        ]}
+                                    >
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            style={{ alignItems: 'center', width: '100%' }}
+                                            onPress={() => setActiveCategoryId(item.id)}
+                                            onLongPress={() => handleLongPressSmartCollection(item)}
+                                        >
+                                            <View style={styles.iconStackContainer}>
+                                                <View style={[styles.stackBack, { backgroundColor: colors.subtle, opacity: 0.5 }]} />
+                                                <View style={[styles.iconContainer, {
+                                                    backgroundColor: colors.subtle,
+                                                    borderStyle: 'dotted',
+                                                    borderWidth: 1,
+                                                    borderColor: colors.ink,
+                                                    overflow: 'hidden'
+                                                }]}>
+                                                    {getSmartCollectionCover(item.tags) ? (
+                                                        <>
+                                                            <Image
+                                                                source={{ uri: getSmartCollectionCover(item.tags) }}
+                                                                style={StyleSheet.absoluteFill}
+                                                                contentFit="cover"
+                                                            />
+                                                            <LinearGradient
+                                                                colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                style={StyleSheet.absoluteFill}
+                                                            />
+                                                            {getIcon(item.icon, 20, '#FFFFFF')}
+                                                        </>
+                                                    ) : (
+                                                        getIcon(item.icon, 24, colors.ink)
+                                                    )}
+                                                    <View style={styles.smartBadge}>
+                                                        <Sparkle size={8} color={colors.paper} weight="fill" />
+                                                    </View>
+                                                </View>
+                                            </View>
+                                            <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
+                                                {item.name}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    </MotiView>
+                                ) : (
+                                    <MotiView
+                                        key={item.id}
+                                        from={{ opacity: 0, translateX: -10 }}
+                                        animate={{ opacity: 1, translateX: 0 }}
+                                        transition={{ type: 'timing', duration: 300, delay: index * 30 }}
+                                    >
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            style={[styles.listItem, { borderBottomColor: colors.separator }]}
+                                            onPress={() => setActiveCategoryId(item.id)}
+                                            onLongPress={() => handleLongPressSmartCollection(item)}
+                                        >
+                                            <View style={[styles.listIconWrapper, { backgroundColor: colors.subtle, borderStyle: 'dotted', borderWidth: 1, borderColor: colors.ink }]}>
+                                                {getSmartCollectionCover(item.tags) ? (
+                                                    <Image
+                                                        source={{ uri: getSmartCollectionCover(item.tags) }}
+                                                        style={StyleSheet.absoluteFill}
+                                                        contentFit="cover"
+                                                    />
+                                                ) : (
+                                                    getIcon(item.icon, 18, colors.ink)
+                                                )}
+                                                <View style={styles.smartBadgeList}>
+                                                    <Sparkle size={6} color={colors.paper} weight="fill" />
+                                                </View>
+                                            </View>
+                                            <View style={styles.listItemText}>
+                                                <Typography variant="body" weight="600">{item.name}</Typography>
+                                                <Typography variant="caption" color="stone">Smart Collection</Typography>
+                                            </View>
+                                            <CaretRight size={16} color={colors.stone} />
+                                        </TouchableOpacity>
+                                    </MotiView>
+                                )
                             ))}
-                            {(!filteredSmartCollections || filteredSmartCollections.length === 0) && (
-                                <View style={styles.emptyState}>
-                                    <Typography variant="body" color="stone">No collections match your search.</Typography>
-                                </View>
-                            )}
                         </View>
-                    </ScrollView>
-                )}
-
-                {!activeCategoryId && viewMode === 'grid' && (
-                    <TouchableOpacity
-                        style={[styles.fab, { backgroundColor: colors.ink }]}
-                        onPress={() => openCollectionModal()}
-                        activeOpacity={0.8}
-                    >
-                        <Plus size={24} color={colors.paper} weight="bold" />
-                    </TouchableOpacity>
-                )}
-
-                <QuickTagEditor
-                    visible={quickTagModalVisible}
-                    onClose={() => setQuickTagModalVisible(false)}
-                    initialTags={selectedSiftTags}
-                    onSave={handleSaveTags}
-                />
-
-                <SmartCollectionModal
-                    visible={smartCollectionModalVisible}
-                    onClose={() => setSmartCollectionModalVisible(false)}
-                    onSave={handleSaveSmartCollection}
-                    onDelete={handleDeleteSmartCollection}
-                    existingCategory={editingSmartCollection}
-                    suggestedTags={allUsedTags}
-                />
-
-                <ActionSheet
-                    visible={categoryActionSheetVisible}
-                    onClose={() => setCategoryActionSheetVisible(false)}
-                    title={smartCollections.find(c => c.id === activeCategoryId)?.name || 'Options'}
-                    options={[
-                        {
-                            label: `Manage ${smartCollections.find(c => c.id === activeCategoryId)?.name || 'Smart Collection'}`,
-                            onPress: () => {
-                                setIsCategoryEditing(true);
-                            }
-                        },
-                        {
-                            label: 'Rename/Icon',
-                            onPress: () => {
-                                const currentCat = smartCollections.find(c => c.id === activeCategoryId);
-                                if (currentCat) {
-                                    setEditingSmartCollection(currentCat);
-                                    setTimeout(() => setSmartCollectionModalVisible(true), 100);
-                                }
-                            }
-                        },
-                        {
-                            label: 'Delete Smart Collection',
-                            isDestructive: true,
-                            onPress: () => {
-                                const currentCat = smartCollections.find(c => c.id === activeCategoryId);
-                                if (currentCat) {
-                                    Alert.alert(
-                                        "Delete Smart Collection",
-                                        "Are you sure? Gems inside won't be deleted.",
-                                        [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            {
-                                                text: 'Delete',
-                                                style: 'destructive',
-                                                onPress: () => handleDeleteSmartCollection(currentCat.id!)
-                                            }
-                                        ]
-                                    );
-                                }
-                            }
-                        },
-                        {
-                            label: 'Cancel',
-                            isCancel: true,
-                            onPress: () => { }
-                        }
-                    ]}
-                />
+                    </View>
+                </ScrollView>
 
                 <CollectionModal
                     visible={collectionModalVisible}
@@ -799,255 +654,164 @@ export default function LibraryScreen() {
                 <SiftActionSheet
                     visible={actionSheetVisible}
                     onClose={() => setActionSheetVisible(false)}
-                    sift={selectedSift}
-                    onPin={handlePin}
+                    sift={selectedGem}
+                    onPin={(id) => handlePin(id, true)}
                     onArchive={handleArchive}
                     onEditTags={handleEditTagsTrigger}
                 />
 
-                <SiftPickerModal
-                    visible={siftPickerVisible}
-                    onClose={() => setSiftPickerVisible(false)}
-                    onSelect={handleAddSmartCollectionGems}
-                    currentFolderSiftIds={activeCategoryPages.map(p => p.id)}
+                <QuickTagEditor
+                    visible={quickTagModalVisible}
+                    onClose={() => setQuickTagModalVisible(false)}
+                    onSave={handleSaveTags}
+                    initialTags={selectedGemTags}
                 />
             </ScreenWrapper>
         </GestureHandlerRootView>
     );
 }
 
-interface CategoryUI extends SmartCollectionData {
-    pages: SiftItem[];
-    count: number;
-    height: number;
-    latestImage?: string;
-}
-
-const Tile = ({ cat, colors, isDark, onPress }: { cat: CategoryUI, colors: any, isDark: boolean, onPress: () => void }) => {
-    const hasImage = cat.count > 0 && cat.latestImage;
-
-    return (
-        <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={onPress}
-            style={[
-                styles.tile,
-                {
-                    height: cat.height,
-                    backgroundColor: hasImage ? colors.subtle : (isDark ? 'rgba(255,255,255,0.03)' : colors.paper),
-                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    borderWidth: hasImage ? 0 : 1.5,
-                }
-            ]}
-        >
-            {hasImage ? (
-                <>
-                    <Image
-                        source={{ uri: cat.latestImage }}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                        transition={300}
-                    />
-                    <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.4)', isDark ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.85)']}
-                        locations={[0, 0.5, 1]}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={styles.newTag}>
-                        <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-                        <Typography variant="label" color="white" style={styles.newTagText}>NEW</Typography>
-                    </View>
-                </>
-            ) : (
-                <View style={[StyleSheet.absoluteFill, { padding: 16, justifyContent: 'center', alignItems: 'center' }]}>
-                    <Typography
-                        variant="h1"
-                        style={{
-                            fontSize: 42,
-                            opacity: isDark ? 0.05 : 0.03,
-                            position: 'absolute',
-                            fontFamily: 'PlayfairDisplay_700Bold'
-                        }}
-                    >
-                        {cat.name.charAt(0)}
-                    </Typography>
-                </View>
-            )}
-
-            <View style={styles.tileContent}>
-                <Typography
-                    variant="label"
-                    color={hasImage ? "white" : colors.ink}
-                    style={[styles.anchorLabel, !hasImage && { opacity: 0.8 }]}
-                >
-                    {cat.name}
-                </Typography>
-                <Typography
-                    variant="caption"
-                    color={hasImage ? "rgba(255,255,255,0.7)" : colors.stone}
-                    style={styles.issueCount}
-                >
-                    {cat.count > 0 ? `${cat.count} GEMS` : 'START COLLECTING'}
-                </Typography>
-            </View>
-        </TouchableOpacity>
-    );
-};
-
 const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        marginTop: SPACING.m,
-        marginBottom: 20,
+        justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 20,
     },
     backButton: {
-        padding: 4,
-    },
-    smallCapsLabel: {
-        marginBottom: 4,
-        letterSpacing: 2,
-        fontWeight: '700',
-    },
-    serifTitle: {
-        fontSize: 36,
-        fontFamily: 'PlayfairDisplay_700Bold',
-        color: COLORS.ink,
-    },
-    titleGroup: {
-        flex: 1,
-    },
-    manageButton: {
-        padding: 4,
-    },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    viewToggle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
+        marginRight: 16,
     },
     searchContainer: {
-        marginHorizontal: 20,
-        marginBottom: SPACING.l
+        paddingHorizontal: 20,
+        marginBottom: 20,
     },
     searchInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        height: 52,
-        borderRadius: RADIUS.l,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(0,0,0,0.08)',
-        // @ts-ignore
-        cornerCurve: 'continuous',
-        ...Theme.shadows.soft,
+        paddingHorizontal: 12,
+        height: 48,
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
     },
     searchInput: {
         flex: 1,
-        fontSize: 15,
-        fontFamily: 'System',
-        paddingVertical: 0,
-        textAlignVertical: 'center',
-    },
-    gridContainer: {
-        paddingHorizontal: 20,
-        paddingBottom: 160,
-    },
-    feedContainer: {
-        paddingBottom: 160,
-    },
-    bentoWrapper: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-    },
-    tile: {
-        width: TILE_WIDTH,
-        marginBottom: GRID_GAP,
-        borderRadius: RADIUS.l,
-        overflow: 'hidden',
-        borderWidth: StyleSheet.hairlineWidth,
-        // @ts-ignore
-        cornerCurve: 'continuous',
-    },
-    tileContent: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
-    },
-    anchorLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        letterSpacing: 1,
-        marginBottom: 2,
-    },
-    issueCount: {
-        fontSize: 11,
-        marginTop: 4,
-        letterSpacing: 0.5,
-    },
-    newTag: {
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 4,
-    },
-    dot: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        marginRight: 4,
-    },
-    newTagText: {
-        fontSize: 9,
-        fontWeight: '700',
-        letterSpacing: 1,
-    },
-    emptyState: {
-        width: '100%',
-        alignItems: 'center',
-        paddingVertical: 40,
+        marginLeft: 8,
+        fontSize: 14,
     },
     sectionLabel: {
-        width: '100%',
-        marginBottom: SPACING.s,
-        letterSpacing: 1.5,
-        fontWeight: '700',
+        marginBottom: 12,
     },
-    folderRow: {
+    collectionRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
-        width: '100%',
-        marginBottom: SPACING.m,
+        marginBottom: 20,
     },
-    folderTile: {
-        width: 80,
-        height: 80,
+    collectionTile: {
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    iconContainer: {
+        width: TILE_WIDTH,
+        height: TILE_WIDTH,
         borderRadius: RADIUS.l,
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'relative',
+    },
+    collectionName: {
+        marginTop: 8,
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    pinIndicator: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        padding: 4,
+        borderRadius: 10,
+        ...Theme.shadows.sharp,
+    },
+    iconStackContainer: {
+        width: TILE_WIDTH,
+        height: TILE_WIDTH,
+        position: 'relative',
+        justifyContent: 'center',
+    },
+    smartCollectionColumn: {
+        width: '100%',
+        gap: 16,
+        marginBottom: 24,
+    },
+    listContainer: {
+        width: '100%',
+        marginBottom: 32,
+    },
+    listItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+    },
+    listIconWrapper: {
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.m,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+        overflow: 'hidden',
+    },
+    listItemText: {
+        flex: 1,
+        gap: 2,
+    },
+    smartBadgeList: {
+        position: 'absolute',
+        bottom: 2,
+        right: 2,
+        backgroundColor: COLORS.ink,
+        padding: 2,
+        borderRadius: 6,
+        ...Theme.shadows.sharp,
+    },
+    heroName: {
+        fontSize: 20,
+        fontFamily: 'PlayfairDisplay_700Bold',
+    },
+    stackBack: {
+        position: 'absolute',
+        width: TILE_WIDTH * 0.9,
+        height: TILE_WIDTH * 0.9,
+        borderRadius: RADIUS.l,
+        opacity: 0.3,
+    },
+    stackMid: {
+        position: 'absolute',
+        width: TILE_WIDTH * 0.95,
+        height: TILE_WIDTH * 0.95,
+        borderRadius: RADIUS.l,
+        opacity: 0.5,
+    },
+    smartBadge: {
+        position: 'absolute',
+        bottom: -4,
+        right: -4,
+        backgroundColor: COLORS.ink,
+        padding: 4,
+        borderRadius: 10,
         ...Theme.shadows.soft,
     },
-    folderName: {
-        color: '#FFFFFF',
-        marginTop: 6,
-        fontWeight: '600',
-        textAlign: 'center',
-        maxWidth: 70,
-        fontSize: 11,
+    addGemsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+        borderStyle: 'dashed',
     },
     fab: {
         position: 'absolute',
@@ -1058,6 +822,10 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
-        ...Theme.shadows.medium,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
     },
 });

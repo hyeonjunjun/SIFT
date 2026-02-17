@@ -113,8 +113,8 @@ export default function HomeScreen() {
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
-    const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
-    const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
+    const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
+    const [selectedGemTags, setSelectedGemTags] = useState<string[]>([]);
     const [toastMessage, setToastMessage] = useState("");
     const [toastVisible, setToastVisible] = useState(false);
     const [toastAction, setToastAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
@@ -169,12 +169,12 @@ export default function HomeScreen() {
     const [upgradeUrl, setUpgradeUrl] = useState<string | undefined>(undefined);
 
     useEffect(() => {
-        if (params.siftUrl) {
-            const url = decodeURIComponent(params.siftUrl as string);
+        if (params.gemUrl) {
+            const url = decodeURIComponent(params.gemUrl as string);
             addToQueue(url);
-            router.setParams({ siftUrl: undefined });
+            router.setParams({ gemUrl: undefined });
         }
-    }, [params.siftUrl]);
+    }, [params.gemUrl]);
 
     // Fuse.js Fuzzy Search Setup
     const fuse = useMemo(() => {
@@ -417,8 +417,8 @@ export default function HomeScreen() {
     const handleDeepLink = useCallback((event: { url: string }) => {
         try {
             const { queryParams } = Linking.parse(event.url);
-            if (queryParams?.siftUrl) {
-                addToQueue(decodeURIComponent(queryParams.siftUrl as string));
+            if (queryParams?.gemUrl) {
+                addToQueue(decodeURIComponent(queryParams.gemUrl as string));
             }
         } catch (e) {
             console.error("Deep link error:", e);
@@ -430,8 +430,8 @@ export default function HomeScreen() {
             const initialUrl = await Linking.getInitialURL();
             if (initialUrl) {
                 const { queryParams } = Linking.parse(initialUrl);
-                if (queryParams?.siftUrl) {
-                    addToQueue(decodeURIComponent(queryParams.siftUrl as string));
+                if (queryParams?.gemUrl) {
+                    addToQueue(decodeURIComponent(queryParams.gemUrl as string));
                 }
             }
         };
@@ -617,33 +617,36 @@ export default function HomeScreen() {
     };
 
     // Handle Edit Tags from Feed
-    const handleEditTagsTrigger = (id: string, currentTags: string[]) => {
-        setSelectedSiftId(id);
-        setSelectedSiftTags(currentTags);
+    const handleEditTagsTrigger = (id: string, tags: string[]) => {
+        setSelectedGemId(id);
+        setSelectedGemTags(tags);
         setQuickTagModalVisible(true);
     };
 
-    const [siftActionSheetVisible, setSiftActionSheetVisible] = useState(false);
-    const [selectedSift, setSelectedSift] = useState<any>(null);
+    const [gemActionSheetVisible, setGemActionSheetVisible] = useState(false);
+    const [selectedGem, setSelectedGem] = useState<any>(null);
 
-    const handleSiftOptions = (item: any) => {
-        setSelectedSift(item);
-        setSiftActionSheetVisible(true);
+    const handleGemOptions = (item: any) => {
+        setSelectedGem(item);
+        setGemActionSheetVisible(true);
     };
 
     const handleSaveTags = async (newTags: string[]) => {
-        if (!selectedSiftId) return;
+        if (!selectedGemId) return;
 
-        // Optimistic update could be added here, but for now just invalidate
         try {
             const { error } = await supabase
                 .from('pages')
                 .update({ tags: newTags })
-                .eq('id', selectedSiftId);
+                .eq('id', selectedGemId);
 
-            if (error) throw error;
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
-            showToast("Tags updated");
+            if (error) {
+                throw error;
+            } else {
+                queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+                setQuickTagModalVisible(false);
+                showToast("Tags updated");
+            }
         } catch (error: any) {
             console.error("Error updating tags:", error);
             showToast("Failed to update tags");
@@ -822,7 +825,7 @@ export default function HomeScreen() {
     const HomeEmptyState = useMemo(() => (
         <View style={{ paddingTop: 40 }}>
             <EmptyState
-                type={searchQuery ? 'no-results' : 'no-sifts'}
+                type={searchQuery ? 'no-results' : 'no-gems'}
                 title={searchQuery ? "No gems found" : "Time to Gem"}
                 description={searchQuery ? `We couldn't find any results for "${searchQuery}"` : "Paste a link above or scan a photo to start building your library."}
                 actionLabel={searchQuery ? "Clear Search" : "Browse Collections"}
@@ -846,7 +849,7 @@ export default function HomeScreen() {
                 onArchive={handleArchive}
                 onDeleteForever={handleDeleteForever}
                 onEditTags={handleEditTagsTrigger}
-                onOptions={handleSiftOptions}
+                onOptions={handleGemOptions}
                 loading={loading && fetchStatus === 'fetching'}
                 ListHeaderComponent={HomeHeader}
                 ListEmptyComponent={HomeEmptyState}
@@ -868,8 +871,8 @@ export default function HomeScreen() {
             <QuickTagEditor
                 visible={quickTagModalVisible}
                 onClose={() => setQuickTagModalVisible(false)}
-                initialTags={selectedSiftTags}
                 onSave={handleSaveTags}
+                initialTags={selectedGemTags}
             />
 
             <ActionSheet
@@ -899,14 +902,14 @@ export default function HomeScreen() {
             />
 
             <SiftActionSheet
-                visible={siftActionSheetVisible}
-                onClose={() => setSiftActionSheetVisible(false)}
-                sift={selectedSift}
+                visible={gemActionSheetVisible}
+                onClose={() => setGemActionSheetVisible(false)}
+                sift={selectedGem}
                 onPin={handlePin}
                 onArchive={handleArchive}
                 onEditTags={(id, tags) => {
-                    setSelectedSiftId(id);
-                    setSelectedSiftTags(tags);
+                    setSelectedGemId(id);
+                    setSelectedGemTags(tags);
                     setQuickTagModalVisible(true);
                 }}
                 additionalOptions={[
@@ -915,13 +918,13 @@ export default function HomeScreen() {
                         icon: Trash,
                         isDestructive: true,
                         onPress: () => {
-                            if (selectedSift) handleDeleteForever(selectedSift.id);
+                            if (selectedGem) handleDeleteForever(selectedGem.id);
                         }
                     },
-                    (__DEV__ && selectedSift?.debug_info) ? {
+                    (__DEV__ && selectedGem?.debug_info) ? {
                         label: 'View Diagnostics',
                         onPress: () => {
-                            Alert.alert("Gem Diagnostics", selectedSift.debug_info || "No details", [{ text: "Close" }]);
+                            Alert.alert("Gem Diagnostics", selectedGem.debug_info || "No details", [{ text: "Close" }]);
                         }
                     } : null,
                 ].filter(Boolean) as any}

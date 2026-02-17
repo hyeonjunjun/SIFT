@@ -9,7 +9,6 @@ import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
 import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-native";
 import SplashScreen from "../components/SplashScreen";
-import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
@@ -207,24 +206,11 @@ function RootLayoutNav() {
     const [appReady, setAppReady] = useState(false);
     const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
     const [splashDismissed, setSplashDismissed] = useState(false);
-    const [showOnboarding, setShowOnboarding] = useState(false);
     const splashHiddenRef = React.useRef(false);
 
     // Initial Preparation
     useEffect(() => {
-        async function prepare() {
-            try {
-                const hasLaunched = await AsyncStorage.getItem('has_launched');
-                if (hasLaunched !== 'true') {
-                    setShowOnboarding(true);
-                }
-            } catch (e) {
-                console.warn(e);
-            } finally {
-                setAppReady(true);
-            }
-        }
-        prepare();
+        setAppReady(true);
     }, []);
 
     // Helper for safe splash dismissal
@@ -311,20 +297,11 @@ function RootLayoutNav() {
                 imageStyle={{ opacity: colors.canvas === '#0D0D0C' ? 0.08 : 0.04 }}
                 resizeMode="repeat"
             >
-                {showOnboarding ? (
-                    <Onboarding
-                        onComplete={() => {
-                            setShowOnboarding(false);
-                            AsyncStorage.setItem('has_launched', 'true');
-                        }}
-                    />
-                ) : (
-                    <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
-                        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-                    </Stack>
-                )}
+                <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
+                    <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+                </Stack>
             </ImageBackground>
         </GestureHandlerRootView>
     );

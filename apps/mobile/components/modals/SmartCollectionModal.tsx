@@ -158,8 +158,8 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Typography variant="h3">
-                            {isEditMode ? 'Edit Smart Collection' : 'New Smart Collection'}
+                        <Typography variant="h3" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 24 }}>
+                            {isEditMode ? 'Edit' : 'New'} Smart Gem
                         </Typography>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <X size={22} color={colors.stone} />
@@ -172,8 +172,11 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                             <View style={[styles.previewIcon, { backgroundColor: colors.subtle }]}>
                                 <SelectedIconComponent size={32} color={colors.ink} weight="fill" />
                             </View>
-                            <Typography variant="body" weight="medium" style={{ marginTop: 8 }}>
-                                {name || 'Smart Collection Name'}
+                            <Typography variant="h2" style={{ marginTop: 12, fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 20 }}>
+                                {name || 'Smart Collection'}
+                            </Typography>
+                            <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>
+                                Dynamically organized by tags
                             </Typography>
                         </View>
 
@@ -381,5 +384,6 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         flex: 1,
+        borderRadius: RADIUS.m,
     },
 });

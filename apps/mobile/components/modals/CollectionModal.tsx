@@ -154,8 +154,8 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Typography variant="h3">
-                            {isEditMode ? 'Edit Collection' : 'New Collection'}
+                        <Typography variant="h3" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 24 }}>
+                            {isEditMode ? 'Edit' : 'New'} Collection
                         </Typography>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
                             {isEditMode && onPin && existingFolder?.id && (
@@ -186,8 +186,11 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                             <View style={[styles.previewIcon, { backgroundColor: selectedColor }]}>
                                 <SelectedIconComponent size={32} color="#FFFFFF" weight="fill" />
                             </View>
-                            <Typography variant="body" weight="medium" style={{ marginTop: 8 }}>
+                            <Typography variant="h2" style={{ marginTop: 12, fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 20 }}>
                                 {name || 'Collection Name'}
+                            </Typography>
+                            <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>
+                                Previewing your new collection
                             </Typography>
                         </View>
 
@@ -378,5 +381,6 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         flex: 1,
+        borderRadius: RADIUS.m,
     },
 });

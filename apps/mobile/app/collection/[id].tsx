@@ -4,7 +4,7 @@ import { View, StyleSheet, TouchableOpacity, RefreshControl, Alert, Platform } f
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { CaretLeft, Folder, ShareNetwork, DotsThree, Plus } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
-import { COLORS, SPACING, RADIUS } from '../../lib/theme';
+import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
@@ -179,7 +179,7 @@ export default function CollectionScreen() {
             <Stack.Screen options={{ headerShown: false }} />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
                 {isEditing ? (
                     <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.backButton}>
                         <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
@@ -193,18 +193,23 @@ export default function CollectionScreen() {
                 <View style={[styles.headerCenter, isEditing && { alignItems: 'flex-start', marginLeft: 16 }]}>
                     {!isEditing && (
                         <View style={[styles.folderIcon, { backgroundColor: folder.color }]}>
-                            <Folder size={20} color="#FFFFFF" weight="fill" />
+                            {folder.icon ? getIcon(folder.icon, 18, '#FFFFFF') : <Folder size={18} color="#FFFFFF" weight="fill" />}
                         </View>
                     )}
                     <View>
                         {isEditing && (
-                            <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1, fontWeight: '700', marginBottom: 2 }}>
+                            <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1.5, fontWeight: '700', marginBottom: 2 }}>
                                 MANAGING
                             </Typography>
                         )}
-                        <Typography variant="h3" numberOfLines={1} style={{ fontSize: 20, fontFamily: 'PlayfairDisplay_600SemiBold' }}>
+                        <Typography variant="h3" numberOfLines={1} style={styles.headerTitle}>
                             {folder.name}
                         </Typography>
+                        {!isEditing && (
+                            <Typography variant="caption" color="stone" style={{ fontSize: 11, letterSpacing: 0.5 }}>
+                                {pages.length} {pages.length === 1 ? 'GEM' : 'GEMS'}
+                            </Typography>
+                        )}
                     </View>
                 </View>
 
@@ -233,12 +238,6 @@ export default function CollectionScreen() {
                 )}
             </View>
 
-            {/* Stats */}
-            <View style={[styles.statsBar, { backgroundColor: colors.subtle, borderColor: colors.separator }]}>
-                <Typography variant="caption" color="stone">
-                    {pages.length} {pages.length === 1 ? 'gem' : 'gems'} in this collection
-                </Typography>
-            </View>
 
             {/* Sift Feed */}
             <SiftFeed
@@ -327,6 +326,13 @@ export default function CollectionScreen() {
     );
 }
 
+const getIcon = (name: string, size: number, color: string) => {
+    const { SelectionBackground, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket } = require('phosphor-react-native');
+    const icons: any = { SelectionBackground, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket };
+    const IconComponent = icons[name] || Folder;
+    return <IconComponent size={size} color={color} weight="fill" />;
+};
+
 const styles = StyleSheet.create({
     loading: {
         flex: 1,
@@ -337,52 +343,50 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingTop: 8,
+        paddingBottom: 16,
     },
     backButton: {
         padding: 4,
+        marginRight: 4,
     },
     headerCenter: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: 8,
-        gap: 10,
+        gap: 12,
+    },
+    headerTitle: {
+        fontSize: 22,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        lineHeight: 28,
     },
     folderIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: RADIUS.s,
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.m,
         justifyContent: 'center',
         alignItems: 'center',
+        ...Theme.shadows.soft,
     },
     headerActions: {
         flexDirection: 'row',
-        gap: 4,
+        gap: 8,
     },
     actionButton: {
         padding: 8,
-    },
-    statsBar: {
-        marginHorizontal: 20,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: RADIUS.m,
-        borderWidth: StyleSheet.hairlineWidth,
-        marginBottom: SPACING.m,
+        backgroundColor: 'rgba(0,0,0,0.02)',
+        borderRadius: RADIUS.s,
     },
     feedContainer: {
         paddingHorizontal: 20,
-        paddingBottom: 100,
+        paddingTop: 20,
+        paddingBottom: 120,
     },
     emptyState: {
-        position: 'absolute',
-        top: '40%',
-        left: 0,
-        right: 0,
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
-    },
-    listHeader: {
-        marginBottom: 16,
+        paddingTop: 100,
     },
 });
