@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { Text, View, StyleSheet, Dimensions } from 'react-native';
+import { Text, View, StyleSheet, Dimensions, Platform } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Check, WarningCircle } from 'phosphor-react-native';
-import { COLORS, BORDER, RADIUS } from '../lib/theme';
+import { COLORS, BORDER, RADIUS, Theme, SPACING } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ToastProps {
     message: string;
@@ -19,10 +20,12 @@ interface ToastProps {
         label: string;
         onPress: () => void;
     };
+    bottomOffset?: number;
 }
 
-export function Toast({ message, visible, onHide, duration = 3000, type = 'success', action, secondaryAction }: ToastProps) {
+export function Toast({ message, visible, onHide, duration = 3000, type = 'success', action, secondaryAction, bottomOffset }: ToastProps) {
     const { colors, isDark } = useTheme();
+    const insets = useSafeAreaInsets();
     const progress = useSharedValue(0);
 
     const animatedStyle = useAnimatedStyle(() => {
@@ -64,8 +67,9 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
                 styles.shadow,
                 {
                     backgroundColor: colors.paper,
-                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E5E5',
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : colors.separator,
                     shadowColor: "#000",
+                    bottom: bottomOffset !== undefined ? bottomOffset : (Platform.OS === 'ios' ? 90 : 70 + insets.bottom) + 24,
                 }
             ]}
         >
@@ -128,22 +132,20 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: 100, // Elevated position
         alignSelf: 'center',
-        backgroundColor: COLORS.canvas, // Oatmeal #FDFCF8
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8, // Tight corners
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: RADIUS.pill,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: '#E5E5E5',
         marginHorizontal: 20,
-        maxWidth: 400, // Prevent full width on tablet
-        minWidth: 300,
+        maxWidth: 450,
+        minWidth: 240,
         zIndex: 99999,
+        ...Theme.shadows.medium,
     },
     shadow: {
         shadowColor: "#000",
@@ -161,20 +163,21 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     message: {
-        color: COLORS.ink, // #1C1C1E
-        fontFamily: 'PlayfairDisplay', // Serif
-        fontSize: 14,
+        color: COLORS.ink,
+        fontFamily: 'InstrumentSerif_400Regular',
+        fontSize: 20,
         flex: 1,
         includeFontPadding: false,
+        letterSpacing: 0.2,
     },
     actions: {
-        marginLeft: 16,
+        marginLeft: 12,
         paddingLeft: 16,
         borderLeftWidth: 1,
-        borderLeftColor: '#E5E5E5',
+        borderLeftColor: 'rgba(0,0,0,0.05)',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
+        gap: 12,
     },
     secondaryAction: {
         color: COLORS.stone,

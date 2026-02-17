@@ -14,11 +14,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { useToast } from '../../context/ToastContext';
 
 export default function SocialScreen() {
     const { colors } = useTheme();
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const { showToast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'friends' | 'shared'>('shared');
     const [refreshing, setRefreshing] = useState(false);
@@ -112,15 +114,15 @@ export default function SocialScreen() {
                 .from('friendships')
                 .insert([{ user_id: user?.id, friend_id: targetUserId, status: 'pending' }]);
             if (error) {
-                if (error.code === '23505') Alert.alert("Relationship exists", "You are already connected or have a pending request.");
+                if (error.code === '23505') showToast({ message: "You are already connected or have a pending request.", type: 'error' });
                 else throw error;
             } else {
-                Alert.alert("Sent", "Friend request sent!");
+                showToast("Friend request sent!");
                 queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
                 setSearchQuery('');
                 setSearchResults([]);
             }
-        } catch (e: any) { Alert.alert("Error", e.message); }
+        } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
     };
 
     const handleAccept = async (id: string) => {
@@ -129,7 +131,8 @@ export default function SocialScreen() {
             if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (e: any) { Alert.alert("Error", e.message); }
+            showToast("Request declined");
+        } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
     };
 
     const handleDecline = async (id: string) => {
@@ -137,7 +140,7 @@ export default function SocialScreen() {
             const { error } = await supabase.from('friendships').delete().eq('id', id);
             if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
-        } catch (e: any) { Alert.alert("Error", e.message); }
+        } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
     };
 
     const onRefresh = async () => {
@@ -241,7 +244,7 @@ export default function SocialScreen() {
                                 {sharedGems.length === 0 ? (
                                     <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No shared gems yet" subtitle="Gems shared by friends will land here." />
                                 ) : (
-                                    sharedGems.map((share: any) => <SharedSiftCard key={share.id} share={share} colors={colors} />)
+                                    sharedGems.map((share: any) => <SharedGemCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
                                 )}
                             </View>
                         ) : (
@@ -285,11 +288,9 @@ export default function SocialScreen() {
     );
 }
 
-function SharedSiftCard({ share, colors }: any) {
-    const { user } = useAuth();
-    const router = useRouter();
-    const queryClient = useQueryClient();
+function SharedGemCard({ share, user, colors, queryClient, router }: any) {
     const [collecting, setCollecting] = useState(false);
+    const { showToast } = useToast();
 
     const handleCollect = async () => {
         if (!user?.id || collecting) return;
@@ -306,9 +307,9 @@ function SharedSiftCard({ share, colors }: any) {
             }]);
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Collected!", "Shared gem added to your library.");
+            showToast({ message: "Gem added to library", type: 'success' });
             queryClient.invalidateQueries({ queryKey: ['pages', user.id] });
-        } catch (e: any) { Alert.alert("Error", e.message); }
+        } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
         finally { setCollecting(false); }
     };
 

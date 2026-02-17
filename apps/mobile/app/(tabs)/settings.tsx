@@ -17,14 +17,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UsageTracker } from "../../components/UsageTracker";
 import { useSubscription } from "../../hooks/useSubscription";
 import { useTheme } from "../../context/ThemeContext";
+import { ActionSheet } from '../../components/modals/ActionSheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePersonalization } from '../../context/PersonalizationContext';
+import { useToast } from '../../context/ToastContext';
+import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 
 export default function ProfileScreen() {
     const { width: SCREEN_WIDTH } = Dimensions.get('window');
     const { user, tier, profile, refreshProfile, signOut, updateProfileInDB } = useAuth();
     const { setPinIcon } = usePersonalization();
     const { description: tierName } = useSubscription();
+    const { showToast } = useToast();
     const router = useRouter();
     const {
         theme,
@@ -119,7 +123,7 @@ export default function ProfileScreen() {
             await AsyncStorage.removeItem('sift_pages_cache');
             queryClient.clear();
             if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Success", "Cache Cleared");
+            showToast("Cache Cleared");
         } catch (e) {
             console.error(e);
         }

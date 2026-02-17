@@ -15,7 +15,7 @@ interface SiftPickerModalProps {
     visible: boolean;
     onClose: () => void;
     onSelect: (selectedIds: string[]) => void;
-    currentFolderSiftIds: string[];
+    currentCollectionGemIds: string[];
 }
 
 interface SiftItem {
@@ -28,14 +28,14 @@ interface SiftItem {
     };
 }
 
-export const SiftPickerModal = ({ visible, onClose, onSelect, currentFolderSiftIds }: SiftPickerModalProps) => {
+export const SiftPickerModal = ({ visible, onClose, onSelect, currentCollectionGemIds }: SiftPickerModalProps) => {
     const { colors, isDark } = useTheme();
     const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-    // Fetch all user sifts
-    const { data: sifts = [], isLoading } = useQuery({
+    // Fetch all user gems
+    const { data: gems = [], isLoading } = useQuery({
         queryKey: ['pages', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
@@ -51,23 +51,23 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentFolderSiftI
         enabled: visible && !!user?.id,
     });
 
-    // Filter out sifts already in the folder
-    const availableSifts = useMemo(() => {
-        return sifts.filter(sift => !currentFolderSiftIds.includes(sift.id));
-    }, [sifts, currentFolderSiftIds]);
+    // Filter out gems already in the collection
+    const availableGems = useMemo(() => {
+        return gems.filter(gem => !currentCollectionGemIds.includes(gem.id));
+    }, [gems, currentCollectionGemIds]);
 
     // Search logic
     const fuse = useMemo(() => {
-        return new Fuse(availableSifts, {
+        return new Fuse(availableGems, {
             keys: ['title', 'tags', 'url'],
             threshold: 0.3,
         });
-    }, [availableSifts]);
+    }, [availableGems]);
 
-    const filteredSifts = useMemo(() => {
-        if (!searchQuery.trim()) return availableSifts;
+    const filteredGems = useMemo(() => {
+        if (!searchQuery.trim()) return availableGems;
         return fuse.search(searchQuery).map(result => result.item);
-    }, [availableSifts, searchQuery, fuse]);
+    }, [availableGems, searchQuery, fuse]);
 
     const toggleSelection = (id: string) => {
         const newSet = new Set(selectedIds);
@@ -128,7 +128,7 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentFolderSiftI
                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                         <X size={24} color={colors.ink} />
                     </TouchableOpacity>
-                    <Typography variant="h3">Add Sifts</Typography>
+                    <Typography variant="h3">Add Gems</Typography>
                     <TouchableOpacity
                         onPress={handleSave}
                         disabled={selectedIds.size === 0}
@@ -159,14 +159,14 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentFolderSiftI
                     </View>
                 ) : (
                     <FlatList
-                        data={filteredSifts}
+                        data={filteredGems}
                         keyExtractor={item => item.id}
                         renderItem={renderItem}
                         contentContainerStyle={styles.listContent}
                         ListEmptyComponent={
                             <View style={styles.center}>
                                 <Typography variant="body" color="stone">
-                                    {searchQuery ? "No matching sifts found." : "No sifts available to add."}
+                                    {searchQuery ? "No matching gems found." : "No gems available to add."}
                                 </Typography>
                             </View>
                         }

@@ -20,7 +20,7 @@ export const SiftLimitTracker = () => {
                 </View>
                 <View style={styles.textContainer}>
                     <Typography variant="label" color={COLORS.ink}>
-                        Usage: {currentCount} / {maxSiftsTotal} sifts
+                        Usage: {currentCount} / {maxSiftsTotal} gems
                     </Typography>
                 </View>
             </View>

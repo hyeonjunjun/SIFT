@@ -46,6 +46,7 @@ import { ActionSheet } from '../../components/modals/ActionSheet';
 import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import { SiftActionSheet } from '../../components/modals/SiftActionSheet';
+import { useToast } from '../../context/ToastContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../components/design-system/EmptyState';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -86,6 +87,7 @@ export default function LibraryScreen() {
     const router = useRouter();
     const navigation = useNavigation();
     const queryClient = useQueryClient();
+    const { showToast } = useToast();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -277,6 +279,9 @@ export default function LibraryScreen() {
         if (!error) {
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
             setQuickTagModalVisible(false);
+            showToast("Tags updated successfully!");
+        } else {
+            showToast({ message: "Failed to update tags.", type: 'error' });
         }
     };
 
@@ -324,6 +329,7 @@ export default function LibraryScreen() {
                         await supabase.from('folders').delete().eq('id', collectionId);
                         queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
                         setCollectionModalVisible(false);
+                        showToast("Collection deleted");
                     }
                 }
             ]
@@ -421,7 +427,7 @@ export default function LibraryScreen() {
                     visible={gemPickerVisible}
                     onClose={() => setGemPickerVisible(false)}
                     onSelect={handleAddSmartCollectionGems}
-                    currentFolderSiftIds={activeCategoryPages.map(p => p.id)}
+                    currentCollectionGemIds={activeCategoryPages.map(p => p.id)}
                 />
             </ScreenWrapper>
         );
@@ -648,7 +654,7 @@ export default function LibraryScreen() {
                     onSave={handleSaveCollection}
                     onDelete={handleDeleteCollection}
                     onPin={handlePinCollection}
-                    existingFolder={editingCollection}
+                    existingCollection={editingCollection}
                 />
 
                 <SiftActionSheet

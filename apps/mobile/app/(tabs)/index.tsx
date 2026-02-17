@@ -23,11 +23,13 @@ import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import Fuse from "fuse.js";
-import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { SiftLimitTracker } from "../../components/SiftLimitTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { ActionSheet } from "../../components/modals/ActionSheet";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
+import { useToast } from "../../context/ToastContext";
+import { useIsFocused } from '@react-navigation/native';
 
 interface Page {
     id: string;
@@ -52,6 +54,8 @@ export default function HomeScreen() {
     const { user, tier, profile, loading: authLoading, refreshProfile } = useAuth(); // Get authenticated user
     const { isOverLimit } = useSubscription();
     const queryClient = useQueryClient();
+    const isFocused = useIsFocused();
+    const { showToast } = useToast();
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -115,11 +119,6 @@ export default function HomeScreen() {
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
     const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
     const [selectedGemTags, setSelectedGemTags] = useState<string[]>([]);
-    const [toastMessage, setToastMessage] = useState("");
-    const [toastVisible, setToastVisible] = useState(false);
-    const [toastAction, setToastAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
-    const [toastSecondaryAction, setToastSecondaryAction] = useState<{ label: string, onPress: () => void } | undefined>(undefined);
-    const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
     const [manualUrl, setManualUrl] = useState("");
     const lastCheckedUrl = useRef<string | null>(null);
@@ -208,16 +207,6 @@ export default function HomeScreen() {
         });
     }, [pages, debouncedSearchQuery, activeFilter, fuse]);
 
-    const [toastDuration, setToastDuration] = useState(3000);
-
-    const showToast = (message: string, duration = 3000, type: 'success' | 'error' = 'success', action?: { label: string, onPress: () => void }, secondaryAction?: { label: string, onPress: () => void }) => {
-        setToastMessage(message);
-        setToastDuration(duration);
-        setToastType(type);
-        setToastAction(action);
-        setToastSecondaryAction(secondaryAction);
-        setToastVisible(true);
-    };
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -323,9 +312,9 @@ export default function HomeScreen() {
 
         const count = urlsToProcess.length;
         if (count > 1) {
-            showToast(`Collecting ${count} gems...`, 2000);
+            showToast({ message: `Sifting ${count} gems...`, duration: 2000 });
         } else {
-            showToast("Collecting...", 1500);
+            showToast({ message: "Sifting...", duration: 1500 });
         }
 
 
@@ -341,7 +330,7 @@ export default function HomeScreen() {
                     .insert({
                         user_id: user?.id,
                         url,
-                        title: "Collecting...",
+                        title: "Sifting Gem...",
                         summary: "Synthesizing content...",
                         tags: ["Lifestyle"],
                         metadata: { status: 'pending', source: domain }
@@ -381,12 +370,12 @@ export default function HomeScreen() {
                         ? "Collection taking longer than expected"
                         : (apiError.message || "Gem retrieval failed");
 
-                    showToast(
-                        errorMsg,
-                        5000,
-                        'error',
-                        { label: 'Retry', onPress: () => addToQueue(task.url) }
-                    );
+                    showToast({
+                        message: errorMsg,
+                        duration: 5000,
+                        type: 'error',
+                        action: { label: 'Retry', onPress: () => addToQueue(task.url) }
+                    });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
                 }
             } finally {
@@ -511,7 +500,7 @@ export default function HomeScreen() {
 
     const handleArchive = async (id: string) => {
         if (!user?.id) {
-            showToast("Error: Identity not verified");
+            showToast({ message: "Error: Identity not verified" });
             return;
         }
 
@@ -532,17 +521,17 @@ export default function HomeScreen() {
             }
 
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
-            showToast("Moved to Archive");
+            showToast({ message: "Moved to Archive" });
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Archive] Exception:', error);
-            showToast(error.message.includes('JSON') ? "Invalid Server Response" : `Archive failed: ${error.message}`);
+            showToast({ message: error.message.includes('JSON') ? "Invalid Server Response" : `Archive failed: ${error.message}` });
         }
     };
 
     const handleDeleteForever = async (id: string) => {
         if (!user?.id) {
-            showToast("Error: Identity not verified");
+            showToast({ message: "Error: Identity not verified" });
             return;
         }
 
@@ -558,11 +547,11 @@ export default function HomeScreen() {
             }
 
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
-            showToast("Permanently Deleted");
+            showToast({ message: "Permanently Deleted" });
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Delete] Exception:', error);
-            showToast(error.message.includes('JSON') ? "Invalid Server Response" : `Delete failed: ${error.message}`);
+            showToast({ message: error.message.includes('JSON') ? "Invalid Server Response" : `Delete failed: ${error.message}` });
         }
     };
 
@@ -574,9 +563,14 @@ export default function HomeScreen() {
             const newPinnedState = !page.is_pinned;
 
             // Optimistic Update
-            queryClient.setQueryData(['pages', user?.id, tier], (old: any[] | undefined) => {
-                if (!old) return [];
-                return old.map(p => p.id === id ? { ...p, is_pinned: newPinnedState } : p);
+            queryClient.setQueryData(['pages', user?.id, tier], (old: any) => {
+                if (!old || !old.pages) return old;
+                return {
+                    ...old,
+                    pages: old.pages.map((page: any[]) =>
+                        page.map((p: any) => p.id === id ? { ...p, is_pinned: newPinnedState } : p)
+                    )
+                };
             });
 
             const { error } = await supabase.from('pages').update({ is_pinned: newPinnedState }).eq('id', id);
@@ -584,7 +578,7 @@ export default function HomeScreen() {
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error) {
             console.error('[Pin] Action failed:', error);
-            showToast("Action failed");
+            showToast({ message: "Action failed" });
             // Rollback on error
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
         }
@@ -645,11 +639,11 @@ export default function HomeScreen() {
             } else {
                 queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                 setQuickTagModalVisible(false);
-                showToast("Tags updated");
+                showToast({ message: "Tags updated" });
             }
         } catch (error: any) {
             console.error("Error updating tags:", error);
-            showToast("Failed to update tags");
+            showToast({ message: "Failed to update tags" });
         }
     };
 
@@ -666,7 +660,7 @@ export default function HomeScreen() {
                             const buildNum = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '102';
                             Alert.alert(
                                 "SIFT Diagnostics",
-                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: ${buildNum}\nSifts: ${pages?.length || 0}`,
+                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: ${buildNum}\nGems: ${pages?.length || 0}`,
                                 [
                                     { text: "OK" },
                                     {
@@ -934,16 +928,6 @@ export default function HomeScreen() {
                 visible={limitReachedVisible}
                 onClose={() => setLimitReachedVisible(false)}
                 upgradeUrl={upgradeUrl}
-            />
-
-            <Toast
-                message={toastMessage}
-                visible={toastVisible}
-                type={toastType}
-                onHide={() => setToastVisible(false)}
-                duration={toastDuration}
-                action={toastAction}
-                secondaryAction={toastSecondaryAction}
             />
         </ScreenWrapper>
     );

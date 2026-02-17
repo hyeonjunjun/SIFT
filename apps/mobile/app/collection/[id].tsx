@@ -14,6 +14,7 @@ import SiftFeed from '../../components/SiftFeed';
 import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
+import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { Minus, Trash } from 'phosphor-react-native';
@@ -25,13 +26,14 @@ export default function CollectionScreen() {
     const { colors } = useTheme();
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const { showToast } = useToast();
     const [refreshing, setRefreshing] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
-    // Folder Edit Mode State
+    // Collection Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
-    const [siftPickerVisible, setSiftPickerVisible] = useState(false);
+    const [gemPickerVisible, setGemPickerVisible] = useState(false);
 
     // Fetch folder details
     const { data: folder } = useQuery({
@@ -92,7 +94,7 @@ export default function CollectionScreen() {
         queryClient.resetQueries({ queryKey: ['folders', user?.id] });
     };
 
-    const handleAddSifts = async (selectedIds: string[]) => {
+    const handleAddCollectionGems = async (selectedIds: string[]) => {
         if (!id) return;
         try {
             const updates = selectedIds.map(siftId => ({
@@ -115,11 +117,11 @@ export default function CollectionScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "Failed to add gems.");
+            showToast({ message: "Failed to add gems.", type: 'error' });
         }
     };
 
-    const handleRemoveSift = async (siftId: string) => {
+    const handleRemoveGem = async (siftId: string) => {
         // Optimistic update
         const previousPages = queryClient.getQueryData(['folder-pages', id]);
         queryClient.setQueryData(['folder-pages', id], (old: any[]) => old.filter(p => p.id !== siftId));
@@ -216,7 +218,7 @@ export default function CollectionScreen() {
                 {isEditing ? (
                     <TouchableOpacity onPress={() => {
                         Haptics.selectionAsync();
-                        setSiftPickerVisible(true);
+                        setGemPickerVisible(true);
                     }} style={styles.actionButton}>
                         <Plus size={24} color={colors.ink} />
                     </TouchableOpacity>
@@ -244,7 +246,7 @@ export default function CollectionScreen() {
                 pages={pages as any}
                 loading={isLoading && fetchStatus === 'fetching'}
                 mode={isEditing ? 'edit' : 'feed'}
-                onRemove={handleRemoveSift}
+                onRemove={handleRemoveGem}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                 }
@@ -268,13 +270,7 @@ export default function CollectionScreen() {
                 onClose={() => setEditModalVisible(false)}
                 onSave={handleUpdateCollection}
                 onDelete={handleDeleteCollection}
-                existingFolder={{
-                    id: folder.id,
-                    name: folder.name,
-                    color: folder.color,
-                    icon: folder.icon,
-                    is_pinned: folder.is_pinned
-                }}
+                existingCollection={folder}
             />
 
             <ActionSheet
@@ -317,10 +313,10 @@ export default function CollectionScreen() {
             />
 
             <SiftPickerModal
-                visible={siftPickerVisible}
-                onClose={() => setSiftPickerVisible(false)}
-                onSelect={handleAddSifts}
-                currentFolderSiftIds={pages.map((p: any) => p.id)}
+                visible={gemPickerVisible}
+                onClose={() => setGemPickerVisible(false)}
+                onSelect={handleAddCollectionGems}
+                currentCollectionGemIds={pages.map(p => p.id)}
             />
         </ScreenWrapper>
     );

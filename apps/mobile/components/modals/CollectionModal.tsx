@@ -62,10 +62,10 @@ interface CollectionModalProps {
     onSave: (folder: CollectionData) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
     onPin?: (id: string, isPinned: boolean) => Promise<void>;
-    existingFolder?: CollectionData | null;
+    existingCollection?: CollectionData | null;
 }
 
-export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, existingFolder }: CollectionModalProps) => {
+export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, existingCollection: existingFolder }: CollectionModalProps) => {
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
@@ -94,7 +94,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
 
     const handleSave = async () => {
         if (!name.trim()) {
-            Alert.alert('Name Required', 'Please enter a folder name.');
+            Alert.alert('Name Required', 'Please enter a collection name.');
             return;
         }
 
@@ -110,7 +110,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onClose();
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to save folder');
+            Alert.alert('Error', error.message || 'Failed to save collection');
         } finally {
             setSaving(false);
         }
@@ -133,7 +133,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             onClose();
                         } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to delete folder');
+                            Alert.alert('Error', error.message || 'Failed to delete collection');
                         }
                     },
                 },
