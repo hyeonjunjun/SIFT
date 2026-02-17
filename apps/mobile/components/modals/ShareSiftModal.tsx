@@ -62,10 +62,10 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
             if (error) throw error;
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Gem Sent", `Shared "${siftTitle}" with ${friendName}.`);
+            Alert.alert("Sift Sent", `Shared "${siftTitle}" with ${friendName}.`);
             onClose();
         } catch (e: any) {
-            Alert.alert("Recall Error", e.message || "Could not send gem.");
+            Alert.alert("Recall Error", e.message || "Could not send sift.");
         } finally {
             setSending(null);
         }
@@ -87,7 +87,7 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                 <View style={styles.content}>
                     <View style={styles.header}>
                         <View style={{ flex: 1 }}>
-                            <Typography variant="h3">Send Gem</Typography>
+                            <Typography variant="h3">Send Sift</Typography>
                             <Typography variant="caption" color="stone" numberOfLines={1}>
                                 {siftTitle}
                             </Typography>
@@ -108,7 +108,7 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                             <View style={styles.emptyState}>
                                 <Users size={48} color={COLORS.subtle} weight="thin" />
                                 <Typography variant="body" color="stone" style={{ marginTop: 12, textAlign: 'center' }}>
-                                    No friends found yet. Connect with others in the Social tab to share gems.
+                                    No friends found yet. Connect with others in the Social tab to share sifts.
                                 </Typography>
                             </View>
                         ) : (

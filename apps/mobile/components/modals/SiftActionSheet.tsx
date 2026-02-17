@@ -18,6 +18,7 @@ interface SiftActionSheetProps {
     } | null;
     onPin?: (id: string) => void;
     onArchive?: (id: string) => void;
+    onDeleteForever?: (id: string) => void;
     onEditTags?: (id: string, tags: string[]) => void;
     additionalOptions?: ActionSheetOption[];
 }
@@ -28,6 +29,7 @@ export const SiftActionSheet = ({
     sift,
     onPin,
     onArchive,
+    onDeleteForever,
     onEditTags,
     additionalOptions = []
 }: SiftActionSheetProps) => {
@@ -43,7 +45,7 @@ export const SiftActionSheet = ({
 
     const options: ActionSheetOption[] = [
         {
-            label: sift.is_pinned ? 'Unpin Gem' : 'Pin Gem',
+            label: sift.is_pinned ? 'Unpin Sift' : 'Pin Sift',
             icon: PushPin,
             onPress: () => onPin?.(sift.id),
         },
@@ -68,12 +70,12 @@ export const SiftActionSheet = ({
         },
         ...additionalOptions,
         {
-            label: 'Archive Gem',
+            label: 'Archive Sift',
             icon: Trash,
             isDestructive: true,
             onPress: () => {
                 Alert.alert(
-                    "Archive Gem?",
+                    "Archive Sift?",
                     "It will be moved to your archive.",
                     [
                         { text: "Cancel", style: "cancel" },
@@ -85,6 +87,23 @@ export const SiftActionSheet = ({
                     ]
                 );
             },
+        },
+        {
+            label: 'Delete Forever',
+            icon: Trash,
+            isDestructive: true,
+            onPress: () => {
+                if (sift) {
+                    Alert.alert(
+                        "Delete Sift",
+                        "Are you sure you want to permanently delete this sift?",
+                        [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(sift.id) }
+                        ]
+                    );
+                }
+            }
         },
         {
             label: 'Cancel',

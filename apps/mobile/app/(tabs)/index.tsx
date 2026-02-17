@@ -117,8 +117,8 @@ export default function HomeScreen() {
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
-    const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
-    const [selectedGemTags, setSelectedGemTags] = useState<string[]>([]);
+    const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
+    const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
 
     const [manualUrl, setManualUrl] = useState("");
     const lastCheckedUrl = useRef<string | null>(null);
@@ -168,12 +168,12 @@ export default function HomeScreen() {
     const [upgradeUrl, setUpgradeUrl] = useState<string | undefined>(undefined);
 
     useEffect(() => {
-        if (params.gemUrl) {
-            const url = decodeURIComponent(params.gemUrl as string);
+        if (params.siftUrl) {
+            const url = decodeURIComponent(params.siftUrl as string);
             addToQueue(url);
-            router.setParams({ gemUrl: undefined });
+            router.setParams({ siftUrl: undefined });
         }
-    }, [params.gemUrl]);
+    }, [params.siftUrl]);
 
     // Fuse.js Fuzzy Search Setup
     const fuse = useMemo(() => {
@@ -312,7 +312,7 @@ export default function HomeScreen() {
 
         const count = urlsToProcess.length;
         if (count > 1) {
-            showToast({ message: `Sifting ${count} gems...`, duration: 2000 });
+            showToast({ message: `Sifting ${count} sifts...`, duration: 2000 });
         } else {
             showToast({ message: "Sifting...", duration: 1500 });
         }
@@ -330,7 +330,7 @@ export default function HomeScreen() {
                     .insert({
                         user_id: user?.id,
                         url,
-                        title: "Sifting Gem...",
+                        title: "Sifting Sift...",
                         summary: "Synthesizing content...",
                         tags: ["Lifestyle"],
                         metadata: { status: 'pending', source: domain }
@@ -368,7 +368,7 @@ export default function HomeScreen() {
                     const isTimeout = apiError.message.toLowerCase().includes('time') || apiError.message.toLowerCase().includes('deadline');
                     const errorMsg = isTimeout
                         ? "Collection taking longer than expected"
-                        : (apiError.message || "Gem retrieval failed");
+                        : (apiError.message || "Sift retrieval failed");
 
                     showToast({
                         message: errorMsg,
@@ -406,8 +406,8 @@ export default function HomeScreen() {
     const handleDeepLink = useCallback((event: { url: string }) => {
         try {
             const { queryParams } = Linking.parse(event.url);
-            if (queryParams?.gemUrl) {
-                addToQueue(decodeURIComponent(queryParams.gemUrl as string));
+            if (queryParams?.siftUrl) {
+                addToQueue(decodeURIComponent(queryParams.siftUrl as string));
             }
         } catch (e) {
             console.error("Deep link error:", e);
@@ -419,8 +419,8 @@ export default function HomeScreen() {
             const initialUrl = await Linking.getInitialURL();
             if (initialUrl) {
                 const { queryParams } = Linking.parse(initialUrl);
-                if (queryParams?.gemUrl) {
-                    addToQueue(decodeURIComponent(queryParams.gemUrl as string));
+                if (queryParams?.siftUrl) {
+                    addToQueue(decodeURIComponent(queryParams.siftUrl as string));
                 }
             }
         };
@@ -612,27 +612,27 @@ export default function HomeScreen() {
 
     // Handle Edit Tags from Feed
     const handleEditTagsTrigger = (id: string, tags: string[]) => {
-        setSelectedGemId(id);
-        setSelectedGemTags(tags);
+        setSelectedSiftId(id);
+        setSelectedSiftTags(tags);
         setQuickTagModalVisible(true);
     };
 
-    const [gemActionSheetVisible, setGemActionSheetVisible] = useState(false);
-    const [selectedGem, setSelectedGem] = useState<any>(null);
+    const [siftActionSheetVisible, setSiftActionSheetVisible] = useState(false);
+    const [selectedSift, setSelectedSift] = useState<any>(null);
 
-    const handleGemOptions = (item: any) => {
-        setSelectedGem(item);
-        setGemActionSheetVisible(true);
+    const handleSiftOptions = (item: any) => {
+        setSelectedSift(item);
+        setSiftActionSheetVisible(true);
     };
 
     const handleSaveTags = async (newTags: string[]) => {
-        if (!selectedGemId) return;
+        if (!selectedSiftId) return;
 
         try {
             const { error } = await supabase
                 .from('pages')
                 .update({ tags: newTags })
-                .eq('id', selectedGemId);
+                .eq('id', selectedSiftId);
 
             if (error) {
                 throw error;
@@ -660,7 +660,7 @@ export default function HomeScreen() {
                             const buildNum = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '102';
                             Alert.alert(
                                 "SIFT Diagnostics",
-                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: ${buildNum}\nGems: ${pages?.length || 0}`,
+                                `API: ${API_URL}\nUser: ${user?.id}\nTier: ${tier}\nEnv: ${__DEV__ ? 'Dev' : 'Prod'}\nBuild: ${buildNum}\nSifts: ${pages?.length || 0}`,
                                 [
                                     { text: "OK" },
                                     {
@@ -734,7 +734,7 @@ export default function HomeScreen() {
                     <TextInput
                         ref={inputRef}
                         style={styles.textInput}
-                        placeholder="A link to gem..."
+                        placeholder="A link to sift..."
                         placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}
@@ -772,7 +772,7 @@ export default function HomeScreen() {
                     <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" style={{ marginRight: 10 }} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Find a gem..."
+                        placeholder="Find a sift..."
                         placeholderTextColor={COLORS.stone}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -819,8 +819,8 @@ export default function HomeScreen() {
     const HomeEmptyState = useMemo(() => (
         <View style={{ paddingTop: 40 }}>
             <EmptyState
-                type={searchQuery ? 'no-results' : 'no-gems'}
-                title={searchQuery ? "No gems found" : "Time to Gem"}
+                type={searchQuery ? 'no-results' : 'no-sifts'}
+                title={searchQuery ? "No sifts found" : "Time to Sift"}
                 description={searchQuery ? `We couldn't find any results for "${searchQuery}"` : "Paste a link above or scan a photo to start building your library."}
                 actionLabel={searchQuery ? "Clear Search" : "Browse Collections"}
                 onAction={searchQuery ? () => setSearchQuery("") : () => setActiveFilter("All")}
@@ -843,7 +843,7 @@ export default function HomeScreen() {
                 onArchive={handleArchive}
                 onDeleteForever={handleDeleteForever}
                 onEditTags={handleEditTagsTrigger}
-                onOptions={handleGemOptions}
+                onOptions={handleSiftOptions}
                 loading={loading && fetchStatus === 'fetching'}
                 ListHeaderComponent={HomeHeader}
                 ListEmptyComponent={HomeEmptyState}
@@ -866,13 +866,13 @@ export default function HomeScreen() {
                 visible={quickTagModalVisible}
                 onClose={() => setQuickTagModalVisible(false)}
                 onSave={handleSaveTags}
-                initialTags={selectedGemTags}
+                initialTags={selectedSiftTags}
             />
 
             <ActionSheet
                 visible={addMenuVisible}
                 onClose={() => setAddMenuVisible(false)}
-                title="New Gem"
+                title="New Sift"
                 options={[
                     {
                         label: 'Scan from Gallery',
@@ -896,14 +896,14 @@ export default function HomeScreen() {
             />
 
             <SiftActionSheet
-                visible={gemActionSheetVisible}
-                onClose={() => setGemActionSheetVisible(false)}
-                sift={selectedGem}
+                visible={siftActionSheetVisible}
+                onClose={() => setSiftActionSheetVisible(false)}
+                sift={selectedSift}
                 onPin={handlePin}
                 onArchive={handleArchive}
                 onEditTags={(id, tags) => {
-                    setSelectedGemId(id);
-                    setSelectedGemTags(tags);
+                    setSelectedSiftId(id);
+                    setSelectedSiftTags(tags);
                     setQuickTagModalVisible(true);
                 }}
                 additionalOptions={[
@@ -912,13 +912,13 @@ export default function HomeScreen() {
                         icon: Trash,
                         isDestructive: true,
                         onPress: () => {
-                            if (selectedGem) handleDeleteForever(selectedGem.id);
+                            if (selectedSift) handleDeleteForever(selectedSift.id);
                         }
                     },
-                    (__DEV__ && selectedGem?.debug_info) ? {
+                    (__DEV__ && selectedSift?.debug_info) ? {
                         label: 'View Diagnostics',
                         onPress: () => {
-                            Alert.alert("Gem Diagnostics", selectedGem.debug_info || "No details", [{ text: "Close" }]);
+                            Alert.alert("Sift Diagnostics", selectedSift.debug_info || "No details", [{ text: "Close" }]);
                         }
                     } : null,
                 ].filter(Boolean) as any}

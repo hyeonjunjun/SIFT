@@ -96,8 +96,8 @@ export default function LibraryScreen() {
 
     // Quick Tag Modal State
     const [quickTagModalVisible, setQuickTagModalVisible] = useState(false);
-    const [selectedGemId, setSelectedGemId] = useState<string | null>(null);
-    const [selectedGemTags, setSelectedGemTags] = useState<string[]>([]);
+    const [selectedSiftId, setSelectedSiftId] = useState<string | null>(null);
+    const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
 
     // Collection Modal State
     const [collectionModalVisible, setCollectionModalVisible] = useState(false);
@@ -108,10 +108,10 @@ export default function LibraryScreen() {
     const [categoryActionSheetVisible, setCategoryActionSheetVisible] = useState(false);
     const [editingSmartCollection, setEditingSmartCollection] = useState<SmartCollectionData | null>(null);
     const [isCategoryEditing, setIsCategoryEditing] = useState(false);
-    const [gemPickerVisible, setGemPickerVisible] = useState(false);
+    const [siftPickerVisible, setSiftPickerVisible] = useState(false);
 
     // Action Sheet State
-    const [selectedGem, setSelectedGem] = useState<any | null>(null);
+    const [selectedSift, setSelectedSift] = useState<any | null>(null);
     const [actionSheetVisible, setActionSheetVisible] = useState(false);
 
     // Load saved view preference
@@ -146,7 +146,7 @@ export default function LibraryScreen() {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error fetching gems:', error);
+                console.error('Error fetching sifts:', error);
                 throw error;
             }
             return (data || []) as SiftItem[];
@@ -268,14 +268,14 @@ export default function LibraryScreen() {
     };
 
     const handleEditTagsTrigger = (id: string, tags: string[]) => {
-        setSelectedGemId(id);
-        setSelectedGemTags(tags);
+        setSelectedSiftId(id);
+        setSelectedSiftTags(tags);
         setQuickTagModalVisible(true);
     };
 
     const handleSaveTags = async (newTags: string[]) => {
-        if (!selectedGemId) return;
-        const { error } = await supabase.from('pages').update({ tags: newTags }).eq('id', selectedGemId);
+        if (!selectedSiftId) return;
+        const { error } = await supabase.from('pages').update({ tags: newTags }).eq('id', selectedSiftId);
         if (!error) {
             queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
             setQuickTagModalVisible(false);
@@ -285,8 +285,8 @@ export default function LibraryScreen() {
         }
     };
 
-    const handleGemOptions = (item: any) => {
-        setSelectedGem(item);
+    const handleSiftOptions = (item: any) => {
+        setSelectedSift(item);
         setActionSheetVisible(true);
     };
 
@@ -318,7 +318,7 @@ export default function LibraryScreen() {
     const handleDeleteCollection = async (collectionId: string) => {
         Alert.alert(
             "Delete Collection",
-            "Are you sure? The gems inside will remain in your library but will be uncollected.",
+            "Are you sure? The sifts inside will remain in your library but will be uncollected.",
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -361,14 +361,14 @@ export default function LibraryScreen() {
 
     const getSmartCollectionCover = (targetTags: string[]) => {
         if (!pages || pages.length === 0) return null;
-        const matchingGem = pages.find(p =>
+        const matchingSift = pages.find(p =>
             p.tags && p.tags.some(t => targetTags.includes(t.toUpperCase())) &&
             p.metadata?.image_url
         );
-        return matchingGem?.metadata?.image_url;
+        return matchingSift?.metadata?.image_url;
     };
 
-    const handleAddSmartCollectionGems = async (selectedIds: string[]) => {
+    const handleAddSmartCollectionSifts = async (selectedIds: string[]) => {
         if (!editingSmartCollection) return;
         const targetTags = editingSmartCollection.tags;
 
@@ -381,7 +381,7 @@ export default function LibraryScreen() {
         }
 
         queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
-        setGemPickerVisible(false);
+        setSiftPickerVisible(false);
     };
 
     if (activeCategoryId && activeCollection) {
@@ -400,17 +400,17 @@ export default function LibraryScreen() {
                     onArchive={handleArchive}
                     onDeleteForever={handleDeleteForever}
                     onEditTags={handleEditTagsTrigger}
-                    onOptions={handleGemOptions}
+                    onOptions={handleSiftOptions}
                     loading={false}
                     viewMode={viewMode}
                     ListHeaderComponent={() => (
                         <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
                             <TouchableOpacity
-                                style={[styles.addGemsButton, { backgroundColor: colors.paper, borderColor: colors.separator }]}
-                                onPress={() => setGemPickerVisible(true)}
+                                style={[styles.addSiftsButton, { backgroundColor: colors.paper, borderColor: colors.separator }]}
+                                onPress={() => setSiftPickerVisible(true)}
                             >
                                 <Plus size={20} color={colors.ink} />
-                                <Typography variant="body" style={{ marginLeft: 8 }}>Add Gems to this Collection</Typography>
+                                <Typography variant="body" style={{ marginLeft: 8 }}>Add Sifts to this Collection</Typography>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -418,20 +418,42 @@ export default function LibraryScreen() {
 
                 <TouchableOpacity
                     style={[styles.fab, { backgroundColor: COLORS.ink }]}
-                    onPress={() => setGemPickerVisible(true)}
+                    onPress={() => setSiftPickerVisible(true)}
                 >
                     <Plus size={28} color="white" weight="bold" />
                 </TouchableOpacity>
 
                 <SiftPickerModal
-                    visible={gemPickerVisible}
-                    onClose={() => setGemPickerVisible(false)}
-                    onSelect={handleAddSmartCollectionGems}
-                    currentCollectionGemIds={activeCategoryPages.map(p => p.id)}
+                    visible={siftPickerVisible}
+                    onClose={() => setSiftPickerVisible(false)}
+                    onSelect={handleAddSmartCollectionSifts}
+                    currentCollectionSiftIds={activeCategoryPages.map(p => p.id)}
                 />
             </ScreenWrapper>
         );
     }
+
+    const ListEmptyComponent = useMemo(() => {
+        if (searchQuery) return <EmptyState type="no-results" title="No results found" description={`We couldn't find any sifts matching "${searchQuery}"`} />;
+
+        if (activeCategoryId) {
+            return <EmptyState
+                type="no-sifts"
+                title="Empty Collection"
+                description="No sifts found in this collection."
+                actionLabel="Add Sift"
+                onAction={() => router.push('/')}
+            />;
+        }
+
+        return <EmptyState
+            type="no-sifts"
+            title="Start Sifting"
+            description="Your library is empty. Sift content to see it here."
+            actionLabel="Start Sifting"
+            onAction={() => router.push('/')}
+        />;
+    }, [searchQuery, activeCategoryId]);
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -545,7 +567,7 @@ export default function LibraryScreen() {
                             <EmptyState
                                 type="no-collections"
                                 title="No Collections"
-                                description="Organize your gems into bespoke collections."
+                                description="Organize your sifts into bespoke collections."
                                 actionLabel="New Collection"
                                 onAction={handleCreateCollection}
                             />
@@ -660,7 +682,7 @@ export default function LibraryScreen() {
                 <SiftActionSheet
                     visible={actionSheetVisible}
                     onClose={() => setActionSheetVisible(false)}
-                    sift={selectedGem}
+                    sift={selectedSift}
                     onPin={(id) => handlePin(id, true)}
                     onArchive={handleArchive}
                     onEditTags={handleEditTagsTrigger}
@@ -670,7 +692,7 @@ export default function LibraryScreen() {
                     visible={quickTagModalVisible}
                     onClose={() => setQuickTagModalVisible(false)}
                     onSave={handleSaveTags}
-                    initialTags={selectedGemTags}
+                    initialTags={selectedSiftTags}
                 />
             </ScreenWrapper>
         </GestureHandlerRootView>
@@ -811,7 +833,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         ...Theme.shadows.soft,
     },
-    addGemsButton: {
+    addSiftsButton: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,

@@ -121,7 +121,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
 
         Alert.alert(
             'Delete Collection',
-            `Are you sure you want to delete "${existingFolder.name}"? Gems in this collection won't be deleted.`,
+            `Are you sure you want to delete "${existingFolder.name}"? Sifts in this collection won't be deleted.`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {

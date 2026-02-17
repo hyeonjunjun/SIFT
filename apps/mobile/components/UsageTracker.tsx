@@ -20,7 +20,7 @@ export function UsageTracker() {
                     Storage Used
                 </Typography>
                 <Typography variant="label" color={COLORS.ink}>
-                    {currentCount} / {maxSiftsTotal} gems
+                    {currentCount} / {maxSiftsTotal} sifts
                 </Typography>
             </View>
 
@@ -38,7 +38,7 @@ export function UsageTracker() {
 
             {progress > 0.8 && (
                 <Typography variant="caption" style={{ color: COLORS.danger, marginTop: 8 }}>
-                    {progress >= 1 ? "You've reached your limit. Upgrade for unlimited collection." : "Running low on storage space."}
+                    {progress >= 1 ? "You've reached your limit. Upgrade for unlimited sifting." : "Running low on storage space."}
                 </Typography>
             )}
         </View>

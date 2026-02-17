@@ -73,7 +73,7 @@ export default function PersonalizationScreen() {
 
                 <View style={styles.previewContainer}>
                     <Typography variant="caption" color="stone" style={{ textAlign: 'center', marginTop: 16 }}>
-                        This icon will appear on pinned gems in your library and collections.
+                        This icon will appear on pinned sifts in your library and collections.
                     </Typography>
                 </View>
             </ScrollView>

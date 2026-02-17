@@ -33,7 +33,7 @@ export default function CollectionScreen() {
 
     // Collection Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
-    const [gemPickerVisible, setGemPickerVisible] = useState(false);
+    const [pickerVisible, setPickerVisible] = useState(false);
 
     // Fetch folder details
     const { data: folder } = useQuery({
@@ -94,7 +94,7 @@ export default function CollectionScreen() {
         queryClient.resetQueries({ queryKey: ['folders', user?.id] });
     };
 
-    const handleAddCollectionGems = async (selectedIds: string[]) => {
+    const handleAddSifts = async (selectedIds: string[]) => {
         if (!id) return;
         try {
             const updates = selectedIds.map(siftId => ({
@@ -117,11 +117,11 @@ export default function CollectionScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
             console.error(e);
-            showToast({ message: "Failed to add gems.", type: 'error' });
+            showToast({ message: "Failed to add sifts.", type: 'error' });
         }
     };
 
-    const handleRemoveGem = async (siftId: string) => {
+    const handleRemoveSift = async (siftId: string) => {
         // Optimistic update
         const previousPages = queryClient.getQueryData(['folder-pages', id]);
         queryClient.setQueryData(['folder-pages', id], (old: any[]) => old.filter(p => p.id !== siftId));
@@ -133,7 +133,7 @@ export default function CollectionScreen() {
 
         if (error) {
             queryClient.setQueryData(['folder-pages', id], previousPages);
-            Alert.alert("Error", "Failed to remove gem.");
+            showToast({ message: "Failed to remove sift.", type: 'error' });
         }
     };
 
@@ -209,7 +209,7 @@ export default function CollectionScreen() {
                         </Typography>
                         {!isEditing && (
                             <Typography variant="caption" color="stone" style={{ fontSize: 11, letterSpacing: 0.5 }}>
-                                {pages.length} {pages.length === 1 ? 'GEM' : 'GEMS'}
+                                {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
                             </Typography>
                         )}
                     </View>
@@ -218,7 +218,8 @@ export default function CollectionScreen() {
                 {isEditing ? (
                     <TouchableOpacity onPress={() => {
                         Haptics.selectionAsync();
-                        setGemPickerVisible(true);
+                        setPickerVisible(true)
+                            ;
                     }} style={styles.actionButton}>
                         <Plus size={24} color={colors.ink} />
                     </TouchableOpacity>
@@ -246,7 +247,7 @@ export default function CollectionScreen() {
                 pages={pages as any}
                 loading={isLoading && fetchStatus === 'fetching'}
                 mode={isEditing ? 'edit' : 'feed'}
-                onRemove={handleRemoveGem}
+                onRemove={handleRemoveSift}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                 }
@@ -257,10 +258,10 @@ export default function CollectionScreen() {
                 <View style={styles.emptyState}>
                     <Folder size={48} color={COLORS.stone} weight="thin" />
                     <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
-                        No gems in this collection yet.
+                        No sifts in this collection yet.
                     </Typography>
                     <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>
-                        Long-press any gem to add it here.
+                        Long-press any sift to add it here.
                     </Typography>
                 </View>
             )}
@@ -313,10 +314,10 @@ export default function CollectionScreen() {
             />
 
             <SiftPickerModal
-                visible={gemPickerVisible}
-                onClose={() => setGemPickerVisible(false)}
-                onSelect={handleAddCollectionGems}
-                currentCollectionGemIds={pages.map(p => p.id)}
+                visible={pickerVisible}
+                onClose={() => setPickerVisible(false)}
+                onSelect={handleAddSifts}
+                currentCollectionSiftIds={pages.map(p => p.id)}
             />
         </ScreenWrapper>
     );

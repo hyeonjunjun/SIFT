@@ -16,6 +16,22 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 
+interface Sift {
+    id: string;
+    title: string;
+    summary: string;
+    url: string;
+    metadata: any;
+}
+
+interface Share {
+    id: string;
+    sender_id: string;
+    sift: Sift;
+    sender: { display_name: string; avatar_url: string };
+    created_at: string;
+}
+
 export default function SocialScreen() {
     const { colors } = useTheme();
     const { user } = useAuth();
@@ -53,9 +69,9 @@ export default function SocialScreen() {
     const myNetwork = friendships.filter((f: any) => f.status === 'accepted');
     const outgoingRequests = friendships.filter((f: any) => f.user_id === user?.id && f.status === 'pending');
 
-    // 2. Fetch Shared Gems
-    const { data: sharedGems = [] } = useQuery({
-        queryKey: ['shared_gems', user?.id],
+    // 2. Fetch Shared Sifts
+    const { data: sharedSifts = [] } = useQuery({
+        queryKey: ['shared_sifts', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
             const { data, error } = await supabase
@@ -90,7 +106,7 @@ export default function SocialScreen() {
 
         setIsSearching(true);
         try {
-            // Search by username (ilike), exact email (eq), or Gem ID (ilike)
+            // Search by username (ilike), exact email (eq), or Sift ID (ilike)
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, display_name, avatar_url, email, sift_id')
@@ -147,7 +163,7 @@ export default function SocialScreen() {
         setRefreshing(true);
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] }),
-            queryClient.invalidateQueries({ queryKey: ['shared_gems', user?.id] })
+            queryClient.invalidateQueries({ queryKey: ['shared_sifts', user?.id] })
         ]);
         setRefreshing(false);
     };
@@ -241,10 +257,10 @@ export default function SocialScreen() {
                     <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
                         {activeTab === 'shared' ? (
                             <View style={styles.feed}>
-                                {sharedGems.length === 0 ? (
-                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No shared gems yet" subtitle="Gems shared by friends will land here." />
+                                {sharedSifts.length === 0 ? (
+                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No shared sifts yet" subtitle="Sifts shared by friends will land here." />
                                 ) : (
-                                    sharedGems.map((share: any) => <SharedGemCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
+                                    sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
                                 )}
                             </View>
                         ) : (
@@ -267,7 +283,7 @@ export default function SocialScreen() {
                                     </View>
                                 ) : (
                                     incomingRequests.length === 0 && (
-                                        <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing gems." />
+                                        <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing sifts." />
                                     )
                                 )}
 
@@ -288,7 +304,7 @@ export default function SocialScreen() {
     );
 }
 
-function SharedGemCard({ share, user, colors, queryClient, router }: any) {
+function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
     const [collecting, setCollecting] = useState(false);
     const { showToast } = useToast();
 
@@ -307,7 +323,7 @@ function SharedGemCard({ share, user, colors, queryClient, router }: any) {
             }]);
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            showToast({ message: "Gem added to library", type: 'success' });
+            showToast({ message: "Sift added to library", type: 'success' });
             queryClient.invalidateQueries({ queryKey: ['pages', user.id] });
         } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
         finally { setCollecting(false); }
@@ -317,7 +333,7 @@ function SharedGemCard({ share, user, colors, queryClient, router }: any) {
         <TouchableOpacity style={[styles.card, { backgroundColor: colors.paper, borderColor: colors.separator }]} onPress={() => router.push(`/page/${share.sift.id}`)}>
             <View style={styles.cardHeader}>
                 <Image source={share.sender.avatar_url} style={styles.tinyAvatar} />
-                <Typography variant="caption" color="stone" style={{ marginLeft: 8 }}>{share.sender.display_name} shared a gem</Typography>
+                <Typography variant="caption" color="stone" style={{ marginLeft: 8 }}>{share.sender.display_name} shared a sift</Typography>
             </View>
             <View style={styles.cardBody}>
                 <Typography variant="h3" numberOfLines={1}>{share.sift.title}</Typography>

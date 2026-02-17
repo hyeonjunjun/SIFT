@@ -26,7 +26,7 @@ const SLIDES = [
     {
         id: 'mindful',
         title: 'Mindful\nCuration',
-        subtitle: 'The internet is overwhelming.\nGem helps you keep what matters.',
+        subtitle: 'The internet is overwhelming.\nSift helps you keep what matters.',
         gradient: ['#FDFBF7', '#E8E2D8', '#D3CAB8'] as const,
         icon: Star,
         accentColor: COLORS.ink,

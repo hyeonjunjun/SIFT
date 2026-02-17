@@ -9,13 +9,13 @@ import { Button } from './Button';
 interface EmptyStateProps {
     title: string;
     description: string;
-    type: 'no-results' | 'no-gems' | 'no-collections';
+    type: 'no-results' | 'no-collections' | 'no-sifts';
     onAction?: () => void;
     actionLabel?: string;
 }
 
 export const EmptyState = ({ title, description, type, onAction, actionLabel }: EmptyStateProps) => {
-    const Icon = (type === 'no-gems' || type === 'no-collections') ? SelectionBackground : MagnifyingGlass;
+    const Icon = (type === 'no-collections' || type === 'no-sifts') ? SelectionBackground : MagnifyingGlass;
 
     return (
         <View style={styles.container}>
@@ -47,7 +47,7 @@ export const EmptyState = ({ title, description, type, onAction, actionLabel }: 
                         label={actionLabel}
                         onPress={onAction}
                         variant="primary"
-                        icon={(type === 'no-gems' || type === 'no-collections') ? <PlusCircle size={20} color="white" /> : undefined}
+                        icon={(type === 'no-collections' || type === 'no-sifts') ? <PlusCircle size={20} color="white" /> : undefined}
                     />
                 </Animated.View>
             )}

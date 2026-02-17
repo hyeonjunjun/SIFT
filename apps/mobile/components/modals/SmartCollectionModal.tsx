@@ -159,7 +159,7 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                     {/* Header */}
                     <View style={styles.header}>
                         <Typography variant="h3" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 24 }}>
-                            {isEditMode ? 'Edit' : 'New'} Smart Gem
+                            {isEditMode ? 'Edit' : 'New'} Smart Sift
                         </Typography>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <X size={22} color={colors.stone} />

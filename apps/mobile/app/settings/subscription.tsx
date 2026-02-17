@@ -48,7 +48,7 @@ export default function SubscriptionScreen() {
             id: 'unlimited',
             name: 'Unlimited',
             icon: InfinityIcon,
-            sub: 'Gems without limits',
+            sub: 'Sifts without limits',
             price: offerings?.annual?.product.priceString || null
         },
     ];
