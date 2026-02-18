@@ -189,7 +189,15 @@ export default function HomeScreen() {
 
         // 1. Apply Search Filter
         if (debouncedSearchQuery.trim()) {
-            results = fuse.search(debouncedSearchQuery).map(r => r.item);
+            const q = debouncedSearchQuery.trim();
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+
+            if (isUuid) {
+                const exactMatch = pages.find(p => p.id === q);
+                if (exactMatch) return [exactMatch];
+            }
+
+            results = fuse.search(q).map(r => r.item);
         }
 
         // 2. Apply Category Filter
@@ -901,20 +909,13 @@ export default function HomeScreen() {
                 sift={selectedSift}
                 onPin={handlePin}
                 onArchive={handleArchive}
+                onDeleteForever={handleDeleteForever}
                 onEditTags={(id, tags) => {
                     setSelectedSiftId(id);
                     setSelectedSiftTags(tags);
                     setQuickTagModalVisible(true);
                 }}
                 additionalOptions={[
-                    {
-                        label: 'Delete Forever',
-                        icon: Trash,
-                        isDestructive: true,
-                        onPress: () => {
-                            if (selectedSift) handleDeleteForever(selectedSift.id);
-                        }
-                    },
                     (__DEV__ && selectedSift?.debug_info) ? {
                         label: 'View Diagnostics',
                         onPress: () => {

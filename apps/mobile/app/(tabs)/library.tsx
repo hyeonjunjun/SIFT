@@ -233,11 +233,19 @@ export default function LibraryScreen() {
     // Derived filtering
     const filteredPages = useMemo(() => {
         if (!debouncedSearchQuery) return pages;
-        const q = debouncedSearchQuery.toLowerCase();
+        const q = debouncedSearchQuery.trim();
+        const lowerQ = q.toLowerCase();
+
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+        if (isUuid) {
+            const exactMatch = pages.find(p => p.id === q);
+            if (exactMatch) return [exactMatch];
+        }
+
         return pages.filter(p =>
-            p.title.toLowerCase().includes(q) ||
-            p.url.toLowerCase().includes(q) ||
-            p.tags.some(t => t.toLowerCase().includes(q))
+            p.title.toLowerCase().includes(lowerQ) ||
+            p.url.toLowerCase().includes(lowerQ) ||
+            (p.tags && p.tags.some(t => t.toLowerCase().includes(lowerQ)))
         );
     }, [pages, debouncedSearchQuery]);
 
@@ -685,6 +693,7 @@ export default function LibraryScreen() {
                     sift={selectedSift}
                     onPin={(id) => handlePin(id, true)}
                     onArchive={handleArchive}
+                    onDeleteForever={handleDeleteForever}
                     onEditTags={handleEditTagsTrigger}
                 />
 

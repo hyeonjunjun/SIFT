@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
-import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus } from 'phosphor-react-native';
+import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -40,6 +40,12 @@ export default function SocialScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'friends' | 'shared'>('shared');
     const [refreshing, setRefreshing] = useState(false);
+    const triggerHaptic = (type: 'selection' | 'impact' | 'notification' | 'error') => {
+        if (type === 'selection') Haptics.selectionAsync();
+        else if (type === 'impact') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        else if (type === 'notification') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        else if (type === 'error') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    };
     const translateX = useSharedValue(0);
     const { width } = Dimensions.get('window');
 
@@ -106,11 +112,15 @@ export default function SocialScreen() {
 
         setIsSearching(true);
         try {
-            // Search by username (ilike), exact email (eq), or Sift ID (ilike)
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sanitized);
+            const orQuery = isUuid
+                ? `id.eq.${sanitized},username.ilike.%${sanitized}%,email.eq.${sanitized.toLowerCase()},sift_id.ilike.%${sanitized}%`
+                : `username.ilike.%${sanitized}%,email.eq.${sanitized.toLowerCase()},sift_id.ilike.%${sanitized}%`;
+
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, display_name, avatar_url, email, sift_id')
-                .or(`username.ilike.%${sanitized}%,email.eq.${sanitized.toLowerCase()},sift_id.ilike.%${sanitized}%`)
+                .or(orQuery)
                 .neq('id', user?.id)
                 .limit(5);
 
@@ -124,7 +134,7 @@ export default function SocialScreen() {
     };
 
     const sendFriendRequest = async (targetUserId: string) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        triggerHaptic('impact');
         try {
             const { error } = await supabase
                 .from('friendships')
@@ -146,8 +156,8 @@ export default function SocialScreen() {
             const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
             if (error) throw error;
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            showToast("Request declined");
+            triggerHaptic('notification');
+            showToast("Request accepted");
         } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
     };
 
@@ -235,17 +245,22 @@ export default function SocialScreen() {
             )}
 
             <View style={styles.tabsContainer}>
-                <TouchableOpacity onPress={() => setActiveTab('shared')} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 2 }]}>
-                    <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"}>Shared</Typography>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setActiveTab('friends')} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 2 }]}>
+                <TouchableOpacity onPress={() => { setActiveTab('shared'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"}>Friends</Typography>
+                        <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>SHARED</Typography>
+                        {sharedSifts.length > 0 && (
+                            <View style={[styles.badge, { backgroundColor: colors.subtle }]}>
+                                <Typography style={{ fontSize: 10, color: colors.ink }}>{sharedSifts.length}</Typography>
+                            </View>
+                        )}
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setActiveTab('friends'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>FRIENDS</Typography>
                         {incomingRequests.length > 0 && (
-                            <View style={[styles.badge, { backgroundColor: COLORS.danger }]}>
-                                <Typography variant="caption" style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
-                                    {incomingRequests.length}
-                                </Typography>
+                            <View style={[styles.badge, { backgroundColor: COLORS.accent }]}>
+                                <Typography style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>{incomingRequests.length}</Typography>
                             </View>
                         )}
                     </View>
@@ -332,8 +347,14 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
     return (
         <TouchableOpacity style={[styles.card, { backgroundColor: colors.paper, borderColor: colors.separator }]} onPress={() => router.push(`/page/${share.sift.id}`)}>
             <View style={styles.cardHeader}>
-                <Image source={share.sender.avatar_url} style={styles.tinyAvatar} />
-                <Typography variant="caption" color="stone" style={{ marginLeft: 8 }}>{share.sender.display_name} shared a sift</Typography>
+                {share.sender.avatar_url ? (
+                    <Image source={share.sender.avatar_url} style={styles.tinyAvatar} />
+                ) : (
+                    <View style={[styles.tinyAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                        <User size={12} color={colors.stone} weight="bold" />
+                    </View>
+                )}
+                <Typography variant="caption" color="stone" style={{ marginLeft: 8 }}>{share.sender.display_name} shared a Sift</Typography>
             </View>
             <View style={styles.cardBody}>
                 <Typography variant="h3" numberOfLines={1}>{share.sift.title}</Typography>
@@ -356,7 +377,13 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline }: 
 
     return (
         <View style={[styles.friendItem, { borderBottomColor: colors.separator }]}>
-            <Image source={friend.avatar_url} style={styles.mediumAvatar} />
+            {friend.avatar_url ? (
+                <Image source={friend.avatar_url} style={styles.mediumAvatar} />
+            ) : (
+                <View style={[styles.mediumAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                    <User size={24} color={colors.stone} weight="thin" />
+                </View>
+            )}
             <View style={{ flex: 1, marginLeft: 16 }}>
                 <Typography variant="h3">{friend.display_name}</Typography>
                 <Typography variant="caption" color="stone">@{friend.username}</Typography>
