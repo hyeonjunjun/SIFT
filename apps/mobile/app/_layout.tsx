@@ -157,6 +157,8 @@ function RootLayoutNav() {
     // RevenueCat Initialization
     useEffect(() => {
         const initPurchases = async () => {
+            if (Platform.OS === 'web') return; // Skip RevenueCat on Web
+
             if (Platform.OS === 'ios') {
                 if (process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY) {
                     await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY });
@@ -173,6 +175,8 @@ function RootLayoutNav() {
     // RevenueCat User Identification
     useEffect(() => {
         const syncUser = async () => {
+            if (Platform.OS === 'web') return; // Skip RevenueCat on Web
+
             try {
                 if (session?.user?.id) {
                     await Purchases.logIn(session.user.id);

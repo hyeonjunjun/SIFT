@@ -59,7 +59,7 @@ export default function SubscriptionScreen() {
         const packageToBuy = tierId === 'plus' ? offerings?.monthly : offerings?.annual;
 
         if (!packageToBuy) {
-            Alert.alert("Plan Unavailable", "We couldn't load the plan details. Please try again or check your internet connection.");
+            // Silently return, button should be disabled anyway.
             return;
         }
 
@@ -144,15 +144,19 @@ export default function SubscriptionScreen() {
                     </Typography>
                 </View>
 
-                {tiers.map((tier, index) => (
-                    <TierCard
-                        key={tier.id}
-                        tier={tier}
-                        isCurrent={currentTier === tier.id || (tier.id === 'unlimited' && currentTier === 'admin')}
-                        onPress={() => (tier.id !== currentTier && !(tier.id === 'unlimited' && currentTier === 'admin')) && handleUpgrade(tier.id)}
-                        index={index}
-                    />
-                ))}
+                {tiers.map((tier, index) => {
+                    const isAvailable = tier.id === 'free' || tier.price !== null;
+                    return (
+                        <TierCard
+                            key={tier.id}
+                            tier={tier}
+                            isCurrent={currentTier === tier.id || (tier.id === 'unlimited' && currentTier === 'admin')}
+                            onPress={() => (tier.id !== currentTier && !(tier.id === 'unlimited' && currentTier === 'admin') && isAvailable) && handleUpgrade(tier.id)}
+                            index={index}
+                            isAvailable={isAvailable}
+                        />
+                    );
+                })}
 
                 <View style={styles.footerLinks}>
                     <TouchableOpacity onPress={handleRestore}>
@@ -178,11 +182,12 @@ export default function SubscriptionScreen() {
     );
 }
 
-function TierCard({ tier, isCurrent, onPress, index }: {
+function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
     tier: any;
     isCurrent: boolean;
     onPress: () => void;
     index: number;
+    isAvailable?: boolean;
 }) {
     const { colors } = useTheme();
     const Icon = tier.icon;
@@ -236,13 +241,13 @@ function TierCard({ tier, isCurrent, onPress, index }: {
 
                 <View style={[
                     styles.cardAction,
-                    { backgroundColor: isCurrent ? COLORS.subtle : COLORS.ink }
+                    { backgroundColor: isCurrent ? COLORS.subtle : !isAvailable ? COLORS.separator : COLORS.ink }
                 ]}>
                     <Typography
                         variant="label"
-                        style={{ color: isCurrent ? COLORS.ink : COLORS.paper, fontSize: 12 }}
+                        style={{ color: isCurrent ? COLORS.ink : !isAvailable ? COLORS.stone : COLORS.paper, fontSize: 12 }}
                     >
-                        {isCurrent ? "ACTIVE PLAN" : "UPGRADE"}
+                        {isCurrent ? "ACTIVE PLAN" : !isAvailable ? "UNAVAILABLE" : "UPGRADE"}
                     </Typography>
                 </View>
             </TouchableOpacity>

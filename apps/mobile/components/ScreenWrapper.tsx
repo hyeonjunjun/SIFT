@@ -38,10 +38,14 @@ export default function ScreenWrapper({ children, style, contentStyle, edges = [
         <View style={[
             styles.container,
             { backgroundColor: colors.canvas },
-            isWeb && { maxWidth: 800, alignSelf: 'center', width: '100%' },
             style
         ]}>
-            <View style={[styles.content, safeStyle, contentStyle]}>
+            <View style={[
+                styles.content,
+                safeStyle,
+                contentStyle,
+                isWeb && { maxWidth: 800, width: '100%', alignSelf: 'center' }
+            ]}>
                 {children}
             </View>
         </View>

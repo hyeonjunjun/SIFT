@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import Purchases, { CustomerInfo } from 'react-native-purchases';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 export type Tier = 'free' | 'plus' | 'unlimited' | 'admin';
 
@@ -61,6 +62,8 @@ export const useSubscription = () => {
 
     // Initial fetch of RevenueCat customer info
     useEffect(() => {
+        if (Platform.OS === 'web') return; // Skip RevenueCat on Web
+
         const fetchInfo = async () => {
             try {
                 const info = await Purchases.getCustomerInfo();
@@ -76,7 +79,7 @@ export const useSubscription = () => {
         Purchases.addCustomerInfoUpdateListener(listener);
 
         return () => {
-            // Cleanup listener if needed (though Purchases.removeCustomerInfoUpdateListener is not in some versions)
+            // Cleanup listener if needed
         };
     }, []);
 
@@ -86,6 +89,8 @@ export const useSubscription = () => {
         // Admin override first
         if (profile?.tier === 'admin') return 'admin';
 
+        if (Platform.OS === 'web') return 'unlimited'; // Mock for web
+
         if (customerInfo?.entitlements.active['unlimited']) return 'unlimited';
         if (customerInfo?.entitlements.active['plus']) return 'plus';
 
@@ -94,6 +99,7 @@ export const useSubscription = () => {
 
     // Synchronize Tier back to Supabase if it changed
     useEffect(() => {
+        if (Platform.OS === 'web') return; // Skip syncing mock tier on web
         if (user && profile && tier !== profile.tier && profile.tier !== 'admin') {
             console.log(`[useSubscription] Syncing tier change: ${profile.tier} -> ${tier}`);
             updateProfileInDB({ tier });
