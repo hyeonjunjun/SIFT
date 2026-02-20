@@ -13,18 +13,16 @@
   --color-success: #7D9389;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-ink: #FFFFFF;
-    --color-paper: #141413;
-    --color-canvas: #000000;
-    --color-stone: #999995;
-    --color-separator: #2A2A28;
-    --color-subtle: #1F1F1E;
-    --color-accent: #7E8DA4;
-    --color-danger: #CF6679;
-    --color-success: #81C784;
-  }
+:root.dark {
+  --color-ink: #FFFFFF;
+  --color-paper: #141413;
+  --color-canvas: #000000;
+  --color-stone: #999995;
+  --color-separator: #2A2A28;
+  --color-subtle: #1F1F1E;
+  --color-accent: #7E8DA4;
+  --color-danger: #CF6679;
+  --color-success: #81C784;
 }
 
 @theme inline {
