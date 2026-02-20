@@ -9,7 +9,7 @@ interface Sift {
     title: string;
     summary: string;
     url: string;
-    metadata?: { ogImage?: string };
+    metadata?: { image_url?: string };
     cover_image?: string;
     tags?: string[];
     created_at: string;
@@ -89,16 +89,16 @@ export default function LibraryView({ initialSifts }: { initialSifts: Sift[] }) 
                                     title={sift.title}
                                     summary={sift.summary}
                                     url={sift.url}
-                                    imageUrl={sift.metadata?.ogImage || sift.cover_image}
+                                    imageUrl={sift.metadata?.image_url || sift.cover_image}
                                     tags={sift.tags}
                                     createdAt={sift.created_at}
                                 />
                             ) : (
                                 <div key={sift.id} className="bg-paper border border-separator rounded-xl p-4 flex items-center gap-4 hover:shadow-medium transition-shadow">
                                     {/* Minimal List View Row */}
-                                    {sift.metadata?.ogImage || sift.cover_image ? (
+                                    {sift.metadata?.image_url || sift.cover_image ? (
                                         <div className="h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-subtle">
-                                            <img src={sift.metadata?.ogImage || sift.cover_image} alt="" className="object-cover w-full h-full" />
+                                            <img src={sift.metadata?.image_url || sift.cover_image} alt="" className="object-cover w-full h-full" />
                                         </div>
                                     ) : (
                                         <div className="h-16 w-16 shrink-0 rounded-lg bg-subtle flex items-center justify-center border border-separator/50">

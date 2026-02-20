@@ -39,7 +39,7 @@ export default async function RecentSifts() {
                     title={sift.title}
                     summary={sift.summary}
                     url={sift.url}
-                    imageUrl={sift.metadata?.ogImage || sift.cover_image} // Fallback to cover_image if ogImage isn't in metadata
+                    imageUrl={sift.metadata?.image_url || sift.cover_image} // Fallback to cover_image if image_url isn't in metadata
                     tags={sift.tags}
                     createdAt={sift.created_at}
                 />
