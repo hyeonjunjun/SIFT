@@ -245,7 +245,7 @@ export default function SocialScreen() {
             )}
 
             <View style={styles.tabsContainer}>
-                <TouchableOpacity onPress={() => { setActiveTab('shared'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]}>
+                <TouchableOpacity onPress={() => { setActiveTab('shared'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>SHARED</Typography>
                         {sharedSifts.length > 0 && (
@@ -255,7 +255,7 @@ export default function SocialScreen() {
                         )}
                     </View>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setActiveTab('friends'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]}>
+                <TouchableOpacity onPress={() => { setActiveTab('friends'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>FRIENDS</Typography>
                         {incomingRequests.length > 0 && (
@@ -395,10 +395,10 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline }: 
                     </View>
                 ) : (
                     <View style={styles.actionRow}>
-                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.success }]} onPress={onAccept}>
+                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.success }]} onPress={onAccept} hitSlop={12}>
                             <Check size={16} color="white" weight="bold" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: 'rgba(255,59,48,0.1)' }]} onPress={onDecline}>
+                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: 'rgba(255,59,48,0.1)' }]} onPress={onDecline} hitSlop={12}>
                             <X size={16} color={COLORS.danger} weight="bold" />
                         </TouchableOpacity>
                     </View>

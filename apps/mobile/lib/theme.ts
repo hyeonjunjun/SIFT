@@ -5,24 +5,24 @@ export const LIGHT_COLORS = {
     ink: '#1A1A18',       // High-Contrast Deep Matte Ink
     paper: '#FFFFFF',     // Pure White
     canvas: '#FAF9F6',    // Refined Warm Oatmeal (Off-White)
-    stone: '#8E8E8A',     // Warm Grey
-    separator: '#E8E8E3', // Subtle Organic Divider
-    subtle: '#F4F4F0',    // Soft Background Highlight
-    accent: '#6E7C94',    // Muted Slate
-    danger: '#B56E56',    // Clay Red
-    success: '#7D9389',   // Sage Green
+    stone: '#6A6A65',     // WCAG 3.0 Compliant Darker Grey (was #8E8E8A)
+    separator: '#E0E0D8', // Slightly more defined border
+    subtle: '#F2F2EC',    // Soft Background Highlight
+    accent: '#5A6A80',    // Darker Muted Slate for contrast
+    danger: '#A45844',    // Darker Clay Red for contrast
+    success: '#688075',   // Darker Sage Green for contrast
 };
 
 export const DARK_COLORS = {
-    ink: '#FFFFFF',       // Pure White (Primary Text) - Increased from Bone White
+    ink: '#FFFFFF',       // Pure White (Primary Text)
     paper: '#141413',     // Slightly darker Obsidian
     canvas: '#000000',    // True Black (Backgrounds)
-    stone: '#999995',     // Lighter Stone (Secondary Text) - Increased contrast
-    separator: '#2A2A28', // Slightly more visible dividers
-    subtle: '#1F1F1E',    // Dark Highlight
-    accent: '#7E8DA4',    // Muted Slate Blue
-    danger: '#CF6679',    // Brighter Red (Material Dark standard)
-    success: '#81C784',   // Brighter Green
+    stone: '#A2A29D',     // WCAG 3.0 Compliant Lighter Grey (was #999995)
+    separator: '#333330', // More visible dividers
+    subtle: '#222220',    // Dark Highlight
+    accent: '#8CA0BB',    // Lighter Slate Blue for contrast
+    danger: '#D97787',    // Brighter Red
+    success: '#90D493',   // Brighter Green
 };
 
 export const HIGH_CONTRAST_LIGHT_COLORS = {

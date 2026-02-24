@@ -40,24 +40,31 @@ export const TEXT: Record<string, TextStyle> = {
         fontSize: 17,
         fontWeight: '400',
         color: COLORS.ink,
-        lineHeight: 26,
+        lineHeight: 26, // WCAG 1.5x
+        letterSpacing: 0.2, // Improved kerning
     },
     bodyMedium: {
         fontFamily: 'Inter_500Medium',
         fontSize: 15,
         fontWeight: '500',
         color: COLORS.ink,
+        lineHeight: 22.5,
+        letterSpacing: 0.15,
     },
     subhead: {
         fontFamily: 'Inter_400Regular',
         fontSize: 15,
         fontWeight: '400',
         color: COLORS.stone, // Secondary Text
+        lineHeight: 22.5,
+        letterSpacing: 0.15,
     },
     caption: {
         fontFamily: 'Inter_500Medium',
         fontSize: 12,
         fontWeight: '500',
         color: COLORS.stone,
+        lineHeight: 18,
+        letterSpacing: 0.25,
     }
 };

@@ -66,27 +66,28 @@ const HeroCardComponent = ({ id, title, tags = [], imageUrl, isPinned, onToggleP
                     ) : (
                         <View style={[styles.placeholder, { backgroundColor: colors.subtle }]} />
                     )}
-
-                    <Pressable
-                        onPress={handlePinPress}
-                        hitSlop={12}
-                        style={{
-                            position: 'absolute',
-                            top: 10,
-                            right: 10,
-                            backgroundColor: isPinned ? colors.paper : 'rgba(255,255,255,0.85)',
-                            padding: 6,
-                            borderRadius: RADIUS.pill,
-                            ...Theme.shadows.sharp
-                        }}
-                    >
-                        <PinIcon
-                            size={12}
-                            color={isPinned ? colors.ink : 'rgba(0,0,0,0.5)'}
-                            weight={isPinned ? "fill" : "regular"}
-                        />
-                    </Pressable>
                 </View>
+
+                <Pressable
+                    onPress={handlePinPress}
+                    hitSlop={16}
+                    style={{
+                        position: 'absolute',
+                        top: 10,
+                        right: 10,
+                        backgroundColor: isPinned ? colors.paper : 'rgba(255,255,255,0.85)',
+                        padding: 6,
+                        borderRadius: RADIUS.pill,
+                        ...Theme.shadows.sharp
+                    }}
+                >
+                    <PinIcon
+                        size={12}
+                        color={isPinned ? colors.ink : 'rgba(0,0,0,0.5)'}
+                        weight={isPinned ? "fill" : "regular"}
+                    />
+                </Pressable>
+
                 <View style={styles.textContainer}>
                     <Typography variant="label" style={styles.categoryText}>
                         {category.toUpperCase()}

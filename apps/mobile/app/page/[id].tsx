@@ -416,6 +416,7 @@ export default function PageDetail() {
                                     router.back();
                                 }}
                                 style={styles.navButton}
+                                hitSlop={16}
                             >
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
@@ -423,7 +424,7 @@ export default function PageDetail() {
                                 <Typography variant="label" color="stone" style={styles.smallCapsLabel}>SAVED • ARTIFACT</Typography>
                                 <Typography variant="h1" numberOfLines={1} style={styles.serifTitle}>{page?.title || 'Loading...'}</Typography>
                             </View>
-                            <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton}>
+                            <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton} hitSlop={16}>
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
                             {isShared && (
@@ -433,6 +434,7 @@ export default function PageDetail() {
                                         router.replace('/(tabs)/');
                                     }}
                                     style={[styles.navButton, { marginLeft: 8 }]}
+                                    hitSlop={16}
                                 >
                                     <House size={28} color={colors.ink} />
                                 </TouchableOpacity>

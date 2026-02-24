@@ -19,8 +19,8 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     : null;
 
 const SYSTEM_PROMPT = `
-    You are an expert curator and archivist.
-    Your goal is to read the provided web content and synthesize it into a structured JSON response.
+    You are an expert curator, archivist, and summarizer.
+    Your goal is to deeply analyze the provided web content and synthesize it into a structured JSON response.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
@@ -38,16 +38,19 @@ const SYSTEM_PROMPT = `
     - Select exactly 2-3 tags.
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
-    - **Voice**: Clean, concise, functional.
-    - **Structure**:
-      - Start with a 1-sentence synopsis.
-      - Use **H2 (##)** for headers.
-      - Use **Bold** for key items.
-      - Use **Bullet Points** for lists.
+    - **Depth & Flexibility**: Do not artificially constrain the length of the summary. Be as comprehensive, complex, and detailed as necessary to retain the core value of the original content. Extract key arguments, useful data, comprehensive lists, and nuanced perspectives.
+    - **Voice**: Clean, highly informative, and functional.
+    - **Markdown Structure**:
+      - Start with a 1-2 sentence synopsis setting the context.
+      - Use **H2 (##)** and **H3 (###)** for structural headers.
+      - Use **Bold** to emphasize key terms, names, or metrics.
+      - Use **Bullet Points**, **Numbered Lists**, and **Blockquotes** where appropriate to break up text and improve readability.
+      - If there are code snippets or technical commands, enclose them in proper markdown code blocks.
     
-    **CRITICAL FOR RECIPES/HOW-TO:**
-    - If the content is a Recipe, you MUST extract the full **Ingredients** and **Preparation/Steps** verbatim into the markdown.
-    - Use headers: ## Ingredients, ## Preparation.
+    **DOMAIN SPECIFIC CRITICAL RULES:**
+    - **Recipes/How-To**: You MUST extract the full **Ingredients** and ALL **Steps** verbatim and comprehensively into the markdown. 
+    - **Technical Articles/Tutorials**: Preserve critical commands, configurations, and core logic.
+    - **Long-form Essays/News**: Summarize the overarching thesis, then break down the primary arguments or events sequentially.
 `;
 
 function extractMetaTags(html: string) {

@@ -227,7 +227,7 @@ const PendingRow = React.memo(({ item, colors, onRetry, getDomain, formatDate }:
 
                 {/* Retry button */}
                 {isFailed && (
-                    <Pressable onPress={handleRetry} style={styles.retryButton} hitSlop={12}>
+                    <Pressable onPress={handleRetry} style={styles.retryButton} hitSlop={16}>
                         <ArrowClockwise size={20} color={colors.ink} weight="bold" />
                     </Pressable>
                 )}

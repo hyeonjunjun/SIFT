@@ -123,7 +123,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             onPin?.(id);
                         }}
-                        hitSlop={12}
+                        hitSlop={16}
                         style={{
                             position: 'absolute',
                             top: 14,

@@ -12,9 +12,10 @@ export default function SiftContent({ content }: { content: string }) {
                 h2: ({ node, ...props }) => <h2 className="text-2xl font-serif font-bold text-ink mt-8 mb-4" {...props} />,
                 h3: ({ node, ...props }) => <h3 className="text-xl font-serif font-bold text-ink mt-6 mb-3" {...props} />,
                 p: ({ node, ...props }) => <p className="text-base text-ink leading-relaxed mb-4" {...props} />,
-                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-2 mb-4 text-ink" {...props} />,
-                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-2 mb-4 text-ink" {...props} />,
-                li: ({ node, ...props }) => <li className="text-base" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-2 mb-4 text-ink marker:text-ink" {...props} />,
+                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-2 mb-4 text-ink marker:text-ink" {...props} />,
+                li: ({ node, ...props }) => <li className="text-base text-ink" {...props} />,
+                strong: ({ node, ...props }) => <strong className="font-bold text-ink" {...props} />,
                 a: ({ node, ...props }) => <a className="text-accent hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                 blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-separator pl-4 italic text-stone my-4" {...props} />,
                 code: ({ node, className, children, ...props }) => {

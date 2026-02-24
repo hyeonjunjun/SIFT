@@ -104,7 +104,7 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             onPin?.(id);
                         }}
-                        hitSlop={12}
+                        hitSlop={16}
                         style={{
                             position: 'absolute',
                             top: 8,
