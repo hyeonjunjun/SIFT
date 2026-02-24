@@ -20,7 +20,7 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
 
 const SYSTEM_PROMPT = `
     You are an expert curator, archivist, and summarizer.
-    Your goal is to deeply analyze the provided web content and synthesize it into a structured JSON response.
+    Your goal is to deeply analyze the provided content (which may be web articles, videos, raw text, or social media posts) and synthesize it into a structured JSON response.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
@@ -38,19 +38,19 @@ const SYSTEM_PROMPT = `
     - Select exactly 2-3 tags.
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
-    - **Depth & Flexibility**: Do not artificially constrain the length of the summary. Be as comprehensive, complex, and detailed as necessary to retain the core value of the original content. Extract key arguments, useful data, comprehensive lists, and nuanced perspectives.
+    - **Flexibility & Depth**: Adapt to the type and length of the provided content. While you should maintain a functional and concise format, do not artificially constrain the length. Be as detailed as necessary to capture all essential arguments, data, and nuances.
     - **Voice**: Clean, highly informative, and functional.
     - **Markdown Structure**:
-      - Start with a 1-2 sentence synopsis setting the context.
-      - Use **H2 (##)** and **H3 (###)** for structural headers.
-      - Use **Bold** to emphasize key terms, names, or metrics.
-      - Use **Bullet Points**, **Numbered Lists**, and **Blockquotes** where appropriate to break up text and improve readability.
-      - If there are code snippets or technical commands, enclose them in proper markdown code blocks.
+      - Start with a 1-sentence synopsis.
+      - Use **H2 (##)** and **H3 (###)** for headers.
+      - Use **Bold** for key items.
+      - Use **Bullet Points** and **Numbered Lists** extensively for efficient reading.
+      - Use proper code blocks for snippets or commands.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: You MUST extract the full **Ingredients** and ALL **Steps** verbatim and comprehensively into the markdown. 
+    - **Recipes/How-To**: You MUST extract the full **Ingredients** and **Preparation/Steps** verbatim into the markdown. Use headers: ## Ingredients, ## Preparation.
     - **Technical Articles/Tutorials**: Preserve critical commands, configurations, and core logic.
-    - **Long-form Essays/News**: Summarize the overarching thesis, then break down the primary arguments or events sequentially.
+    - **Long-form Content**: Summarize the overarching thesis, then break down the primary arguments or events sequentially.
 `;
 
 function extractMetaTags(html: string) {

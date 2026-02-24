@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     text: {
         fontSize: 14,
         fontWeight: '500',
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
     },
     textActive: {
         color: '#FAF9F6', // Keep this as is for contrast on ink background

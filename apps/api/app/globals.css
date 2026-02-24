@@ -2,27 +2,27 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --color-ink: #1A1A18;
-  --color-paper: #FFFFFF;
-  --color-canvas: #FAF9F6;
-  --color-stone: #8E8E8A;
-  --color-separator: #E8E8E3;
-  --color-subtle: #F4F4F0;
-  --color-accent: #6E7C94;
-  --color-danger: #B56E56;
-  --color-success: #7D9389;
+  --color-ink: oklch(0.35 0.02 45);
+  --color-paper: oklch(0.99 0.005 85);
+  --color-canvas: oklch(0.98 0.01 85);
+  --color-stone: oklch(0.56 0.015 45);
+  --color-separator: oklch(0.92 0.008 85);
+  --color-subtle: oklch(0.96 0.008 85);
+  --color-accent: oklch(0.72 0.08 45);
+  --color-danger: oklch(0.62 0.12 25);
+  --color-success: oklch(0.72 0.05 160);
 }
 
 :root.dark {
-  --color-ink: #FFFFFF;
-  --color-paper: #141413;
-  --color-canvas: #000000;
-  --color-stone: #999995;
-  --color-separator: #2A2A28;
-  --color-subtle: #1F1F1E;
-  --color-accent: #7E8DA4;
-  --color-danger: #CF6679;
-  --color-success: #81C784;
+  --color-ink: oklch(0.95 0.01 85);
+  --color-paper: oklch(0.18 0.01 45);
+  --color-canvas: oklch(0.13 0.01 45);
+  --color-stone: oklch(0.72 0.015 45);
+  --color-separator: oklch(0.28 0.01 45);
+  --color-subtle: oklch(0.22 0.01 45);
+  --color-accent: oklch(0.78 0.07 45);
+  --color-danger: oklch(0.72 0.10 25);
+  --color-success: oklch(0.78 0.04 160);
 }
 
 @theme inline {
@@ -36,7 +36,7 @@
   --color-danger: var(--color-danger);
   --color-success: var(--color-success);
 
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-satoshi);
   --font-serif: var(--font-playfair);
   --font-mono: var(--font-geist-mono);
 }

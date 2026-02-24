@@ -11,40 +11,40 @@ export const TEXT: Record<string, TextStyle> = {
         letterSpacing: -0.5,
     },
     h2: {
-        fontFamily: 'PlayfairDisplay_600SemiBold', // Use SemiBold Serif if available, otherwise 700
+        fontFamily: 'PlayfairDisplay_600SemiBold',
         fontSize: 28,
         fontWeight: '600',
         color: COLORS.ink,
         letterSpacing: -0.3,
     },
     h3: {
-        fontFamily: 'Inter_600SemiBold',
+        fontFamily: 'Satoshi-Bold',
         fontSize: 20,
-        fontWeight: '600', // Apple Style Title 3
+        fontWeight: '600',
         color: COLORS.ink,
     },
 
-    // Technical Labels (Sans-Serif)
+    // Technical Labels (Sans-Serif — Satoshi)
     label: {
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
         fontSize: 13,
         fontWeight: '600',
         color: COLORS.stone,
         letterSpacing: 0.8,
-        textTransform: 'uppercase', // Force branding feel
+        textTransform: 'uppercase',
     },
 
-    // Reading Text (Sans-Serif)
+    // Reading Text (Sans-Serif — Satoshi)
     body: {
-        fontFamily: 'Inter_400Regular',
+        fontFamily: 'Satoshi-Regular',
         fontSize: 17,
         fontWeight: '400',
         color: COLORS.ink,
-        lineHeight: 26, // WCAG 1.5x
-        letterSpacing: 0.2, // Improved kerning
+        lineHeight: 26,
+        letterSpacing: 0.2,
     },
     bodyMedium: {
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
         fontSize: 15,
         fontWeight: '500',
         color: COLORS.ink,
@@ -52,15 +52,15 @@ export const TEXT: Record<string, TextStyle> = {
         letterSpacing: 0.15,
     },
     subhead: {
-        fontFamily: 'Inter_400Regular',
+        fontFamily: 'Satoshi-Regular',
         fontSize: 15,
         fontWeight: '400',
-        color: COLORS.stone, // Secondary Text
+        color: COLORS.stone,
         lineHeight: 22.5,
         letterSpacing: 0.15,
     },
     caption: {
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
         fontSize: 12,
         fontWeight: '500',
         color: COLORS.stone,

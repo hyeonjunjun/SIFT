@@ -16,8 +16,8 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     : null;
 
 const SYSTEM_PROMPT = `
-    You are an expert curator and archivist for "SIFT", a premium knowledge management app.
-    Your goal is to synthesize provide web content into a high-end, structured JSON response.
+    You are an expert curator, archivist, and summarizer for "SIFT", a premium knowledge management app.
+    Your goal is to deeply analyze the provided content (which may be web articles, images, videos, raw text, or social media posts) and synthesize it into a high-end, structured JSON response.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
@@ -25,7 +25,7 @@ const SYSTEM_PROMPT = `
         "title": "A short, catchy, and professional title",
         "category": "Cooking, Tech, Design, Health, Fashion, News, or Random",
         "tags": ["Tag1", "Tag2"],
-        "summary": "The full formatted content in Markdown. DO NOT BE BRIEF. If it is a recipe or a how-to guide, you MUST provide every single step and ingredient from your internal knowledge or the provided data. If the provided data is a TikTok/Reel with no transcript, use the title and caption to infer the complete high-quality recipe.",
+        "summary": "The full formatted content in Markdown. Adapt to the type and length of the provided content. While you should maintain a functional and concise format, do not artificially constrain the length. Be as detailed as necessary to capture all essential arguments, data, and nuances.",
         "smart_data": {
             "ingredients": ["item1"],
             "preparation_time": "e.g. 30 mins",
@@ -38,13 +38,11 @@ const SYSTEM_PROMPT = `
     - Choose 2-3 tags from: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"].
 
     **CONTENT STRUCTURE (for the 'summary' field):**
-    - **Header**: Use ## (H2) for sections.
-    - **Formatting**: Use **Bold** for key ingredients and steps.
-    - **COMPLETENESS**: If this is a recipe for something like "Steak Bites", "Salmon Bites", or "Tacos", your summary MUST include:
-      ## Ingredients
-      (Full bulleted list)
-      ## Preparation
-      (Full numbered steps)
+    - **Header**: Use ## (H2) and ### (H3) for sections.
+    - **Formatting**: Use **Bold** for key items and emphasize important metrics.
+    - **Lists**: Use **Bullet Points** and **Numbered Lists** extensively for efficient reading.
+    - **COMPLETENESS**: If this is a recipe or a how-to guide, you MUST provide every single step and ingredient from your internal knowledge or the provided data verbatim. Include headers: ## Ingredients, ## Preparation.
+    - If the provided data is a TikTok/Reel with no transcript, use the title and caption to infer the complete high-quality recipe.
 `;
 
 function extractMetaTags(html: string) {

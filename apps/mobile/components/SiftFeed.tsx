@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: 1,
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
     },
     editOverlay: {
         ...StyleSheet.absoluteFillObject,

@@ -448,14 +448,14 @@ const styles = StyleSheet.create({
         ...Theme.shadows.soft,
     },
     socialButtonGoogleText: {
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
         color: COLORS.ink,
         fontSize: 15,
         fontWeight: '500',
         letterSpacing: 0.2,
     },
     socialButtonAppleText: {
-        fontFamily: 'Inter_500Medium',
+        fontFamily: 'Satoshi-Medium',
         color: COLORS.paper,
         fontSize: 15,
         fontWeight: '500',

@@ -110,7 +110,7 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
         section: { marginTop: 16, marginBottom: 8 },
         groupContainer: { marginBottom: 16 },
         header: { fontSize: 22, fontWeight: '700', marginBottom: 12, color: colors.ink, fontFamily: 'PlayfairDisplay_600SemiBold' },
-        subHeader: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.stone, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Inter_500Medium' },
+        subHeader: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: colors.stone, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Satoshi-Medium' },
         row: { flexDirection: 'row', marginBottom: 8, paddingRight: 16 },
         stepRow: { flexDirection: 'row', marginBottom: 16, paddingRight: 16 },
         bullet: { marginRight: 8, fontSize: 18, color: colors.stone, lineHeight: 30 },

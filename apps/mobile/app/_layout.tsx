@@ -68,7 +68,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                             </Text>
                             <Text style={{
                                 fontSize: 16,
-                                fontFamily: 'Inter_400Regular',
+                                fontFamily: 'Satoshi-Regular',
                                 textAlign: 'center',
                                 color: LIGHT_COLORS.stone,
                                 marginBottom: 24,
@@ -124,7 +124,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 // Fonts
 import { useFonts, PlayfairDisplay_700Bold, PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display';
 import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif';
-import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
+// Satoshi: self-hosted humanist sans-serif (replaces Inter)
 import { GeistMono_400Regular } from '@expo-google-fonts/geist-mono';
 import { Lora_400Regular, Lora_500Medium, Lora_600SemiBold, Lora_400Regular_Italic } from '@expo-google-fonts/lora';
 
@@ -198,9 +198,9 @@ function RootLayoutNav() {
         PlayfairDisplay_700Bold,
         PlayfairDisplay_600SemiBold,
         InstrumentSerif_400Regular,
-        Inter_400Regular,
-        Inter_500Medium,
-        Inter_700Bold,
+        'Satoshi-Regular': require('../assets/fonts/Satoshi-Regular.ttf'),
+        'Satoshi-Medium': require('../assets/fonts/Satoshi-Medium.ttf'),
+        'Satoshi-Bold': require('../assets/fonts/Satoshi-Bold.ttf'),
         GeistMono_400Regular,
         Lora_400Regular,
         Lora_500Medium,

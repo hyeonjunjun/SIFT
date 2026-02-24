@@ -309,12 +309,21 @@ export default function LibraryScreen() {
     };
 
     const handleSaveCollection = async (data: Partial<CollectionData>) => {
+        const { id, ...updateData } = data;
         if (editingCollection) {
-            await supabase.from('folders').update(data).eq('id', editingCollection.id);
+            const { error } = await supabase
+                .from('folders')
+                .update(updateData)
+                .eq('id', editingCollection.id);
+            if (error) throw error;
         } else {
-            await supabase.from('folders').insert({ ...data, user_id: user?.id });
+            const { error } = await supabase
+                .from('folders')
+                .insert({ ...updateData, user_id: user?.id });
+            if (error) throw error;
         }
         queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        setEditingCollection(null);
         setCollectionModalVisible(false);
     };
 
@@ -524,10 +533,10 @@ export default function LibraryScreen() {
                                                 onLongPress={() => handleLongPressCollection(item)}
                                             >
                                                 <View style={styles.iconStackContainer}>
-                                                    <View style={[styles.stackBack, { backgroundColor: item.color || colors.subtle, transform: [{ rotate: '-3deg' }, { translateX: -2 }] }]} />
-                                                    <View style={[styles.stackMid, { backgroundColor: item.color || colors.subtle, transform: [{ rotate: '2deg' }, { translateX: 2 }] }]} />
+                                                    <View style={[styles.stackBack, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '-3deg' }, { translateX: -2 }] }]} />
+                                                    <View style={[styles.stackMid, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '2deg' }, { translateX: 2 }] }]} />
 
-                                                    <View style={[styles.iconContainer, { backgroundColor: item.color || colors.subtle }]}>
+                                                    <View style={[styles.iconContainer, { backgroundColor: item.color || colors.stone }]}>
                                                         {getIcon(item.icon, 24, '#FFFFFF')}
                                                         {item.is_pinned && (
                                                             <View style={styles.pinIndicator}>
@@ -558,7 +567,7 @@ export default function LibraryScreen() {
                                                 onPress={() => router.push(`/collection/${item.id}`)}
                                                 onLongPress={() => handleLongPressCollection(item)}
                                             >
-                                                <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.subtle }]}>
+                                                <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
                                                     {getIcon(item.icon, 18, '#FFFFFF')}
                                                 </View>
                                                 <View style={styles.listItemText}>
