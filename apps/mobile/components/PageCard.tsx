@@ -12,6 +12,7 @@ import { COLORS, RADIUS, Theme, LIGHT_COLORS, DARK_COLORS, TRANSITIONS } from '.
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { ActionSheet } from './modals/ActionSheet';
+import ShareSiftModal from './modals/ShareSiftModal';
 import { useTheme } from '../context/ThemeContext';
 
 interface PageCardProps {
@@ -74,6 +75,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
     };
 
     const [actionSheetVisible, setActionSheetVisible] = React.useState(false);
+    const [shareModalVisible, setShareModalVisible] = React.useState(false);
 
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -180,6 +182,13 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                 title={displayTitle || 'Options'}
                 options={[
                     {
+                        label: 'Send to a Friend',
+                        icon: require('phosphor-react-native').PaperPlaneTilt,
+                        onPress: () => {
+                            setTimeout(() => setShareModalVisible(true), 200);
+                        }
+                    },
+                    {
                         label: 'Copy Link',
                         icon: require('phosphor-react-native').Link,
                         onPress: () => {
@@ -219,6 +228,13 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                         onPress: () => { }
                     }
                 ]}
+            />
+
+            <ShareSiftModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                siftId={id}
+                siftTitle={displayTitle}
             />
         </>
     );

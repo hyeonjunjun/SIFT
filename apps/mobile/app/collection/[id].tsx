@@ -14,10 +14,12 @@ import SiftFeed from '../../components/SiftFeed';
 import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
+import { InviteFriendModal } from '../../components/modals/InviteFriendModal';
 import { useToast } from '../../context/ToastContext';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Minus, Trash } from 'phosphor-react-native';
+import { Minus, Trash, User } from 'phosphor-react-native';
+import { Image } from 'expo-image';
 
 
 export default function CollectionScreen() {
@@ -30,6 +32,7 @@ export default function CollectionScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [actionSheetVisible, setActionSheetVisible] = useState(false);
+    const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
     // Collection Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
@@ -46,7 +49,31 @@ export default function CollectionScreen() {
                 .eq('id', id)
                 .single();
             if (error) throw error;
-            return data as CollectionData;
+            return data as CollectionData & { user_id: string }; // Extended type dynamically
+        },
+        enabled: !!id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        retry: 2,
+    });
+
+    // Fetch members of this shared collection
+    const { data: members = [] } = useQuery({
+        queryKey: ['folder-members', id],
+        queryFn: async () => {
+            if (!id) return [];
+            const { data, error } = await supabase
+                .from('folder_members')
+                .select(`
+                    id,
+                    role,
+                    status,
+                    user:user_id ( id, username, display_name, avatar_url )
+                `)
+                .eq('folder_id', id)
+                .eq('status', 'accepted'); // Only show accepted participants
+
+            if (error) throw error;
+            return data;
         },
         enabled: !!id,
         staleTime: 1000 * 60 * 5, // 5 minutes
@@ -78,6 +105,17 @@ export default function CollectionScreen() {
         await refetch();
         setRefreshing(false);
     };
+
+    // Determine current user's role in this folder
+    const currentUserRole = React.useMemo(() => {
+        if (!user || !folder) return null;
+        if (folder.user_id === user.id) return 'owner';
+        const member = members.find((m: any) => m.user?.id === user.id);
+        return member ? member.role : null;
+    }, [user, folder, members]);
+
+    const isOwner = currentUserRole === 'owner';
+    const canContribute = isOwner || currentUserRole === 'contributor';
 
     const handleUpdateCollection = async (folderData: CollectionData) => {
         const { error } = await supabase
@@ -207,10 +245,50 @@ export default function CollectionScreen() {
                         <Typography variant="h3" numberOfLines={1} style={styles.headerTitle}>
                             {folder.name}
                         </Typography>
+
+                        {/* Member / Sift Info Row */}
                         {!isEditing && (
-                            <Typography variant="caption" color="stone" style={{ fontSize: 11, letterSpacing: 0.5 }}>
-                                {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
-                            </Typography>
+                            <View style={styles.memberInfoRow}>
+                                {members.length > 0 ? (
+                                    <View style={styles.avatarStack}>
+                                        {/* Always show the owner's avatar first if possible */}
+                                        <View style={[styles.stackedAvatarWrap, { zIndex: 4, borderColor: colors.canvas }]}>
+                                            <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                                                <User size={12} color={colors.stone} weight="bold" />
+                                            </View>
+                                        </View>
+                                        {members.slice(0, 3).map((member: any, index: number) => (
+                                            <View
+                                                key={member.id}
+                                                style={[
+                                                    styles.stackedAvatarWrap,
+                                                    { zIndex: 3 - index, marginLeft: -10, borderColor: colors.canvas }
+                                                ]}
+                                            >
+                                                {member.user?.avatar_url ? (
+                                                    <Image source={member.user.avatar_url} style={styles.stackedAvatar} />
+                                                ) : (
+                                                    <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                                                        <Typography variant="caption" style={{ fontSize: 8 }}>{member.user?.display_name?.charAt(0) || 'U'}</Typography>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        ))}
+                                        {members.length > 3 && (
+                                            <View style={[styles.stackedAvatarWrap, { zIndex: 0, marginLeft: -10, borderColor: colors.canvas, backgroundColor: colors.separator, justifyContent: 'center', alignItems: 'center' }]}>
+                                                <Typography variant="caption" style={{ fontSize: 8 }}>+{members.length - 3}</Typography>
+                                            </View>
+                                        )}
+                                        <Typography variant="caption" color="stone" style={{ fontSize: 11, marginLeft: 6 }}>
+                                            • {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
+                                        </Typography>
+                                    </View>
+                                ) : (
+                                    <Typography variant="caption" color="stone" style={{ fontSize: 11, letterSpacing: 0.5 }}>
+                                        {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
+                                    </Typography>
+                                )}
+                            </View>
                         )}
                     </View>
                 </View>
@@ -228,15 +306,18 @@ export default function CollectionScreen() {
                         <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
                             <ShareNetwork size={22} color={colors.ink} />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={() => {
-                                Haptics.selectionAsync();
-                                setActionSheetVisible(true);
-                            }}
-                            style={styles.actionButton}
-                        >
-                            <DotsThree size={24} color={colors.ink} weight="bold" />
-                        </TouchableOpacity>
+
+                        {(isOwner || canContribute) && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    Haptics.selectionAsync();
+                                    setActionSheetVisible(true);
+                                }}
+                                style={styles.actionButton}
+                            >
+                                <DotsThree size={24} color={colors.ink} weight="bold" />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
             </View>
@@ -279,19 +360,25 @@ export default function CollectionScreen() {
                 onClose={() => setActionSheetVisible(false)}
                 title={folder.name}
                 options={[
-                    {
+                    ...(isOwner ? [{
+                        label: 'Invite Friends',
+                        onPress: () => {
+                            setTimeout(() => setInviteModalVisible(true), 200);
+                        }
+                    }] : []),
+                    ...(canContribute ? [{
                         label: `Manage ${folder.name}`,
                         onPress: () => {
                             setIsEditing(true);
                         }
-                    },
-                    {
+                    }] : []),
+                    ...(isOwner ? [{
                         label: 'Edit Collection Details',
                         onPress: () => {
                             setTimeout(() => setEditModalVisible(true), 200);
                         }
-                    },
-                    {
+                    }] : []),
+                    ...(isOwner ? [{
                         label: 'Delete Collection',
                         isDestructive: true,
                         onPress: () => {
@@ -304,7 +391,7 @@ export default function CollectionScreen() {
                                 ]
                             );
                         }
-                    },
+                    }] : []),
                     {
                         label: 'Cancel',
                         isCancel: true,
@@ -318,6 +405,13 @@ export default function CollectionScreen() {
                 onClose={() => setPickerVisible(false)}
                 onSelect={handleAddSifts}
                 currentCollectionSiftIds={pages.map(p => p.id)}
+            />
+
+            <InviteFriendModal
+                visible={inviteModalVisible}
+                onClose={() => setInviteModalVisible(false)}
+                folderId={id as string}
+                folderName={folder.name}
             />
         </ScreenWrapper>
     );
@@ -369,6 +463,26 @@ const styles = StyleSheet.create({
     headerActions: {
         flexDirection: 'row',
         gap: 8,
+    },
+    memberInfoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+    avatarStack: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    stackedAvatarWrap: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+    },
+    stackedAvatar: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 11,
     },
     actionButton: {
         padding: 8,

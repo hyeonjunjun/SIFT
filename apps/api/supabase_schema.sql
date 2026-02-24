@@ -25,19 +25,38 @@ alter table public.pages enable row level security;
 do $$
 begin
   if not exists (select 1 from pg_policies where policyname = 'Authenticated users can read sifts' and tablename = 'pages') then
-    create policy "Authenticated users can read sifts" on public.pages for select to authenticated using (auth.uid() = user_id);
+    create policy "Authenticated users can read sifts" on public.pages for select to authenticated 
+    using (
+      auth.uid() = user_id OR 
+      (folder_id IS NOT NULL AND exists (
+        select 1 from public.folder_members where folder_members.folder_id = pages.folder_id and folder_members.user_id = auth.uid()
+      ))
+    );
   end if;
   
   if not exists (select 1 from pg_policies where policyname = 'Authenticated users can create sifts' and tablename = 'pages') then
-     create policy "Authenticated users can create sifts" on public.pages for insert to authenticated with check (auth.uid() = user_id);
+     create policy "Authenticated users can create sifts" on public.pages for insert to authenticated 
+     with check (
+       auth.uid() = user_id OR 
+       (folder_id IS NOT NULL AND exists (
+         select 1 from public.folder_members where folder_members.folder_id = pages.folder_id and folder_members.user_id = auth.uid() and folder_members.role in ('owner', 'contributor')
+       ))
+     );
   end if;
 
   if not exists (select 1 from pg_policies where policyname = 'Users can update their own sifts' and tablename = 'pages') then
-    create policy "Users can update their own sifts" on public.pages for update to authenticated using (auth.uid() = user_id);
+    create policy "Users can update their own sifts" on public.pages for update to authenticated 
+    using (auth.uid() = user_id);
   end if;
 
   if not exists (select 1 from pg_policies where policyname = 'Users can delete their own sifts' and tablename = 'pages') then
-    create policy "Users can delete their own sifts" on public.pages for delete to authenticated using (auth.uid() = user_id);
+    create policy "Users can delete their own sifts" on public.pages for delete to authenticated 
+    using (
+      auth.uid() = user_id OR 
+      (folder_id IS NOT NULL AND exists (
+        select 1 from public.folder_members where folder_members.folder_id = pages.folder_id and folder_members.user_id = auth.uid() and folder_members.role = 'owner'
+      ))
+    );
   end if;
 end $$;
 
@@ -187,7 +206,61 @@ alter table public.folders enable row level security;
 do $$
 begin
   if not exists (select 1 from pg_policies where policyname = 'Users can manage their own folders' and tablename = 'folders') then
-    create policy "Users can manage their own folders" on public.folders for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+    create policy "Users can manage their own folders" on public.folders for all to authenticated 
+    using (auth.uid() = user_id OR exists (
+      select 1 from public.folder_members fm where fm.folder_id = id and fm.user_id = auth.uid()
+    )) 
+    with check (auth.uid() = user_id);
+  end if;
+end $$;
+
+-- 6.5 Create folder_members table for shared collections
+create table if not exists public.folder_members (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  folder_id uuid references public.folders(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  invited_by uuid references auth.users(id),
+  role text default 'contributor' check (role in ('owner', 'contributor', 'viewer')),
+  status text default 'accepted' check (status in ('pending', 'accepted', 'declined')),
+  unique(folder_id, user_id)
+);
+
+-- Enable RLS for folder_members
+alter table public.folder_members enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can see their own memberships' and tablename = 'folder_members') then
+    create policy "Users can see their own memberships" on public.folder_members 
+    for select to authenticated 
+    using (auth.uid() = user_id OR exists (
+      select 1 from public.folders f where f.id = folder_id and f.user_id = auth.uid()
+    ));
+  end if;
+  
+  if not exists (select 1 from pg_policies where policyname = 'Folder owners can manage memberships' and tablename = 'folder_members') then
+    create policy "Folder owners can manage memberships" on public.folder_members 
+    for all to authenticated 
+    using (exists (
+      select 1 from public.folders f where f.id = folder_id and f.user_id = auth.uid()
+    ))
+    with check (exists (
+      select 1 from public.folders f where f.id = folder_id and f.user_id = auth.uid()
+    ));
+  end if;
+  
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own status' and tablename = 'folder_members') then
+    create policy "Users can manage their own status" on public.folder_members 
+    for update to authenticated 
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  end if;
+  
+  if not exists (select 1 from pg_policies where policyname = 'Users can leave shared folders' and tablename = 'folder_members') then
+    create policy "Users can leave shared folders" on public.folder_members 
+    for delete to authenticated 
+    using (auth.uid() = user_id);
   end if;
 end $$;
 
