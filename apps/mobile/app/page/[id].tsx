@@ -27,8 +27,7 @@ import { Typography } from '../../components/design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
-import { Plus, X, ArrowSquareOut, PlusCircle, BookOpenText, Article, SpeakerSimpleHigh } from 'phosphor-react-native';
-import { WebView } from 'react-native-webview';
+import { Plus, X, ArrowSquareOut, PlusCircle, SpeakerSimpleHigh } from 'phosphor-react-native';
 import * as Speech from 'expo-speech';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { useAuth } from '../../lib/auth';
@@ -55,7 +54,6 @@ export default function PageDetail() {
     const [editedTags, setEditedTags] = useState<string[]>([]);
     const [isShared, setIsShared] = useState(false);
     const [showDirectShare, setShowDirectShare] = useState(false);
-    const [readerMode, setReaderMode] = useState(false);
     const [reSifting, setReSifting] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -519,8 +517,8 @@ export default function PageDetail() {
                                 </View>
                             </View>
 
-                            {/* Card 3: Actions (2 cols) */}
-                            <View style={{ flexDirection: 'row', gap: 16 }}>
+                            {/* Card 3: Actions */}
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
                                 <TouchableOpacity
                                     style={[
                                         styles.bentoCard,
@@ -561,8 +559,8 @@ export default function PageDetail() {
                                             <ArrowSquareOut size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
                                         )
                                     )}
-                                    <Typography variant="label" color={isEditing || isShared ? "ink" : "stone"}>
-                                        {isEditing ? (saving ? 'Saving...' : 'Save') : (isShared ? (saving ? 'Adding...' : 'Add to My Library') : 'View Original')}
+                                    <Typography variant="label" color={isEditing || isShared ? "ink" : "stone"} numberOfLines={1} adjustsFontSizeToFit>
+                                        {isEditing ? (saving ? 'Saving...' : 'Save') : (isShared ? (saving ? 'Adding...' : 'Save') : 'Original')}
                                     </Typography>
                                 </TouchableOpacity>
                                 {!isEditing && (
@@ -572,7 +570,7 @@ export default function PageDetail() {
                                             onPress={() => setShowDirectShare(true)}
                                         >
                                             <PaperPlaneTilt size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" color="stone">Send</Typography>
+                                            <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Send</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: isSpeaking ? COLORS.accent : colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
@@ -593,14 +591,14 @@ export default function PageDetail() {
                                             }}
                                         >
                                             <SpeakerSimpleHigh size={24} color={isSpeaking ? '#FFFFFF' : colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" style={{ color: isSpeaking ? '#FFFFFF' : colors.stone }}>{isSpeaking ? 'Stop' : 'Listen'}</Typography>
+                                            <Typography variant="label" style={{ color: isSpeaking ? '#FFFFFF' : colors.stone }} numberOfLines={1} adjustsFontSizeToFit>{isSpeaking ? 'Stop' : 'Listen'}</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
                                             onPress={handleShare}
                                         >
                                             <Export size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" color="stone">Share</Typography>
+                                            <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Share</Typography>
                                         </TouchableOpacity>
                                     </>
                                 )}
@@ -619,69 +617,13 @@ export default function PageDetail() {
                                 )}
                             </View>
 
-                            {/* Reader Mode Toggle */}
-                            {page?.url && (
-                                <View style={{
-                                    flexDirection: 'row',
-                                    backgroundColor: colors.subtle,
-                                    borderRadius: RADIUS.pill,
-                                    padding: 3,
-                                    marginBottom: 16,
-                                    marginHorizontal: 4,
-                                }}>
-                                    <TouchableOpacity
-                                        onPress={() => { setReaderMode(false); Haptics.selectionAsync(); }}
-                                        style={{
-                                            flex: 1,
-                                            paddingVertical: 8,
-                                            borderRadius: RADIUS.pill,
-                                            backgroundColor: !readerMode ? colors.paper : 'transparent',
-                                            alignItems: 'center',
-                                            flexDirection: 'row',
-                                            justifyContent: 'center',
-                                            gap: 6,
-                                            ...(!readerMode ? Theme.shadows.soft : {}),
-                                        }}
-                                    >
-                                        <Article size={14} color={!readerMode ? colors.ink : colors.stone} weight={!readerMode ? 'bold' : 'regular'} />
-                                        <Typography variant="caption" style={{ fontWeight: !readerMode ? 'bold' : 'normal', color: !readerMode ? colors.ink : colors.stone }}>AI Summary</Typography>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        onPress={() => { setReaderMode(true); Haptics.selectionAsync(); }}
-                                        style={{
-                                            flex: 1,
-                                            paddingVertical: 8,
-                                            borderRadius: RADIUS.pill,
-                                            backgroundColor: readerMode ? colors.paper : 'transparent',
-                                            alignItems: 'center',
-                                            flexDirection: 'row',
-                                            justifyContent: 'center',
-                                            gap: 6,
-                                            ...(readerMode ? Theme.shadows.soft : {}),
-                                        }}
-                                    >
-                                        <BookOpenText size={14} color={readerMode ? colors.ink : colors.stone} weight={readerMode ? 'bold' : 'regular'} />
-                                        <Typography variant="caption" style={{ fontWeight: readerMode ? 'bold' : 'normal', color: readerMode ? colors.ink : colors.stone }}>Read Original</Typography>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-
-                            {/* Card 4: Editorial Content (Reader View) */}
+                            {/* Card 4: Editorial Content */}
                             <View style={{
                                 minHeight: 400,
                                 paddingHorizontal: 4,
-                                paddingTop: readerMode ? 0 : 16,
+                                paddingTop: 16,
                             }}>
-                                {readerMode && page?.url ? (
-                                    <View style={{ height: 600, borderRadius: RADIUS.m, overflow: 'hidden' }}>
-                                        <WebView
-                                            source={{ uri: page.url }}
-                                            style={{ flex: 1, borderRadius: RADIUS.m }}
-                                            startInLoadingState
-                                            showsVerticalScrollIndicator={false}
-                                        />
-                                    </View>
-                                ) : !isEditing ? (
+                                {!isEditing ? (
                                     <SafeContentRenderer content={content} />
                                 ) : (
                                     <TextInput
@@ -835,7 +777,8 @@ const styles = StyleSheet.create({
     actionCard: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 4,
     },
     tagRow: {
         marginBottom: 8,

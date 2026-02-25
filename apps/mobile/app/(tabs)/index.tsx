@@ -1066,7 +1066,8 @@ export default function HomeScreen() {
                             .from('folders')
                             .select('id, name')
                             .eq('user_id', user?.id)
-                            .order('name');
+                            .order('is_pinned', { ascending: false })
+                            .order('sort_order', { ascending: true });
                         if (!folders?.length) {
                             Alert.alert('No Collections', 'Create a collection first from Library.');
                             return;
@@ -1082,7 +1083,7 @@ export default function HomeScreen() {
                                 showToast(`Moved to ${f.name}`);
                             }
                         }));
-                        buttons.push({ text: 'Cancel', onPress: () => { } });
+                        buttons.push({ text: 'Cancel', onPress: async () => { } });
                         Alert.alert('Move to Collection', 'Choose a collection:', buttons);
                     } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
                 }}

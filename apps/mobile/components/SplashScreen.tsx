@@ -33,7 +33,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
         logoScale.value = withTiming(1, {
             duration: 1400,
-            easing: Easing.out(Easing.back(1.0)) // Muted springiness
+            easing: Easing.inOut(Easing.ease) // Smooth finish
         });
 
         // 3. Exit Sequence

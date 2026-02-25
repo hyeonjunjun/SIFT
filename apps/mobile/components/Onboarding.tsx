@@ -3,11 +3,10 @@ import { View, StyleSheet, useWindowDimensions, TouchableOpacity, ScrollView, An
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
-    withRepeat,
-    withSequence,
     withTiming,
     Easing,
+    withRepeat,
+    withSequence,
 } from 'react-native-reanimated';
 import { Typography } from './design-system/Typography';
 import { COLORS, RADIUS, Theme } from '../lib/theme';
@@ -88,11 +87,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     };
 
     const handleButtonPressIn = () => {
-        buttonScale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+        buttonScale.value = withTiming(0.96, { duration: 150, easing: Easing.inOut(Easing.ease) });
     };
 
     const handleButtonPressOut = () => {
-        buttonScale.value = withSpring(1, { damping: 15, stiffness: 400 });
+        buttonScale.value = withTiming(1, { duration: 150, easing: Easing.inOut(Easing.ease) });
     };
 
     const buttonAnimatedStyle = useAnimatedStyle(() => ({
@@ -151,7 +150,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                             scale: activeIndex === index ? 1 : 0.9,
                                             rotate: activeIndex === index ? '0deg' : '-5deg',
                                         }}
-                                        transition={{ type: 'spring', damping: 12 }}
+                                        transition={{ type: 'timing', duration: 400, easing: Easing.inOut(Easing.ease) }}
                                         style={[styles.illustrationContainer, { height: illustrationHeight }]}
                                     >
                                         {/* Gradient Card */}
@@ -171,7 +170,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                                     scale: activeIndex === index ? 1 : 0,
                                                     opacity: activeIndex === index ? 1 : 0
                                                 }}
-                                                transition={{ delay: 200, type: 'spring' }}
+                                                transition={{ delay: 200, type: 'timing', duration: 400, easing: Easing.inOut(Easing.ease) }}
                                             >
                                                 <Icon size={64} color={COLORS.ink} weight="light" />
                                             </MotiView>
@@ -186,7 +185,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                                 opacity: activeIndex === index ? 1 : 0,
                                                 translateY: activeIndex === index ? 0 : 30
                                             }}
-                                            transition={{ type: 'spring', damping: 15, delay: 100 }}
+                                            transition={{ type: 'timing', duration: 400, delay: 100, easing: Easing.inOut(Easing.ease) }}
                                         >
                                             <Typography variant="h1" style={[styles.title, { fontSize: titleSize, lineHeight: titleSize * 1.1 }]}>
                                                 {slide.title}
@@ -199,7 +198,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                                 opacity: activeIndex === index ? 1 : 0,
                                                 translateY: activeIndex === index ? 0 : 20
                                             }}
-                                            transition={{ type: 'spring', damping: 15, delay: 200 }}
+                                            transition={{ type: 'timing', duration: 400, delay: 200, easing: Easing.inOut(Easing.ease) }}
                                         >
                                             <Typography variant="body" style={styles.subtitle}>
                                                 {slide.subtitle}

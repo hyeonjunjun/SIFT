@@ -78,10 +78,10 @@ export const TRANSITIONS = {
     long: 500,
 };
 
-// Spring-based motion tokens
+// Timing-based motion tokens (replacing springs)
 export const MOTION = {
-    spring: { damping: 15, stiffness: 200 },   // Standard interactions
-    gentle: { damping: 20, stiffness: 120 },    // Slow reveals, page transitions
+    standard: { duration: 300, easing: 'ease-in-out' },
+    gentle: { duration: 500, easing: 'ease-out' },
 } as const;
 
 export const Theme = {

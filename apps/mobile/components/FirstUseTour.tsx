@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInDown, Easing } from 'react-native-reanimated';
 import { Typography } from './design-system/Typography';
 import { COLORS, RADIUS, SPACING } from '../lib/theme';
 import { ArrowRight, X } from 'phosphor-react-native';
@@ -76,7 +76,7 @@ export function FirstUseTour() {
             pointerEvents="box-none"
         >
             <Animated.View
-                entering={SlideInDown.springify().damping(15)}
+                entering={SlideInDown.duration(400).easing(Easing.inOut(Easing.ease))}
                 style={[styles.card, positionStyle]}
             >
                 <TouchableOpacity style={styles.closeButton} onPress={handleDismiss}>

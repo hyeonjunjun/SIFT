@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Alert, Pressable, ActionSheetIOS, Modal } from 'react-native';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Alert, Pressable, ActionSheetIOS, Modal, Platform } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
@@ -109,6 +110,7 @@ export default function LibraryScreen() {
     const [editingSmartCollection, setEditingSmartCollection] = useState<SmartCollectionData | null>(null);
     const [isCategoryEditing, setIsCategoryEditing] = useState(false);
     const [siftPickerVisible, setSiftPickerVisible] = useState(false);
+    const [localCollections, setLocalCollections] = useState<CollectionData[]>([]);
 
     // Action Sheet State
     const [selectedSift, setSelectedSift] = useState<any | null>(null);
@@ -158,7 +160,7 @@ export default function LibraryScreen() {
 
     // Fetch collections
     const {
-        data: collections = [],
+        data: collectionsData,
         refetch: refetchCollections,
     } = useQuery({
         queryKey: ['folders', user?.id],
@@ -186,6 +188,44 @@ export default function LibraryScreen() {
         staleTime: 1000 * 60 * 5, // 5 minutes cache
         retry: 2,
     });
+
+    const collections = collectionsData || [];
+
+    // Sync local collections with query data
+    useEffect(() => {
+        if (collectionsData) {
+            setLocalCollections(collectionsData);
+        }
+    }, [collectionsData]);
+
+    // Update sort order mutation
+    const updateSortOrderMutation = useMutation({
+        mutationFn: async (updatedFolders: CollectionData[]) => {
+            const updates = updatedFolders.map((folder, index) => ({
+                ...folder,
+                sort_order: index,
+            }));
+
+            const { error } = await supabase
+                .from('folders')
+                .upsert(updates, { onConflict: 'id' });
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        },
+        onError: (error: any) => {
+            console.error('Error updating sort order:', error);
+            showToast('Failed to save order');
+        }
+    });
+
+    const onDragEnd = async ({ data }: { data: CollectionData[] }) => {
+        setLocalCollections(data);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        updateSortOrderMutation.mutate(data);
+    };
 
     // Fetch Smart Collections
     const { data: smartCollections = [], refetch: refetchSmartCollections } = useQuery({
@@ -512,10 +552,10 @@ export default function LibraryScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {collections.length > 0 ? (
+                        {localCollections.length > 0 ? (
                             viewMode === 'grid' ? (
                                 <View style={styles.collectionRow}>
-                                    {collections.map((item: any, index: number) => (
+                                    {localCollections.map((item: any, index: number) => (
                                         <MotiView
                                             key={item.id}
                                             from={{ opacity: 0, scale: 0.9, translateY: 10 }}
@@ -553,31 +593,40 @@ export default function LibraryScreen() {
                                     ))}
                                 </View>
                             ) : (
-                                <View style={styles.listContainer}>
-                                    {collections.map((item: any, index: number) => (
-                                        <MotiView
-                                            key={item.id}
-                                            from={{ opacity: 0, translateX: -10 }}
-                                            animate={{ opacity: 1, translateX: 0 }}
-                                            transition={{ type: 'timing', duration: 300, delay: index * 30 }}
-                                        >
-                                            <TouchableOpacity
-                                                activeOpacity={0.7}
-                                                style={[styles.listItem, { borderBottomColor: colors.separator }]}
-                                                onPress={() => router.push(`/collection/${item.id}`)}
-                                                onLongPress={() => handleLongPressCollection(item)}
-                                            >
-                                                <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
-                                                    {getIcon(item.icon, 18, '#FFFFFF')}
-                                                </View>
-                                                <View style={styles.listItemText}>
-                                                    <Typography variant="body" weight="600">{item.name}</Typography>
-                                                    {item.is_pinned && <Pin size={12} color={colors.stone} weight="fill" />}
-                                                </View>
-                                                <CaretRight size={16} color={colors.stone} />
-                                            </TouchableOpacity>
-                                        </MotiView>
-                                    ))}
+                                <View style={{ height: localCollections.length * 64, marginHorizontal: -20 }}>
+                                    <DraggableFlatList
+                                        data={localCollections}
+                                        onDragEnd={onDragEnd}
+                                        keyExtractor={(item) => item.id}
+                                        scrollEnabled={false}
+                                        renderItem={({ item, drag, isActive }: RenderItemParams<CollectionData>) => (
+                                            <ScaleDecorator>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    onLongPress={drag}
+                                                    disabled={isActive}
+                                                    style={[
+                                                        styles.listItem,
+                                                        {
+                                                            borderBottomColor: colors.separator,
+                                                            backgroundColor: isActive ? (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') : 'transparent',
+                                                            paddingHorizontal: 20,
+                                                        }
+                                                    ]}
+                                                    onPress={() => router.push(`/collection/${item.id}`)}
+                                                >
+                                                    <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
+                                                        {getIcon(item.icon, 18, '#FFFFFF')}
+                                                    </View>
+                                                    <View style={styles.listItemText}>
+                                                        <Typography variant="body" weight="600">{item.name}</Typography>
+                                                        {item.is_pinned && <Pin size={12} color={colors.stone} weight="fill" />}
+                                                    </View>
+                                                    <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                </TouchableOpacity>
+                                            </ScaleDecorator>
+                                        )}
+                                    />
                                 </View>
                             )
                         ) : (

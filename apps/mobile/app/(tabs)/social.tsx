@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
 import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
@@ -264,7 +264,7 @@ export default function SocialScreen() {
             } else if (event.translationX < -threshold && activeTab === 'shared') {
                 runOnJS(setActiveTab)('friends');
             }
-            translateX.value = withSpring(0);
+            translateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
         });
 
     const animatedStyle = useAnimatedStyle(() => ({
