@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActionSheet, ActionSheetOption } from './ActionSheet';
 import ShareSiftModal from './ShareSiftModal';
-import { PushPin, Trash, Link, PaperPlaneTilt, Tag, Folder } from 'phosphor-react-native';
+import { PushPin, Trash, Link, PaperPlaneTilt, Tag, Folder, CheckSquareOffset } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
@@ -21,6 +21,7 @@ interface SiftActionSheetProps {
     onDeleteForever?: (id: string) => void;
     onEditTags?: (id: string, tags: string[]) => void;
     onMoveToCollection?: (id: string) => void;
+    onSelectMultiple?: (id: string) => void;
     additionalOptions?: ActionSheetOption[];
 }
 
@@ -33,6 +34,7 @@ export const SiftActionSheet = ({
     onDeleteForever,
     onEditTags,
     onMoveToCollection,
+    onSelectMultiple,
     additionalOptions = []
 }: SiftActionSheetProps) => {
     const [shareModalVisible, setShareModalVisible] = useState(false);
@@ -76,6 +78,14 @@ export const SiftActionSheet = ({
             label: 'Edit Tags',
             icon: Tag,
             onPress: () => onEditTags?.(sift.id, sift.tags || []),
+        },
+        {
+            label: 'Select Multiple',
+            icon: CheckSquareOffset,
+            onPress: () => {
+                onClose();
+                setTimeout(() => onSelectMultiple?.(sift.id), 350);
+            }
         },
         ...additionalOptions,
         {

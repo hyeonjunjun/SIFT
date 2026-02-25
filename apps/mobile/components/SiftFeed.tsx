@@ -9,9 +9,10 @@ import { Article, Video } from 'phosphor-react-native';
 import PinIcon from './PinIcon';
 import Animated, { FadeIn, FadeOut, Layout, Easing, useSharedValue, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
+import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Minus, SquaresFour, Rows, CheckCircle } from 'phosphor-react-native';
+import { Minus, SquaresFour, Rows, CheckCircle, ListDashes } from 'phosphor-react-native';
 import { useAuth } from '../lib/auth';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
 import { FeedLoadingScreen } from './FeedLoadingScreen';
@@ -42,7 +43,7 @@ interface SiftFeedProps {
     onEditTags?: (id: string, currentTags: string[]) => void;
     onOptions?: (item: any) => void;
     onRemove?: (id: string) => void;
-    mode?: 'feed' | 'archive' | 'edit';
+    mode?: 'feed' | 'archive' | 'edit' | 'reorder';
     loading?: boolean;
     ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
     ListEmptyComponent?: React.ComponentType<any> | React.ReactElement | null;
@@ -52,6 +53,8 @@ interface SiftFeedProps {
     onEndReached?: () => void;
     onEndReachedThreshold?: number;
     viewMode?: 'grid' | 'list';
+    // Reorder
+    onDragEnd?: (data: Page[]) => void;
     // Multi-select
     isSelectMode?: boolean;
     selectedIds?: Set<string>;
@@ -85,7 +88,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     onEditTags?: (id: string, currentTags: string[]) => void,
     onOptions?: (item: any) => void,
     onRemove?: (id: string) => void,
-    mode?: 'feed' | 'archive' | 'edit',
+    mode?: 'feed' | 'archive' | 'edit' | 'reorder',
     isSelectMode?: boolean,
     isSelected?: boolean,
     onToggleSelect?: (id: string) => void,
@@ -140,11 +143,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     const handleLongPress = () => {
         if (isSelectMode) return; // Already in select mode
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        if (onEnterSelectMode) {
-            onEnterSelectMode(item.id);
-        } else {
-            onOptions?.(item);
-        }
+        onOptions?.(item);
     };
 
     // Container Padding Strategy:
@@ -360,6 +359,7 @@ export default function SiftFeed({
     selectedIds,
     onToggleSelect,
     onEnterSelectMode,
+    onDragEnd,
 }: SiftFeedProps) {
     const { colors, isDark } = useTheme();
 
@@ -377,6 +377,51 @@ export default function SiftFeed({
             {ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}
             <FeedLoadingScreen message="Loading your sifts..." />
         </View>
+    ) : mode === 'reorder' ? (
+        <DraggableFlatList
+            data={data}
+            onDragEnd={({ data }) => onDragEnd?.(data)}
+            keyExtractor={(item) => (item as any).id}
+            renderItem={({ item, drag, isActive }: RenderItemParams<Page>) => (
+                <ScaleDecorator>
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        onLongPress={drag}
+                        disabled={isActive}
+                        style={{ opacity: isActive ? 0.7 : 1, marginVertical: 4 }}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                            <TouchableOpacity onLongPress={drag} style={{ padding: 10 }}>
+                                <ListDashes size={20} color={colors.stone} />
+                            </TouchableOpacity>
+                            <View style={{ flex: 1 }}>
+                                <PageCard
+                                    id={item.id}
+                                    title={item.title}
+                                    gist={item.summary || ""}
+                                    url={item.url}
+                                    tags={item.tags}
+                                    isPinned={item.is_pinned}
+                                    imageUrl={item.metadata?.image_url}
+                                    onPin={onPin}
+                                    onDelete={onArchive}
+                                    onDeleteForever={onDeleteForever}
+                                />
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                </ScaleDecorator>
+            )}
+            ListHeaderComponent={ListHeaderComponent}
+            ListEmptyComponent={!loading ? ListEmptyComponent : null}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{
+                paddingHorizontal: 20, // Padded Container governs alignment
+                paddingBottom: 40,
+                ...contentContainerStyle
+            }}
+        />
     ) : (
         <FlashList
             data={data}

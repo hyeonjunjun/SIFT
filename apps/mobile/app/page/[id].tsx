@@ -140,19 +140,16 @@ export default function PageDetail() {
     };
 
     // 2. Define Gestures
-    const swipeLeft = Gesture.Fling()
-        .direction(Directions.LEFT)
-        .onEnd(() => {
-            if (nextId) runOnJS(handleNavigate)(nextId, 'next');
+    const composedGesture = Gesture.Pan()
+        .activeOffsetX([-30, 30])
+        .failOffsetY([-30, 30])
+        .onEnd((e) => {
+            if (e.velocityX < -400 && nextId) {
+                runOnJS(handleNavigate)(nextId, 'next');
+            } else if (e.velocityX > 400 && prevId) {
+                runOnJS(handleNavigate)(prevId, 'prev');
+            }
         });
-
-    const swipeRight = Gesture.Fling()
-        .direction(Directions.RIGHT)
-        .onEnd(() => {
-            if (prevId) runOnJS(handleNavigate)(prevId, 'prev');
-        });
-
-    const composedGesture = Gesture.Simultaneous(swipeLeft, swipeRight);
 
     // Helper for Worklets
     // (RunOnJS removed)
@@ -190,10 +187,23 @@ export default function PageDetail() {
                 .eq('id', id)
                 .single();
 
+            if (data) {
+                import('@react-native-async-storage/async-storage').then(({ default: AsyncStorage }) => {
+                    AsyncStorage.setItem(`@page_${id}`, JSON.stringify(data)).catch(() => { });
+                });
+            }
+
             if (error) {
+                const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+                const cached = await AsyncStorage.getItem(`@page_${id}`);
+                if (cached) {
+                    console.log(`[Fetch] Loading page ${id} from offline cache`);
+                    return JSON.parse(cached);
+                }
                 console.error('Error fetching page:', error);
                 throw error;
             }
+
             return data;
         },
         enabled: !!id,

@@ -177,10 +177,18 @@ export async function POST(request: Request) {
                             imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl
                         };
                     } else if (domain.includes('instagram.com')) {
+                        const images: string[] = [];
+                        if (rawItem.displayUrl) images.push(rawItem.displayUrl);
+                        if (rawItem.childPosts && Array.isArray(rawItem.childPosts)) {
+                            rawItem.childPosts.forEach((post: any) => {
+                                if (post.displayUrl && !images.includes(post.displayUrl)) images.push(post.displayUrl);
+                            });
+                        }
                         scrapedData = {
                             title: rawItem.caption?.substring(0, 50) || "Instagram Post",
                             description: rawItem.caption,
-                            imageUrl: rawItem.displayUrl
+                            imageUrl: rawItem.displayUrl,
+                            images: images.slice(0, 10)
                         };
                     } else if (domain.includes('youtube.com')) {
                         scrapedData = {
@@ -236,11 +244,19 @@ export async function POST(request: Request) {
 
         if (openai && scrapedData.description) {
             try {
+                let userContent: any = JSON.stringify(scrapedData);
+                if (scrapedData.images && scrapedData.images.length > 1) {
+                    userContent = [{ type: "text", text: JSON.stringify({ title: scrapedData.title, description: scrapedData.description }) }];
+                    scrapedData.images.forEach((img: string) => {
+                        userContent.push({ type: "image_url", image_url: { url: img } });
+                    });
+                }
+
                 const completion = await openai.chat.completions.create({
                     model: "gpt-4o",
                     messages: [
                         { role: "system", content: SYSTEM_PROMPT },
-                        { role: "user", content: JSON.stringify(scrapedData) }
+                        { role: "user", content: userContent }
                     ],
                     response_format: { type: "json_object" }
                 });

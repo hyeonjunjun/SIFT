@@ -36,6 +36,7 @@ export default function CollectionScreen() {
 
     // Collection Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
+    const [isReordering, setIsReordering] = useState(false);
     const [pickerVisible, setPickerVisible] = useState(false);
 
     // Fetch folder details
@@ -99,6 +100,41 @@ export default function CollectionScreen() {
         staleTime: 1000 * 60 * 5, // 5 minutes
         retry: 2,
     });
+
+    // Compute sorted pages
+    const sortedPages = React.useMemo(() => {
+        if (!pages || !folder?.page_order) return pages;
+        const pageMap = new Map((pages as any[]).map(p => [p.id, p]));
+        const sorted = [];
+        for (const pid of folder.page_order) {
+            if (pageMap.has(pid)) {
+                sorted.push(pageMap.get(pid));
+                pageMap.delete(pid);
+            }
+        }
+        return [...sorted, ...Array.from(pageMap.values())];
+    }, [pages, folder?.page_order]);
+
+    const handleReorderSifts = async (newOrder: any[]) => {
+        const newPageIds = newOrder.map(p => p.id);
+
+        queryClient.setQueryData(['folder', id], (old: any) => {
+            if (!old) return old;
+            return { ...old, page_order: newPageIds };
+        });
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        const { error } = await supabase
+            .from('folders')
+            .update({ page_order: newPageIds })
+            .eq('id', id);
+
+        if (error) {
+            showToast({ message: "Failed to save reorder.", type: 'error' });
+            queryClient.invalidateQueries({ queryKey: ['folder', id] });
+        }
+    };
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -220,8 +256,8 @@ export default function CollectionScreen() {
 
             {/* Header */}
             <View style={[styles.header, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
-                {isEditing ? (
-                    <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.backButton}>
+                {isEditing || isReordering ? (
+                    <TouchableOpacity onPress={() => { setIsEditing(false); setIsReordering(false); }} style={styles.backButton}>
                         <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
                     </TouchableOpacity>
                 ) : (
@@ -293,7 +329,7 @@ export default function CollectionScreen() {
                     </View>
                 </View>
 
-                {isEditing ? (
+                {isEditing || isReordering ? (
                     <TouchableOpacity onPress={() => {
                         Haptics.selectionAsync();
                         setPickerVisible(true)
@@ -325,10 +361,12 @@ export default function CollectionScreen() {
 
             {/* Sift Feed */}
             <SiftFeed
-                pages={pages as any}
+                pages={sortedPages as any}
                 loading={isLoading && fetchStatus === 'fetching'}
-                mode={isEditing ? 'edit' : 'feed'}
+                mode={isEditing ? 'edit' : isReordering ? 'reorder' : 'feed'}
                 onRemove={handleRemoveSift}
+                onDragEnd={handleReorderSifts}
+                viewMode={isReordering ? 'list' : 'grid'} // Force list view for reordering
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />
                 }
@@ -370,6 +408,12 @@ export default function CollectionScreen() {
                         label: `Manage ${folder.name}`,
                         onPress: () => {
                             setIsEditing(true);
+                        }
+                    }] : []),
+                    ...(canContribute && pages.length > 1 ? [{
+                        label: 'Reorder Sifts',
+                        onPress: () => {
+                            setIsReordering(true);
                         }
                     }] : []),
                     ...(isOwner ? [{

@@ -54,6 +54,7 @@ export interface CollectionData {
     is_pinned?: boolean;
     sort_order?: number;
     created_at?: string;
+    page_order?: string[];
 }
 
 interface CollectionModalProps {

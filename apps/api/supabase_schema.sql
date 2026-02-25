@@ -214,6 +214,14 @@ begin
   end if;
 end $$;
 
+-- Add page_order to folders if not exists (for custom sift sorting)
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'folders' and column_name = 'page_order') then
+    alter table public.folders add column page_order uuid[] default '{}'::uuid[];
+  end if;
+end $$;
+
 -- 6.5 Create folder_members table for shared collections
 create table if not exists public.folder_members (
   id uuid default gen_random_uuid() primary key,
@@ -467,9 +475,17 @@ create table if not exists public.blocked_users (
 );
 
 alter table public.blocked_users enable row level security;
-create policy "Users can view their own blocks" on public.blocked_users for select using (auth.uid() = blocker_id);
-create policy "Users can create blocks" on public.blocked_users for insert with check (auth.uid() = blocker_id);
-create policy "Users can remove their blocks" on public.blocked_users for delete using (auth.uid() = blocker_id);
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can view their own blocks' and tablename = 'blocked_users') then
+    create policy "Users can view their own blocks" on public.blocked_users for select using (auth.uid() = blocker_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Users can create blocks' and tablename = 'blocked_users') then
+    create policy "Users can create blocks" on public.blocked_users for insert with check (auth.uid() = blocker_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Users can remove their blocks' and tablename = 'blocked_users') then
+    create policy "Users can remove their blocks" on public.blocked_users for delete using (auth.uid() = blocker_id);
+  end if;
+end $$;
 
 create table if not exists public.user_reports (
   id uuid primary key default gen_random_uuid(),
@@ -480,7 +496,11 @@ create table if not exists public.user_reports (
 );
 
 alter table public.user_reports enable row level security;
-create policy "Users can create reports" on public.user_reports for insert with check (auth.uid() = reporter_id);
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can create reports' and tablename = 'user_reports') then
+    create policy "Users can create reports" on public.user_reports for insert with check (auth.uid() = reporter_id);
+  end if;
+end $$;
 
 -- 13. Push notification token storage (Added 2026-02-24)
 alter table public.profiles add column if not exists push_token text;

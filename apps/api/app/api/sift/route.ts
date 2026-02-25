@@ -235,7 +235,14 @@ async function performFullSift(
                 if (domain.includes('tiktok.com')) {
                     scrapedData = { title: rawItem.text || "TikTok", description: rawItem.text, imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl };
                 } else if (domain.includes('instagram.com')) {
-                    scrapedData = { title: rawItem.caption?.substring(0, 100) || "Instagram", description: rawItem.caption, imageUrl: rawItem.displayUrl };
+                    const images: string[] = [];
+                    if (rawItem.displayUrl) images.push(rawItem.displayUrl);
+                    if (rawItem.childPosts && Array.isArray(rawItem.childPosts)) {
+                        rawItem.childPosts.forEach((post: any) => {
+                            if (post.displayUrl && !images.includes(post.displayUrl)) images.push(post.displayUrl);
+                        });
+                    }
+                    scrapedData = { title: rawItem.caption?.substring(0, 100) || "Instagram", description: rawItem.caption, imageUrl: rawItem.displayUrl, images: images.slice(0, 10) };
                 } else if (domain.includes('youtube.com')) {
                     scrapedData = { title: rawItem.title, description: rawItem.description, imageUrl: rawItem.thumbnailUrl, transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "" };
                 } else {
@@ -280,6 +287,12 @@ async function performFullSift(
             const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
             if (imageBase64) {
                 messages.push({ role: "user", content: [{ type: "text", text: "Extract info from this." }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }] });
+            } else if (scrapedData.images && scrapedData.images.length > 1) {
+                const userContent: any[] = [{ type: "text", text: JSON.stringify({ title: scrapedData.title, description: scrapedData.description }) }];
+                scrapedData.images.forEach((img: string) => {
+                    userContent.push({ type: "image_url", image_url: { url: img } });
+                });
+                messages.push({ role: "user", content: userContent });
             } else {
                 messages.push({ role: "user", content: JSON.stringify(scrapedData) });
             }

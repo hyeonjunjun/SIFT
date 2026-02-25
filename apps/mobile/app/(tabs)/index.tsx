@@ -110,7 +110,22 @@ export default function HomeScreen() {
                 .order('created_at', { ascending: false })
                 .range(from, to);
 
-            if (error) throw error;
+            if (data) {
+                import('@react-native-async-storage/async-storage').then(({ default: AsyncStorage }) => {
+                    AsyncStorage.setItem(`@feed_${user.id}_${pageParam}`, JSON.stringify(data)).catch(() => { });
+                });
+            }
+
+            if (error) {
+                const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+                const cached = await AsyncStorage.getItem(`@feed_${user.id}_${pageParam}`);
+                if (cached) {
+                    console.log(`[Fetch] Loading feed page ${pageParam} from offline cache`);
+                    return JSON.parse(cached) as Page[];
+                }
+                throw error;
+            }
+
             return (data || []) as Page[];
         },
         initialPageParam: 0,
@@ -134,6 +149,32 @@ export default function HomeScreen() {
     }, [data]);
 
     const loading = isLoading; // Map to existing variable for compatibility
+
+    // Daily Catch Up Widget Data
+    const { data: dailySifts } = useQuery({
+        queryKey: ['dailySifts', user?.id],
+        queryFn: async () => {
+            if (!user) return [];
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            const { data, error } = await supabase
+                .from('pages')
+                .select('id, title, summary, metadata, url, is_pinned, tags')
+                .eq('user_id', user.id)
+                .eq('is_archived', false)
+                .lt('created_at', sevenDaysAgo.toISOString())
+                .limit(20);
+
+            if (error || !data) return [];
+
+            // Randomly select 3
+            const shuffled = [...data].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, 3) as Page[];
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 60 * 12, // 12 hours caching for daily widget
+    });
 
 
     // Quick Tag Modal State
@@ -869,6 +910,41 @@ export default function HomeScreen() {
                 )}
             </View>
 
+            {/* DAILY CATCH UP WIDGET */}
+            {activeFilter === 'All' && searchQuery === '' && dailySifts && dailySifts.length > 0 && (
+                <View style={{ marginTop: SPACING.l, marginBottom: SPACING.m }}>
+                    <Typography variant="label" color="stone" style={{ letterSpacing: 1.5, marginBottom: SPACING.m }}>DAILY CATCH UP</Typography>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ gap: 12, paddingRight: 20 }}
+                    >
+                        {dailySifts.map((sift) => (
+                            <TouchableOpacity
+                                key={sift.id}
+                                onPress={() => router.push(`/page/${sift.id}?contextType=feed`)}
+                                style={{
+                                    width: 240,
+                                    backgroundColor: COLORS.paper,
+                                    borderRadius: RADIUS.l,
+                                    padding: SPACING.m,
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(0,0,0,0.05)',
+                                    ...Theme.shadows.soft
+                                }}
+                            >
+                                <Typography variant="body" style={{ fontWeight: '600', marginBottom: 6 }} numberOfLines={2}>
+                                    {sift.title}
+                                </Typography>
+                                <Typography variant="caption" color="stone" numberOfLines={3} style={{ lineHeight: 18 }}>
+                                    {sift.summary || "No summary available."}
+                                </Typography>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+
             {/* 4. FILTER BAR */}
             <View style={{ marginHorizontal: -20 }}>
                 <FilterBar
@@ -902,7 +978,7 @@ export default function HomeScreen() {
                 <SiftLimitTracker />
             </View>
         </View >
-    ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage]);
+    ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts]);
 
     const HomeEmptyState = useMemo(() => (
         <View style={{ paddingTop: 40 }}>
@@ -1054,6 +1130,7 @@ export default function HomeScreen() {
                 sift={selectedSift}
                 onPin={handlePin}
                 onArchive={handleArchive}
+                onSelectMultiple={(id) => setSelectedIds(new Set([id]))}
                 onDeleteForever={handleDeleteForever}
                 onEditTags={(id, tags) => {
                     setSelectedSiftId(id);
