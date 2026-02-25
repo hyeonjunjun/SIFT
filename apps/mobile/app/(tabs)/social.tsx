@@ -136,13 +136,22 @@ export default function SocialScreen() {
     const sendFriendRequest = async (targetUserId: string) => {
         triggerHaptic('impact');
         try {
-            const { error } = await supabase
+            const { data: friendData, error } = await supabase
                 .from('friendships')
-                .insert([{ user_id: user?.id, friend_id: targetUserId, status: 'pending' }]);
+                .insert([{ user_id: user?.id, friend_id: targetUserId, status: 'pending' }])
+                .select('id')
+                .single();
             if (error) {
                 if (error.code === '23505') showToast({ message: "You are already connected or have a pending request.", type: 'error' });
                 else throw error;
             } else {
+                // Write notification for recipient
+                await supabase.from('notifications').insert([{
+                    user_id: targetUserId,
+                    actor_id: user?.id,
+                    type: 'friend_request',
+                    reference_id: friendData?.id,
+                }]);
                 showToast("Friend request sent!");
                 queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
                 setSearchQuery('');
@@ -153,8 +162,26 @@ export default function SocialScreen() {
 
     const handleAccept = async (id: string) => {
         try {
+            // Get the friendship to find the requester
+            const { data: friendship } = await supabase
+                .from('friendships')
+                .select('user_id')
+                .eq('id', id)
+                .single();
+
             const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
             if (error) throw error;
+
+            // Notify the requester that their request was accepted
+            if (friendship?.user_id) {
+                await supabase.from('notifications').insert([{
+                    user_id: friendship.user_id,
+                    actor_id: user?.id,
+                    type: 'friend_accepted',
+                    reference_id: id,
+                }]);
+            }
+
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
             triggerHaptic('notification');
             showToast("Request accepted");

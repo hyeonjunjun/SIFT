@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { DeviceEventEmitter, View, Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { House, Books, User, SquaresFour, UsersThree } from 'phosphor-react-native';
+import { Books, User, SquaresFour, UsersThree, Bell } from 'phosphor-react-native';
 import { useTheme } from "../../context/ThemeContext";
 import { COLORS, SPACING, RADIUS } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
@@ -9,41 +9,32 @@ import { supabase } from "../../lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
 
-function useSocialBadgeCount() {
+function useUnreadNotificationCount() {
     const { user } = useAuth();
 
-    const { data: badgeCount = 0 } = useQuery({
+    const { data: count = 0 } = useQuery({
         queryKey: ['social_badge', user?.id],
         queryFn: async () => {
             if (!user?.id) return 0;
-
-            // Count pending incoming friend requests
-            const { count: friendCount } = await supabase
-                .from('friendships')
+            const { count: unread } = await supabase
+                .from('notifications')
                 .select('*', { count: 'exact', head: true })
-                .eq('friend_id', user.id)
-                .eq('status', 'pending');
-
-            // Count unread shared sifts
-            const { count: shareCount } = await supabase
-                .from('sift_shares')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', user.id);
-
-            return (friendCount || 0) + (shareCount || 0);
+                .eq('user_id', user.id)
+                .eq('is_read', false);
+            return unread || 0;
         },
         enabled: !!user?.id,
-        staleTime: 1000 * 30, // Refresh every 30s
-        refetchInterval: 1000 * 60, // Background poll every 60s
+        staleTime: 1000 * 30,
+        refetchInterval: 1000 * 60,
     });
 
-    return badgeCount;
+    return count;
 }
 
 export default function TabLayout() {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
-    const socialBadgeCount = useSocialBadgeCount();
+    const unreadCount = useUnreadNotificationCount();
 
     return (
         <Tabs
@@ -78,7 +69,7 @@ export default function TabLayout() {
                     title: "DASHBOARD",
                     tabBarIcon: ({ color, focused }) => (
                         <SquaresFour
-                            size={28}
+                            size={26}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -96,7 +87,7 @@ export default function TabLayout() {
                     title: "LIBRARY",
                     tabBarIcon: ({ color, focused }) => (
                         <Books
-                            size={28}
+                            size={26}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -113,13 +104,31 @@ export default function TabLayout() {
                 options={{
                     title: "SOCIAL",
                     tabBarIcon: ({ color, focused }) => (
+                        <UsersThree
+                            size={26}
+                            color={color}
+                            weight={focused ? "fill" : "regular"}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="notifications"
+                listeners={() => ({
+                    tabPress: () => {
+                        Haptics.selectionAsync();
+                    },
+                })}
+                options={{
+                    title: "NOTIFICATIONS",
+                    tabBarIcon: ({ color, focused }) => (
                         <View>
-                            <UsersThree
-                                size={28}
+                            <Bell
+                                size={26}
                                 color={color}
                                 weight={focused ? "fill" : "regular"}
                             />
-                            {socialBadgeCount > 0 && (
+                            {unreadCount > 0 && (
                                 <View style={styles.badge}>
                                     <View style={styles.badgeDot} />
                                 </View>
@@ -139,7 +148,7 @@ export default function TabLayout() {
                     title: "PROFILE",
                     tabBarIcon: ({ color, focused }) => (
                         <User
-                            size={28}
+                            size={26}
                             color={color}
                             weight={focused ? "fill" : "regular"}
                         />
@@ -166,6 +175,6 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: COLORS.accent, // Clay accent dot
+        backgroundColor: COLORS.accent,
     },
 });

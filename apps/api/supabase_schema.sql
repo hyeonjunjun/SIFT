@@ -399,3 +399,55 @@ begin
 end;
 $$ language plpgsql security definer;
 
+-- 10. Notifications table (Added 2026-02-24)
+-- Instagram-style activity feed for friend requests, shared sifts, and collection activity
+create table if not exists public.notifications (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  user_id uuid references auth.users(id) on delete cascade not null,   -- recipient
+  actor_id uuid references auth.users(id) on delete cascade not null,  -- who triggered it
+  type text not null check (type in (
+    'friend_request',         -- someone sent you a friend request
+    'friend_accepted',        -- your friend request was accepted
+    'sift_shared',            -- someone shared a sift with you
+    'collection_invite',      -- someone invited you to a shared collection
+    'collection_sift_added'   -- someone added a sift to your shared collection
+  )),
+  reference_id text,          -- ID of related object (sift, friendship, folder)
+  is_read boolean default false,
+  metadata jsonb              -- extra context: { title, collection_name, etc. }
+);
+
+-- Enable RLS for notifications
+alter table public.notifications enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can read their own notifications' and tablename = 'notifications') then
+    create policy "Users can read their own notifications" on public.notifications
+      for select to authenticated
+      using (auth.uid() = user_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Authenticated users can create notifications' and tablename = 'notifications') then
+    create policy "Authenticated users can create notifications" on public.notifications
+      for insert to authenticated
+      with check (auth.uid() = actor_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can update their own notifications' and tablename = 'notifications') then
+    create policy "Users can update their own notifications" on public.notifications
+      for update to authenticated
+      using (auth.uid() = user_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can delete their own notifications' and tablename = 'notifications') then
+    create policy "Users can delete their own notifications" on public.notifications
+      for delete to authenticated
+      using (auth.uid() = user_id);
+  end if;
+end $$;
+
+-- Indexes for fast feed queries
+create index if not exists idx_notifications_user_feed on public.notifications(user_id, is_read, created_at desc);
+create index if not exists idx_notifications_actor on public.notifications(actor_id);

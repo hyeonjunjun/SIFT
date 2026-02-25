@@ -61,6 +61,15 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
 
             if (error) throw error;
 
+            // Write notification for recipient
+            await supabase.from('notifications').insert([{
+                user_id: friendId,
+                actor_id: user.id,
+                type: 'sift_shared',
+                reference_id: siftId,
+                metadata: { sift_title: siftTitle },
+            }]);
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert("Sift Sent", `Shared "${siftTitle}" with ${friendName}.`);
             onClose();

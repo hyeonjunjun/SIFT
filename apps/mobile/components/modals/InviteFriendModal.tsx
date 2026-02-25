@@ -101,6 +101,15 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
 
             if (error) throw error;
 
+            // Write notification for the invited friend
+            await supabase.from('notifications').insert([{
+                user_id: friendId,
+                actor_id: user.id,
+                type: 'collection_invite',
+                reference_id: folderId,
+                metadata: { collection_name: folderName },
+            }]);
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert("Invite Sent", `${friendName} has been added to the collection.`);
 
