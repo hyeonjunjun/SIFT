@@ -20,6 +20,7 @@ interface SiftActionSheetProps {
     onArchive?: (id: string) => void;
     onDeleteForever?: (id: string) => void;
     onEditTags?: (id: string, tags: string[]) => void;
+    onMoveToCollection?: (id: string) => void;
     additionalOptions?: ActionSheetOption[];
 }
 
@@ -31,6 +32,7 @@ export const SiftActionSheet = ({
     onArchive,
     onDeleteForever,
     onEditTags,
+    onMoveToCollection,
     additionalOptions = []
 }: SiftActionSheetProps) => {
     const [shareModalVisible, setShareModalVisible] = useState(false);
@@ -54,8 +56,15 @@ export const SiftActionSheet = ({
             icon: PaperPlaneTilt,
             onPress: () => {
                 onClose();
-                // Delay to allow ActionSheet to close
                 setTimeout(() => setShareModalVisible(true), 350);
+            },
+        },
+        {
+            label: 'Move to Collection',
+            icon: Folder,
+            onPress: () => {
+                onClose();
+                setTimeout(() => onMoveToCollection?.(sift.id), 350);
             },
         },
         {

@@ -27,21 +27,24 @@ import { Typography } from '../../components/design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
-import { Plus, X, ArrowSquareOut, PlusCircle } from 'phosphor-react-native';
+import { Plus, X, ArrowSquareOut, PlusCircle, BookOpenText, Article, SpeakerSimpleHigh } from 'phosphor-react-native';
+import { WebView } from 'react-native-webview';
+import * as Speech from 'expo-speech';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { useAuth } from '../../lib/auth';
+import { safeSift } from '../../lib/sift-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SiftDetailSkeleton } from '../../components/SiftDetailSkeleton';
 import { GestureDetector, Gesture, Directions } from 'react-native-gesture-handler';
 import Animated, { SlideInRight, SlideOutLeft, SlideInLeft, SlideOutRight, runOnJS, FadeOut, Easing } from 'react-native-reanimated';
 
-const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
+const SUGGESTED_TAGS = ["Cooking", "Tech", "Health", "Lifestyle", "Professional", "Finance", "Travel", "Design", "Science", "News"];
 
 export default function PageDetail() {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const { id, contextType } = useLocalSearchParams();
-    const { user } = useAuth();
+    const { user, tier } = useAuth();
     const router = useRouter();
     const queryClient = useQueryClient();
     const [content, setContent] = useState('');
@@ -52,6 +55,9 @@ export default function PageDetail() {
     const [editedTags, setEditedTags] = useState<string[]>([]);
     const [isShared, setIsShared] = useState(false);
     const [showDirectShare, setShowDirectShare] = useState(false);
+    const [readerMode, setReaderMode] = useState(false);
+    const [reSifting, setReSifting] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
 
     // 1. Fetch Neighbor IDs for Navigation
     const { data: neighborIds } = useQuery({
@@ -462,61 +468,34 @@ export default function PageDetail() {
                                     {isEditing ? (
                                         <View style={styles.tagEditor}>
                                             <View style={styles.tagList}>
-                                                {ALLOWED_TAGS.map(tag => (
+                                                {editedTags.map(tag => (
                                                     <TouchableOpacity
                                                         key={tag}
                                                         style={[
                                                             styles.tagPill,
-                                                            { backgroundColor: colors.canvas, borderColor: colors.separator },
-                                                            editedTags.includes(tag) && { backgroundColor: colors.ink, borderColor: colors.ink }
+                                                            { backgroundColor: colors.ink, borderColor: colors.ink }
                                                         ]}
-                                                        onPress={() => {
-                                                            if (editedTags.includes(tag)) {
-                                                                setEditedTags(editedTags.filter(t => t !== tag));
-                                                            } else {
-                                                                setEditedTags([...editedTags, tag]);
-                                                            }
-                                                        }}
+                                                        onPress={() => setEditedTags(editedTags.filter(t => t !== tag))}
                                                     >
-                                                        <Typography variant="caption" style={{ color: editedTags.includes(tag) ? colors.paper : colors.stone }}>
+                                                        <Typography variant="caption" style={{ color: colors.paper }}>
                                                             {tag}
                                                         </Typography>
+                                                        <X size={12} color={colors.paper} style={{ marginLeft: 4 }} />
                                                     </TouchableOpacity>
                                                 ))}
-                                            </View>
-                                            <View style={styles.customTagInput}>
-                                                <TextInput
-                                                    style={[styles.smallInput, { backgroundColor: colors.paper, borderColor: colors.separator, color: colors.ink }]}
-                                                    placeholder="Add custom tag..."
-                                                    placeholderTextColor={colors.stone}
-                                                    value={newTag}
-                                                    onChangeText={setNewTag}
-                                                    onSubmitEditing={() => {
-                                                        if (newTag.trim() && !editedTags.includes(newTag.trim())) {
-                                                            setEditedTags([...editedTags, newTag.trim()]);
-                                                            setNewTag('');
-                                                        }
-                                                    }}
-                                                />
-                                                <TouchableOpacity
-                                                    onPress={() => {
-                                                        if (newTag.trim() && !editedTags.includes(newTag.trim())) {
-                                                            setEditedTags([...editedTags, newTag.trim()]);
-                                                            setNewTag('');
-                                                        }
-                                                    }}
-                                                >
-                                                    <Plus size={20} color={colors.ink} />
-                                                </TouchableOpacity>
-                                            </View>
-                                            <View style={styles.tagList}>
-                                                {editedTags.filter(t => !ALLOWED_TAGS.includes(t)).map(tag => (
-                                                    <View key={tag} style={[styles.customTagPill, { backgroundColor: isDark ? colors.subtle : '#E5E5E5' }]}>
-                                                        <Typography variant="caption" color="ink">{tag}</Typography>
-                                                        <TouchableOpacity onPress={() => setEditedTags(editedTags.filter(t => t !== tag))}>
-                                                            <X size={14} color={colors.stone} style={{ marginLeft: 4 }} />
-                                                        </TouchableOpacity>
-                                                    </View>
+                                                {SUGGESTED_TAGS.filter(t => !editedTags.includes(t)).slice(0, 5).map(tag => (
+                                                    <TouchableOpacity
+                                                        key={tag}
+                                                        style={[
+                                                            styles.tagPill,
+                                                            { backgroundColor: colors.canvas, borderColor: colors.separator }
+                                                        ]}
+                                                        onPress={() => setEditedTags([...editedTags, tag])}
+                                                    >
+                                                        <Typography variant="caption" style={{ color: colors.stone }}>
+                                                            + {tag}
+                                                        </Typography>
+                                                    </TouchableOpacity>
                                                 ))}
                                             </View>
                                         </View>
@@ -596,6 +575,27 @@ export default function PageDetail() {
                                             <Typography variant="label" color="stone">Send</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: isSpeaking ? COLORS.accent : colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            onPress={() => {
+                                                if (isSpeaking) {
+                                                    Speech.stop();
+                                                    setIsSpeaking(false);
+                                                } else {
+                                                    const textToRead = page?.summary || page?.title || 'No content';
+                                                    Speech.speak(textToRead, {
+                                                        onDone: () => setIsSpeaking(false),
+                                                        onStopped: () => setIsSpeaking(false),
+                                                        rate: 0.9,
+                                                    });
+                                                    setIsSpeaking(true);
+                                                }
+                                                Haptics.selectionAsync();
+                                            }}
+                                        >
+                                            <SpeakerSimpleHigh size={24} color={isSpeaking ? '#FFFFFF' : colors.stone} weight="thin" style={{ marginBottom: 8 }} />
+                                            <Typography variant="label" style={{ color: isSpeaking ? '#FFFFFF' : colors.stone }}>{isSpeaking ? 'Stop' : 'Listen'}</Typography>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
                                             style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
                                             onPress={handleShare}
                                         >
@@ -619,13 +619,69 @@ export default function PageDetail() {
                                 )}
                             </View>
 
+                            {/* Reader Mode Toggle */}
+                            {page?.url && (
+                                <View style={{
+                                    flexDirection: 'row',
+                                    backgroundColor: colors.subtle,
+                                    borderRadius: RADIUS.pill,
+                                    padding: 3,
+                                    marginBottom: 16,
+                                    marginHorizontal: 4,
+                                }}>
+                                    <TouchableOpacity
+                                        onPress={() => { setReaderMode(false); Haptics.selectionAsync(); }}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 8,
+                                            borderRadius: RADIUS.pill,
+                                            backgroundColor: !readerMode ? colors.paper : 'transparent',
+                                            alignItems: 'center',
+                                            flexDirection: 'row',
+                                            justifyContent: 'center',
+                                            gap: 6,
+                                            ...(!readerMode ? Theme.shadows.soft : {}),
+                                        }}
+                                    >
+                                        <Article size={14} color={!readerMode ? colors.ink : colors.stone} weight={!readerMode ? 'bold' : 'regular'} />
+                                        <Typography variant="caption" style={{ fontWeight: !readerMode ? 'bold' : 'normal', color: !readerMode ? colors.ink : colors.stone }}>AI Summary</Typography>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => { setReaderMode(true); Haptics.selectionAsync(); }}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 8,
+                                            borderRadius: RADIUS.pill,
+                                            backgroundColor: readerMode ? colors.paper : 'transparent',
+                                            alignItems: 'center',
+                                            flexDirection: 'row',
+                                            justifyContent: 'center',
+                                            gap: 6,
+                                            ...(readerMode ? Theme.shadows.soft : {}),
+                                        }}
+                                    >
+                                        <BookOpenText size={14} color={readerMode ? colors.ink : colors.stone} weight={readerMode ? 'bold' : 'regular'} />
+                                        <Typography variant="caption" style={{ fontWeight: readerMode ? 'bold' : 'normal', color: readerMode ? colors.ink : colors.stone }}>Read Original</Typography>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
                             {/* Card 4: Editorial Content (Reader View) */}
                             <View style={{
                                 minHeight: 400,
-                                paddingHorizontal: 4, // Allow text to breathe 
-                                paddingTop: 16
+                                paddingHorizontal: 4,
+                                paddingTop: readerMode ? 0 : 16,
                             }}>
-                                {!isEditing ? (
+                                {readerMode && page?.url ? (
+                                    <View style={{ height: 600, borderRadius: RADIUS.m, overflow: 'hidden' }}>
+                                        <WebView
+                                            source={{ uri: page.url }}
+                                            style={{ flex: 1, borderRadius: RADIUS.m }}
+                                            startInLoadingState
+                                            showsVerticalScrollIndicator={false}
+                                        />
+                                    </View>
+                                ) : !isEditing ? (
                                     <SafeContentRenderer content={content} />
                                 ) : (
                                     <TextInput
@@ -692,6 +748,25 @@ export default function PageDetail() {
                             label: 'Edit Sift',
                             icon: require('phosphor-react-native').PencilSimple,
                             onPress: () => setIsEditing(true)
+                        },
+                        {
+                            label: reSifting ? 'Re-Sifting...' : 'Re-Sift (Regenerate)',
+                            icon: require('phosphor-react-native').ArrowsClockwise,
+                            onPress: async () => {
+                                if (!page?.url || reSifting) return;
+                                setReSifting(true);
+                                setActionSheetVisible(false);
+                                try {
+                                    await safeSift(page.url, user?.id, page.id, tier);
+                                    queryClient.invalidateQueries({ queryKey: ['page', id] });
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    Alert.alert('Re-Sifted!', 'The summary has been regenerated.');
+                                } catch (e: any) {
+                                    Alert.alert('Re-Sift Failed', e.message);
+                                } finally {
+                                    setReSifting(false);
+                                }
+                            }
                         },
                         {
                             label: 'Delete Sift',

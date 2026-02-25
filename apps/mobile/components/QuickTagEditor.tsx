@@ -14,7 +14,7 @@ interface QuickTagEditorProps {
     title?: string;
 }
 
-const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
+const SUGGESTED_TAGS = ["Cooking", "Tech", "Health", "Lifestyle", "Professional", "Finance", "Travel", "Design", "Science", "News"];
 
 export function QuickTagEditor({ visible, onClose, initialTags, onSave, title = "Edit Tags" }: QuickTagEditorProps) {
     const [tags, setTags] = useState<string[]>(initialTags);
@@ -49,6 +49,9 @@ export function QuickTagEditor({ visible, onClose, initialTags, onSave, title = 
         onClose();
     };
 
+    // Suggestions: show tags user doesn't already have
+    const suggestions = SUGGESTED_TAGS.filter(t => !tags.includes(t));
+
     return (
         <Modal
             visible={visible}
@@ -74,43 +77,45 @@ export function QuickTagEditor({ visible, onClose, initialTags, onSave, title = 
                     </View>
 
                     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                        <Typography variant="label" color={COLORS.stone} style={styles.sectionLabel}>
-                            CATEGORIES
-                        </Typography>
-                        <View style={styles.tagGrid}>
-                            {ALLOWED_TAGS.map(tag => (
-                                <TouchableOpacity
-                                    key={tag}
-                                    style={[
-                                        styles.tag,
-                                        tags.includes(tag) && styles.tagSelected
-                                    ]}
-                                    onPress={() => toggleTag(tag)}
-                                >
-                                    <View style={[styles.dot, tags.includes(tag) && styles.dotSelected]} />
-                                    <Typography
-                                        variant="label"
-                                        style={[styles.tagText, tags.includes(tag) && styles.tagTextSelected]}
-                                    >
-                                        {tag.toUpperCase()}
-                                    </Typography>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Typography variant="label" color={COLORS.stone} style={[styles.sectionLabel, { marginTop: 24 }]}>
-                            CUSTOM TAGS
-                        </Typography>
-                        <View style={styles.customTagsContainer}>
-                            {tags.filter(t => !ALLOWED_TAGS.includes(t)).map(tag => (
-                                <View key={tag} style={styles.customTagPill}>
-                                    <Typography variant="label" style={styles.customTagText}>{tag}</Typography>
-                                    <TouchableOpacity onPress={() => toggleTag(tag)}>
-                                        <X size={14} color={COLORS.ink} />
-                                    </TouchableOpacity>
+                        {tags.length > 0 && (
+                            <>
+                                <Typography variant="label" color={COLORS.stone} style={styles.sectionLabel}>
+                                    YOUR TAGS
+                                </Typography>
+                                <View style={styles.customTagsContainer}>
+                                    {tags.map(tag => (
+                                        <View key={tag} style={styles.customTagPill}>
+                                            <Typography variant="label" style={styles.customTagText}>{tag}</Typography>
+                                            <TouchableOpacity onPress={() => toggleTag(tag)}>
+                                                <X size={14} color={COLORS.ink} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
                                 </View>
-                            ))}
-                        </View>
+                            </>
+                        )}
+
+                        {suggestions.length > 0 && (
+                            <>
+                                <Typography variant="label" color={COLORS.stone} style={[styles.sectionLabel, { marginTop: tags.length > 0 ? 24 : 0 }]}>
+                                    SUGGESTIONS
+                                </Typography>
+                                <View style={styles.tagGrid}>
+                                    {suggestions.map(tag => (
+                                        <TouchableOpacity
+                                            key={tag}
+                                            style={styles.tag}
+                                            onPress={() => toggleTag(tag)}
+                                        >
+                                            <Plus size={12} color={COLORS.stone} />
+                                            <Typography variant="label" style={styles.tagText}>
+                                                {tag.toUpperCase()}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </>
+                        )}
 
                         <View style={styles.inputRow}>
                             <TextInput

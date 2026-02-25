@@ -89,6 +89,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Guards to prevent infinite refresh loop
+    const lastRefreshRef = React.useRef<number>(0);
+    const isRefreshingRef = React.useRef<boolean>(false);
+    const REFRESH_COOLDOWN_MS = 30_000; // 30 seconds
+
     const refreshProfile = async (targetUser?: User | null) => {
         const actingUser = targetUser ?? user;
         if (!actingUser?.id) {
@@ -96,6 +101,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setTier('free');
             return;
         }
+
+        // Prevent re-entrant / rapid-fire refreshes
+        const now = Date.now();
+        if (isRefreshingRef.current) return;
+        if (now - lastRefreshRef.current < REFRESH_COOLDOWN_MS) return;
+        isRefreshingRef.current = true;
+        lastRefreshRef.current = now;
 
         try {
             console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
@@ -228,6 +240,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setTier('free');
                 }
             }
+        } finally {
+            isRefreshingRef.current = false;
         }
     };
 

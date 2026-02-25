@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Dimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, TextInput } from 'react-native';
 import { X, PaperPlaneTilt, Users, User } from 'phosphor-react-native';
 import { Typography } from '../design-system/Typography';
 import { COLORS, RADIUS, Theme } from '../../lib/theme';
@@ -19,6 +19,7 @@ interface ShareSiftModalProps {
 export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: ShareSiftModalProps) {
     const { user } = useAuth();
     const [sending, setSending] = useState<string | null>(null);
+    const [message, setMessage] = useState('');
 
     // Fetch accepted friendships
     const { data: friends = [], isLoading } = useQuery({
@@ -56,7 +57,8 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                 .insert([{
                     sender_id: user.id,
                     receiver_id: friendId,
-                    sift_id: siftId
+                    sift_id: siftId,
+                    message: message.trim() || null,
                 }]);
 
             if (error) throw error;
@@ -67,11 +69,12 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                 actor_id: user.id,
                 type: 'sift_shared',
                 reference_id: siftId,
-                metadata: { sift_title: siftTitle },
+                metadata: { sift_title: siftTitle, message: message.trim() || undefined },
             }]);
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert("Sift Sent", `Shared "${siftTitle}" with ${friendName}.`);
+            setMessage('');
             onClose();
         } catch (e: any) {
             Alert.alert("Recall Error", e.message || "Could not send sift.");
@@ -105,6 +108,26 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                             <X size={20} color={COLORS.ink} />
                         </TouchableOpacity>
                     </View>
+
+                    <TextInput
+                        style={{
+                            backgroundColor: COLORS.paper,
+                            borderRadius: RADIUS.m,
+                            borderWidth: 1,
+                            borderColor: COLORS.separator,
+                            padding: 12,
+                            fontSize: 14,
+                            marginHorizontal: 20,
+                            marginBottom: 16,
+                            color: COLORS.ink,
+                        }}
+                        placeholder="Add a message (optional)..."
+                        placeholderTextColor={COLORS.stone}
+                        value={message}
+                        onChangeText={setMessage}
+                        maxLength={200}
+                        multiline
+                    />
 
                     <ScrollView
                         style={styles.friendsList}

@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle, Trash } from 'phosphor-react-native';
+import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle, Trash, FolderOpen, X } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
@@ -22,12 +22,13 @@ import { useShareIntent } from 'expo-share-intent';
 import { safeSift } from "../../lib/sift-api";
 import { getDomain } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
-import Fuse from "fuse.js";
+// Fuse.js removed — using server-side search now
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { SiftLimitTracker } from "../../components/SiftLimitTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { ActionSheet } from "../../components/modals/ActionSheet";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
+import { FirstUseTour } from "../../components/FirstUseTour";
 import { useToast } from "../../context/ToastContext";
 import { useIsFocused } from '@react-navigation/native';
 
@@ -44,7 +45,7 @@ interface Page {
     };
 }
 
-const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
+// Dynamic tags are now derived from user data (see dynamicTags useMemo below)
 
 import { useAuth } from "../../lib/auth";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -59,6 +60,26 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+    // Multi-select state
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const isSelectMode = selectedIds.size > 0;
+
+    // Sort state
+    const [sortBy, setSortBy] = useState<'date' | 'title' | 'domain'>('date');
+    useEffect(() => {
+        AsyncStorage.getItem('dashboard_sort').then(saved => {
+            if (saved === 'date' || saved === 'title' || saved === 'domain') setSortBy(saved);
+        });
+    }, []);
+    const cycleSortMode = () => {
+        const modes: ('date' | 'title' | 'domain')[] = ['date', 'title', 'domain'];
+        const next = modes[(modes.indexOf(sortBy) + 1) % modes.length];
+        setSortBy(next);
+        AsyncStorage.setItem('dashboard_sort', next);
+        Haptics.selectionAsync();
+        showToast(`Sorted by ${next}`);
+    };
 
     const PAGE_SIZE = 20;
 
@@ -175,45 +196,88 @@ export default function HomeScreen() {
         }
     }, [params.siftUrl]);
 
-    // Fuse.js Fuzzy Search Setup
-    const fuse = useMemo(() => {
-        return new Fuse(pages, {
-            keys: ['title', 'summary', 'tags', 'url'],
-            threshold: 0.35,
-            ignoreLocation: true
-        });
-    }, [pages]);
-
-    const filteredPages = useMemo(() => {
-        let results = pages;
-
-        // 1. Apply Search Filter
-        if (debouncedSearchQuery.trim()) {
+    // Server-side full-text search
+    const { data: searchResults } = useQuery({
+        queryKey: ['search', user?.id, debouncedSearchQuery],
+        queryFn: async () => {
+            if (!user?.id || !debouncedSearchQuery.trim()) return null;
             const q = debouncedSearchQuery.trim();
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
 
+            // UUID exact match
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
             if (isUuid) {
-                const exactMatch = pages.find(p => p.id === q);
-                if (exactMatch) return [exactMatch];
+                const { data } = await supabase.from('pages').select('*').eq('id', q).eq('user_id', user.id).single();
+                return data ? [data] : [];
             }
 
-            results = fuse.search(q).map(r => r.item);
+            // Full-text search using Postgres tsvector (requires GIN index)
+            const searchTerms = q.split(/\s+/).filter(Boolean).join(' & ');
+            const { data, error } = await supabase
+                .from('pages')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('is_archived', false)
+                .or(`title.ilike.%${q}%,summary.ilike.%${q}%`)
+                .order('is_pinned', { ascending: false })
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            return data || [];
+        },
+        enabled: !!user?.id && !!debouncedSearchQuery.trim(),
+        staleTime: 1000 * 10,
+    });
+
+    const filteredPages = useMemo(() => {
+        // If searching, use server results
+        if (debouncedSearchQuery.trim() && searchResults) {
+            let results = searchResults as any[];
+            if (activeFilter !== 'All') {
+                results = results.filter(p => p.tags?.some((t: string) => t && t.toLowerCase() === activeFilter.toLowerCase()));
+            }
+            return results;
         }
+
+        let results = pages;
 
         // 2. Apply Category Filter
         if (activeFilter !== 'All') {
             results = results.filter(p => p.tags?.some(t => t && t.toLowerCase() === activeFilter.toLowerCase()));
         }
 
-        // 3. Sort (Pinned first, then date)
+        // 3. Sort (Pinned first, then by selected mode)
         return [...results].sort((a, b) => {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
+
+            if (sortBy === 'title') {
+                return (a.title || '').localeCompare(b.title || '');
+            }
+            if (sortBy === 'domain') {
+                const domA = a.url ? new URL(a.url).hostname : '';
+                const domB = b.url ? new URL(b.url).hostname : '';
+                return domA.localeCompare(domB);
+            }
+            // Default: date (newest first)
             const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
             const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
             return timeB - timeA;
         });
-    }, [pages, debouncedSearchQuery, activeFilter, fuse]);
+    }, [pages, debouncedSearchQuery, activeFilter, searchResults, sortBy]);
+
+    // Dynamic tag extraction for FilterBar
+    const dynamicTags = useMemo(() => {
+        const tagCounts: Record<string, number> = {};
+        for (const p of pages) {
+            for (const t of (p.tags || [])) {
+                if (t) tagCounts[t] = (tagCounts[t] || 0) + 1;
+            }
+        }
+        return Object.entries(tagCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([tag]) => tag);
+    }, [pages]);
 
 
     const getGreeting = () => {
@@ -810,11 +874,27 @@ export default function HomeScreen() {
                 <FilterBar
                     filters={[
                         { id: 'All', text: 'All' },
-                        ...ALLOWED_TAGS.map(tag => ({ id: tag, text: tag }))
+                        ...dynamicTags.map(tag => ({ id: tag, text: tag }))
                     ]}
                     activeFilter={activeFilter}
                     onSelect={setActiveFilter}
                 />
+            </View>
+
+            {/* Sort Toggle */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4, marginBottom: -4 }}>
+                <TouchableOpacity
+                    onPress={cycleSortMode}
+                    style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 4,
+                        paddingHorizontal: 10, paddingVertical: 4,
+                        backgroundColor: COLORS.subtle, borderRadius: RADIUS.pill,
+                    }}
+                >
+                    <Typography variant="caption" color="stone" style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.5 }}>
+                        {sortBy === 'date' ? '↓ NEWEST' : sortBy === 'title' ? 'A→Z' : '🌐 DOMAIN'}
+                    </Typography>
+                </TouchableOpacity>
             </View>
 
             {/* 5. SIFT LIMIT TRACKER */}
@@ -867,7 +947,72 @@ export default function HomeScreen() {
                     }
                 }}
                 onEndReachedThreshold={0.5}
+                isSelectMode={isSelectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={(id) => {
+                    setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(id)) next.delete(id);
+                        else next.add(id);
+                        return next;
+                    });
+                }}
+                onEnterSelectMode={(id) => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    setSelectedIds(new Set([id]));
+                }}
             />
+
+            {/* Batch Actions Floating Toolbar */}
+            {isSelectMode && (
+                <View style={[batchStyles.toolbar, { backgroundColor: COLORS.ink }]}>
+                    <TouchableOpacity onPress={() => setSelectedIds(new Set())} hitSlop={16}>
+                        <X size={20} color="#FFFFFF" weight="bold" />
+                    </TouchableOpacity>
+                    <Typography variant="label" style={{ color: '#FFFFFF', marginLeft: 12 }}>
+                        {selectedIds.size} selected
+                    </Typography>
+                    <View style={{ flex: 1 }} />
+                    <TouchableOpacity
+                        style={batchStyles.action}
+                        onPress={async () => {
+                            const ids = Array.from(selectedIds);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            for (const id of ids) await handleArchive(id);
+                            setSelectedIds(new Set());
+                            showToast(`${ids.length} sifts archived`);
+                        }}
+                        hitSlop={16}
+                    >
+                        <Archive size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={batchStyles.action}
+                        onPress={() => {
+                            const count = selectedIds.size;
+                            Alert.alert(
+                                `Delete ${count} sifts?`,
+                                'This action cannot be undone.',
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Delete', style: 'destructive', onPress: async () => {
+                                            const ids = Array.from(selectedIds);
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                                            for (const id of ids) await handleDeleteForever(id);
+                                            setSelectedIds(new Set());
+                                            showToast(`${ids.length} sifts deleted`);
+                                        }
+                                    },
+                                ]
+                            );
+                        }}
+                        hitSlop={16}
+                    >
+                        <Trash size={18} color="#FF6B6B" />
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* 6. MODALS */}
             <QuickTagEditor
@@ -915,6 +1060,32 @@ export default function HomeScreen() {
                     setSelectedSiftTags(tags);
                     setQuickTagModalVisible(true);
                 }}
+                onMoveToCollection={async (siftId) => {
+                    try {
+                        const { data: folders } = await supabase
+                            .from('folders')
+                            .select('id, name')
+                            .eq('user_id', user?.id)
+                            .order('name');
+                        if (!folders?.length) {
+                            Alert.alert('No Collections', 'Create a collection first from Library.');
+                            return;
+                        }
+                        const buttons = folders.map(f => ({
+                            text: f.name,
+                            onPress: async () => {
+                                await supabase.from('folder_items').upsert([{
+                                    folder_id: f.id,
+                                    page_id: siftId,
+                                }], { onConflict: 'folder_id,page_id' });
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                showToast(`Moved to ${f.name}`);
+                            }
+                        }));
+                        buttons.push({ text: 'Cancel', onPress: () => { } });
+                        Alert.alert('Move to Collection', 'Choose a collection:', buttons);
+                    } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
+                }}
                 additionalOptions={[
                     (__DEV__ && selectedSift?.debug_info) ? {
                         label: 'View Diagnostics',
@@ -930,6 +1101,8 @@ export default function HomeScreen() {
                 onClose={() => setLimitReachedVisible(false)}
                 upgradeUrl={upgradeUrl}
             />
+
+            <FirstUseTour />
         </ScreenWrapper>
     );
 }
@@ -1004,3 +1177,25 @@ const styles = StyleSheet.create({
     }
 });
 
+const batchStyles = StyleSheet.create({
+    toolbar: {
+        position: 'absolute',
+        bottom: 100,
+        left: SPACING.l,
+        right: SPACING.l,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderRadius: RADIUS.l,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 10,
+    },
+    action: {
+        marginLeft: 20,
+        padding: 8,
+    },
+});

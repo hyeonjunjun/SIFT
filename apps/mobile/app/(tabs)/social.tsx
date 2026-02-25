@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
-import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User } from 'phosphor-react-native';
+import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -205,6 +205,53 @@ export default function SocialScreen() {
         setRefreshing(false);
     };
 
+    const handleBlockUser = (targetUserId: string, displayName: string) => {
+        Alert.alert(
+            `Block ${displayName}?`,
+            'They won\'t be able to send you sifts or friend requests. You can unblock them later.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Block', style: 'destructive', onPress: async () => {
+                        try {
+                            await supabase.from('blocked_users').insert([{
+                                blocker_id: user?.id,
+                                blocked_id: targetUserId,
+                            }]);
+                            // Also remove friendship
+                            await supabase.from('friendships').delete()
+                                .or(`and(user_id.eq.${user?.id},friend_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},friend_id.eq.${user?.id})`);
+                            queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
+                            showToast(`${displayName} has been blocked`);
+                        } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleReportUser = (targetUserId: string, displayName: string) => {
+        Alert.alert(
+            `Report ${displayName}?`,
+            'This will flag the user for review by our team.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Report', style: 'destructive', onPress: async () => {
+                        try {
+                            await supabase.from('user_reports').insert([{
+                                reporter_id: user?.id,
+                                reported_id: targetUserId,
+                                reason: 'inappropriate',
+                            }]);
+                            showToast('Report submitted. Thank you.');
+                        } catch (e: any) { showToast({ message: e.message, type: 'error' }); }
+                    }
+                }
+            ]
+        );
+    };
+
     // Swipe gesture handler
     const panGesture = Gesture.Pan()
         .onUpdate((event) => {
@@ -311,7 +358,7 @@ export default function SocialScreen() {
                                     <View style={styles.section}>
                                         <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
                                         {incomingRequests.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} />
+                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} onBlock={handleBlockUser} onReport={handleReportUser} />
                                         ))}
                                     </View>
                                 )}
@@ -320,7 +367,7 @@ export default function SocialScreen() {
                                     <View style={styles.section}>
                                         <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
                                         {myNetwork.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} />
+                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onBlock={handleBlockUser} onReport={handleReportUser} />
                                         ))}
                                     </View>
                                 ) : (
@@ -333,7 +380,7 @@ export default function SocialScreen() {
                                     <View style={[styles.section, { opacity: 0.6 }]}>
                                         <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
                                         {outgoingRequests.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onDecline={() => handleDecline(f.id)} />
+                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onDecline={() => handleDecline(f.id)} onBlock={handleBlockUser} onReport={handleReportUser} />
                                         ))}
                                     </View>
                                 )}
@@ -397,13 +444,31 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
     );
 }
 
-function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline }: any) {
+function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport }: any) {
     const friend = friendship.user_id === currentUserId ? friendship.receiver : friendship.requester;
     const isPending = friendship.status === 'pending';
     const amRequester = friendship.user_id === currentUserId;
 
+    const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Alert.alert(
+            friend.display_name,
+            `@${friend.username}`,
+            [
+                { text: 'Block', style: 'destructive', onPress: () => onBlock?.(friend.id, friend.display_name) },
+                { text: 'Report', style: 'destructive', onPress: () => onReport?.(friend.id, friend.display_name) },
+                { text: 'Cancel', style: 'cancel' },
+            ]
+        );
+    };
+
     return (
-        <View style={[styles.friendItem, { borderBottomColor: colors.separator }]}>
+        <TouchableOpacity
+            style={[styles.friendItem, { borderBottomColor: colors.separator }]}
+            onLongPress={handleLongPress}
+            delayLongPress={500}
+            activeOpacity={0.7}
+        >
             {friend.avatar_url ? (
                 <Image source={friend.avatar_url} style={styles.mediumAvatar} />
             ) : (
@@ -431,7 +496,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline }: 
                     </View>
                 )
             ) : <ChatCircleText size={20} color={colors.stone} />}
-        </View>
+        </TouchableOpacity>
     );
 }
 

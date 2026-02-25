@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useTheme } from '../../context/ThemeContext';
@@ -9,7 +10,7 @@ import { SPACING, RADIUS, COLORS } from '../../lib/theme';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users } from 'phosphor-react-native';
+import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users, TrashSimple } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface Notification {
@@ -163,6 +164,13 @@ export default function NotificationsScreen() {
         setRefreshing(false);
     };
 
+    const handleDeleteNotification = async (notificationId: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await supabase.from('notifications').delete().eq('id', notificationId);
+        queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['social_badge', user?.id] });
+    };
+
     const handleNotificationPress = (notification: Notification) => {
         Haptics.selectionAsync();
         switch (notification.type) {
@@ -230,59 +238,76 @@ export default function NotificationsScreen() {
         const notification = item as Notification;
         const isFriendRequest = notification.type === 'friend_request';
 
-        return (
+        const renderRightActions = () => (
             <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                    styles.notificationItem,
-                    { borderBottomColor: colors.separator },
-                    !notification.is_read && { borderLeftWidth: 3, borderLeftColor: colors.accent },
-                ]}
-                onPress={() => handleNotificationPress(notification)}
+                style={{
+                    backgroundColor: '#FF3B30',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    width: 80,
+                }}
+                onPress={() => handleDeleteNotification(notification.id)}
             >
-                <View style={[styles.avatarContainer, { backgroundColor: colors.subtle }]}>
-                    {notification.actor?.avatar_url ? (
-                        <Image
-                            source={{ uri: notification.actor.avatar_url }}
-                            style={styles.avatar}
-                        />
-                    ) : (
-                        getNotificationIcon(notification.type, colors.ink)
-                    )}
-                </View>
-
-                <View style={styles.contentContainer}>
-                    <Typography variant="bodyMedium" style={{ lineHeight: 20 }}>
-                        {getNotificationText(notification)}
-                    </Typography>
-                    <Typography variant="caption" color="stone" style={{ marginTop: 2 }}>
-                        {timeAgo(notification.created_at)}
-                    </Typography>
-                </View>
-
-                {isFriendRequest && (
-                    <View style={styles.actionButtons}>
-                        <TouchableOpacity
-                            style={[styles.acceptBtn, { backgroundColor: colors.accent }]}
-                            onPress={() => handleAcceptFriend(notification.reference_id!)}
-                            hitSlop={16}
-                        >
-                            <Typography variant="caption" style={{ color: '#FFFFFF', fontWeight: '600' }}>
-                                Accept
-                            </Typography>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.declineBtn, { borderColor: colors.separator }]}
-                            onPress={() => handleDeclineFriend(notification.reference_id!)}
-                            hitSlop={16}
-                        >
-                            <Typography variant="caption" color="stone" style={{ fontWeight: '600' }}>
-                                Decline
-                            </Typography>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                <TrashSimple size={22} color="#FFFFFF" weight="bold" />
+                <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4, fontWeight: '600' }}>Delete</Typography>
             </TouchableOpacity>
+        );
+
+        return (
+            <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[
+                        styles.notificationItem,
+                        { borderBottomColor: colors.separator, backgroundColor: colors.canvas },
+                        !notification.is_read && { borderLeftWidth: 3, borderLeftColor: colors.accent },
+                    ]}
+                    onPress={() => handleNotificationPress(notification)}
+                >
+                    <View style={[styles.avatarContainer, { backgroundColor: colors.subtle }]}>
+                        {notification.actor?.avatar_url ? (
+                            <Image
+                                source={{ uri: notification.actor.avatar_url }}
+                                style={styles.avatar}
+                            />
+                        ) : (
+                            getNotificationIcon(notification.type, colors.ink)
+                        )}
+                    </View>
+
+                    <View style={styles.contentContainer}>
+                        <Typography variant="bodyMedium" style={{ lineHeight: 20 }}>
+                            {getNotificationText(notification)}
+                        </Typography>
+                        <Typography variant="caption" color="stone" style={{ marginTop: 2 }}>
+                            {timeAgo(notification.created_at)}
+                        </Typography>
+                    </View>
+
+                    {isFriendRequest && (
+                        <View style={styles.actionButtons}>
+                            <TouchableOpacity
+                                style={[styles.acceptBtn, { backgroundColor: colors.accent }]}
+                                onPress={() => handleAcceptFriend(notification.reference_id!)}
+                                hitSlop={16}
+                            >
+                                <Typography variant="caption" style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                                    Accept
+                                </Typography>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.declineBtn, { borderColor: colors.separator }]}
+                                onPress={() => handleDeclineFriend(notification.reference_id!)}
+                                hitSlop={16}
+                            >
+                                <Typography variant="caption" color="stone" style={{ fontWeight: '600' }}>
+                                    Decline
+                                </Typography>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </TouchableOpacity>
+            </Swipeable>
         );
     };
 

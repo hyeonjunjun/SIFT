@@ -20,6 +20,8 @@ import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
+import { NetworkBanner } from '../components/NetworkBanner';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -144,6 +146,40 @@ function RootLayoutNav() {
     const router = useRouter();
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
     const { colors } = useTheme();
+
+    // Push Notifications Registration
+    usePushNotifications();
+
+    // Clipboard URL Detection (#17)
+    const lastClipboardUrl = React.useRef<string | null>(null);
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        const { AppState } = require('react-native');
+        const Clipboard = require('expo-clipboard');
+        const handleAppState = async (nextState: string) => {
+            if (nextState !== 'active') return;
+            try {
+                const text = await Clipboard.getStringAsync();
+                if (text && /^https?:\/\//i.test(text.trim()) && text.trim() !== lastClipboardUrl.current) {
+                    lastClipboardUrl.current = text.trim();
+                    const { Alert } = require('react-native');
+                    Alert.alert(
+                        'Sift this link?',
+                        text.trim().substring(0, 80) + (text.trim().length > 80 ? '...' : ''),
+                        [
+                            { text: 'No Thanks', style: 'cancel' },
+                            {
+                                text: 'Sift It',
+                                onPress: () => router.replace(`/(tabs)/?siftUrl=${encodeURIComponent(text.trim())}`),
+                            },
+                        ]
+                    );
+                }
+            } catch (e) { /* clipboard not available */ }
+        };
+        const sub = AppState.addEventListener('change', handleAppState);
+        return () => sub.remove();
+    }, [session?.user?.id]);
 
     // Android Navigation Bar Configuration for Edge-to-Edge
     useEffect(() => {
@@ -296,6 +332,7 @@ function RootLayoutNav() {
                 translucent
                 backgroundColor="transparent"
             />
+            <NetworkBanner />
             <ImageBackground
                 source={require("../assets/noise.png")}
                 style={StyleSheet.absoluteFill}

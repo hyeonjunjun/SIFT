@@ -451,3 +451,40 @@ end $$;
 -- Indexes for fast feed queries
 create index if not exists idx_notifications_user_feed on public.notifications(user_id, is_read, created_at desc);
 create index if not exists idx_notifications_actor on public.notifications(actor_id);
+
+-- 11. Full-text search index for pages (Added 2026-02-24)
+-- Enables fast server-side search across titles and summaries
+create index if not exists idx_pages_fts on public.pages
+  using gin (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(summary, '')));
+
+-- 12. Block & Report (Added 2026-02-24)
+create table if not exists public.blocked_users (
+  id uuid primary key default gen_random_uuid(),
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique(blocker_id, blocked_id)
+);
+
+alter table public.blocked_users enable row level security;
+create policy "Users can view their own blocks" on public.blocked_users for select using (auth.uid() = blocker_id);
+create policy "Users can create blocks" on public.blocked_users for insert with check (auth.uid() = blocker_id);
+create policy "Users can remove their blocks" on public.blocked_users for delete using (auth.uid() = blocker_id);
+
+create table if not exists public.user_reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references auth.users(id) on delete cascade,
+  reported_id uuid not null references auth.users(id) on delete cascade,
+  reason text not null default 'inappropriate',
+  created_at timestamptz default now()
+);
+
+alter table public.user_reports enable row level security;
+create policy "Users can create reports" on public.user_reports for insert with check (auth.uid() = reporter_id);
+
+-- 13. Push notification token storage (Added 2026-02-24)
+alter table public.profiles add column if not exists push_token text;
+alter table public.profiles add column if not exists push_token_updated_at timestamptz;
+
+-- 14. Message column for shared sifts (Added 2026-02-25)
+alter table public.sift_shares add column if not exists message text;

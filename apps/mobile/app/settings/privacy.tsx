@@ -1,8 +1,8 @@
 
 import * as React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { CaretLeft, ShieldCheck, FileText, Trash } from 'phosphor-react-native';
+import { CaretLeft, ShieldCheck, FileText, Trash, DownloadSimple } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -10,8 +10,46 @@ import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
 export default function PrivacyScreen() {
-    const { signOut } = useAuth();
+    const { signOut, user, profile } = useAuth();
     const router = useRouter();
+    const [exporting, setExporting] = React.useState(false);
+
+    const handleExportData = async () => {
+        if (!user?.id || exporting) return;
+        setExporting(true);
+        try {
+            // Fetch all user data
+            const [siftsRes, foldersRes] = await Promise.all([
+                supabase.from('pages').select('*').eq('user_id', user.id),
+                supabase.from('folders').select('*').eq('user_id', user.id),
+            ]);
+
+            const exportData = {
+                exported_at: new Date().toISOString(),
+                profile: profile,
+                sifts: siftsRes.data || [],
+                collections: foldersRes.data || [],
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+
+            // Use file system + sharing
+            const FileSystem = require('expo-file-system');
+            const Sharing = require('expo-sharing');
+            const fileUri = `${FileSystem.documentDirectory}sift-export-${Date.now()}.json`;
+            await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
+
+            if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export My SIFT Data' });
+            } else {
+                Alert.alert('Export Ready', 'File saved but sharing is not available on this device.');
+            }
+        } catch (e: any) {
+            Alert.alert('Export Failed', e.message || 'Could not export your data.');
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const handleDeleteAccount = () => {
         Alert.alert(
@@ -77,6 +115,19 @@ export default function PrivacyScreen() {
                     <Typography variant="body" style={[styles.text, { marginBottom: 24 }]}>
                         You have full control over your data. You can edit your profile, archive sifts, or permanently delete your account at any time.
                     </Typography>
+
+                    <TouchableOpacity style={styles.exportButton} onPress={handleExportData} disabled={exporting}>
+                        {exporting ? (
+                            <ActivityIndicator size="small" color={COLORS.ink} />
+                        ) : (
+                            <DownloadSimple size={20} color={COLORS.ink} />
+                        )}
+                        <Typography variant="label" style={{ marginLeft: 8 }}>
+                            {exporting ? 'EXPORTING...' : 'EXPORT MY DATA'}
+                        </Typography>
+                    </TouchableOpacity>
+
+                    <View style={{ height: 12 }} />
 
                     <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
                         <Trash size={20} color="#EF4444" />
@@ -147,5 +198,15 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.m,
         borderWidth: 1,
         borderColor: '#EF4444',
-    }
+    },
+    exportButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+        borderColor: COLORS.separator,
+        backgroundColor: COLORS.paper,
+    },
 });

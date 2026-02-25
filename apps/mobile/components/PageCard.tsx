@@ -48,9 +48,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
     const domain = getDomain(url);
 
     // Formatting Tags: Primary Tag • Domain
-    const ALLOWED_TAGS = ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"];
-    const validTags = tags.filter(t => ALLOWED_TAGS.includes(t));
-    const primaryTag = validTags[0] || 'Lifestyle';
+    const primaryTag = tags?.[0] || 'Saved';
     const tagLine = `${primaryTag}  •  ${domain}`.toUpperCase();
 
     // Hide summary if empty or "No summary generated"

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Pressable, Alert, Platform, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, Platform, useWindowDimensions, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS, TRANSITIONS, Theme } from '../lib/theme';
@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeOut, Layout, Easing, useSharedValue, useAnimatedS
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Minus, SquaresFour, Rows } from 'phosphor-react-native';
+import { Minus, SquaresFour, Rows, CheckCircle } from 'phosphor-react-native';
 import { useAuth } from '../lib/auth';
 import { SiftCardSkeleton } from './SiftCardSkeleton';
 import { FeedLoadingScreen } from './FeedLoadingScreen';
@@ -52,6 +52,11 @@ interface SiftFeedProps {
     onEndReached?: () => void;
     onEndReachedThreshold?: number;
     viewMode?: 'grid' | 'list';
+    // Multi-select
+    isSelectMode?: boolean;
+    selectedIds?: Set<string>;
+    onToggleSelect?: (id: string) => void;
+    onEnterSelectMode?: (id: string) => void;
 }
 
 const GRID_PADDING = 20;
@@ -70,7 +75,7 @@ const getLayoutInfo = (screenWidth: number) => {
     return { numColumns, columnWidth };
 };
 
-const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed' }: {
+const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed', isSelectMode, isSelected, onToggleSelect, onEnterSelectMode }: {
     item: Page,
     index: number,
     numColumns?: number,
@@ -80,7 +85,11 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     onEditTags?: (id: string, currentTags: string[]) => void,
     onOptions?: (item: any) => void,
     onRemove?: (id: string) => void,
-    mode?: 'feed' | 'archive' | 'edit'
+    mode?: 'feed' | 'archive' | 'edit',
+    isSelectMode?: boolean,
+    isSelected?: boolean,
+    onToggleSelect?: (id: string) => void,
+    onEnterSelectMode?: (id: string) => void,
 }) => {
     const { colors, isDark } = useTheme();
     const router = useRouter();
@@ -104,6 +113,11 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     }, [page]);
 
     const handlePress = () => {
+        if (isSelectMode) {
+            onToggleSelect?.(item.id);
+            Haptics.selectionAsync();
+            return;
+        }
         if (mode === 'edit') {
             onRemove?.(item.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -113,8 +127,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
         router.push({
             pathname: `/page/${item.id}`,
             params: {
-                contextType: mode === 'feed' ? 'feed' : 'archive', // simple context for now
-                // We'll need to enhance this dynamically for tags/search later if needed
+                contextType: mode === 'feed' ? 'feed' : 'archive',
             }
         });
     };
@@ -125,9 +138,13 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     };
 
     const handleLongPress = () => {
+        if (isSelectMode) return; // Already in select mode
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        // Bubble up to parent to show custom ActionSheet
-        onOptions?.(item);
+        if (onEnterSelectMode) {
+            onEnterSelectMode(item.id);
+        } else {
+            onOptions?.(item);
+        }
     };
 
     // Container Padding Strategy:
@@ -204,7 +221,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                 marginBottom: GRID_GAP,
                 marginRight: (index + 1) % numColumns === 0 ? 0 : GRID_GAP,
                 transform: Platform.OS === 'web' ? [{ scale: isHovered ? 1.02 : 1 }] : [],
-            }, shakeAnimation]}
+            }, shakeAnimation, isSelected && { opacity: 0.85 }]}
         >
             <Pressable
                 style={styles.cardContainer}
@@ -303,6 +320,18 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                             </View>
                         </View>
                     )}
+
+                    {/* Selection checkmark overlay */}
+                    {isSelectMode && (
+                        <View style={styles.selectOverlay}>
+                            <View style={[
+                                styles.selectBadge,
+                                isSelected && styles.selectBadgeActive
+                            ]}>
+                                {isSelected && <CheckCircle size={24} color="#FFFFFF" weight="fill" />}
+                            </View>
+                        </View>
+                    )}
                 </View>
             </Pressable>
         </Animated.View>
@@ -317,7 +346,7 @@ export default function SiftFeed({
     onEditTags,
     onOptions,
     onRemove,
-    mode = 'feed', // 'feed' | 'archive' | 'edit'
+    mode = 'feed',
     loading = false,
     ListHeaderComponent,
     ListEmptyComponent,
@@ -326,7 +355,11 @@ export default function SiftFeed({
     contentContainerStyle,
     onEndReached,
     onEndReachedThreshold = 0.5,
-    viewMode = 'grid'
+    viewMode = 'grid',
+    isSelectMode = false,
+    selectedIds,
+    onToggleSelect,
+    onEnterSelectMode,
 }: SiftFeedProps) {
     const { colors, isDark } = useTheme();
 
@@ -349,7 +382,7 @@ export default function SiftFeed({
             data={data}
             keyExtractor={(item) => (item as any).id}
             numColumns={numColumns}
-            extraData={[isDark, mode]} // Re-render when mode changes
+            extraData={[isDark, mode, isSelectMode, selectedIds]} // Re-render when mode/selection changes
             renderItem={({ item, index }) => (
                 viewMode === 'list' ? (
                     <PageCard
@@ -376,6 +409,10 @@ export default function SiftFeed({
                         onOptions={onOptions}
                         onRemove={onRemove}
                         mode={mode}
+                        isSelectMode={isSelectMode}
+                        isSelected={selectedIds?.has(item.id)}
+                        onToggleSelect={onToggleSelect}
+                        onEnterSelectMode={onEnterSelectMode}
                     />
                 )
             )}
@@ -480,6 +517,25 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 3,
-    }
+    },
+    selectOverlay: {
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        zIndex: 20,
+    },
+    selectBadge: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.8)',
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    selectBadgeActive: {
+        borderColor: COLORS.accent,
+        backgroundColor: COLORS.accent,
+    },
 });
-
