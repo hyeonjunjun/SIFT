@@ -275,7 +275,7 @@ export default function SocialScreen() {
         <ScreenWrapper edges={['top']}>
             <View style={styles.header}>
                 <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NATIVE • NETWORK</Typography>
-                <Typography variant="h1" style={styles.serifTitle}>Social</Typography>
+                <Typography variant="h1" style={styles.serifTitle}>Inbox & Activity</Typography>
             </View>
 
             <View style={styles.searchContainer}>
@@ -321,7 +321,7 @@ export default function SocialScreen() {
             <View style={styles.tabsContainer}>
                 <TouchableOpacity onPress={() => { setActiveTab('shared'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>SHARED</Typography>
+                        <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>INBOX</Typography>
                         {sharedSifts.length > 0 && (
                             <View style={[styles.badge, { backgroundColor: colors.subtle }]}>
                                 <Typography style={{ fontSize: 10, color: colors.ink }}>{sharedSifts.length}</Typography>
@@ -347,7 +347,7 @@ export default function SocialScreen() {
                         {activeTab === 'shared' ? (
                             <View style={styles.feed}>
                                 {sharedSifts.length === 0 ? (
-                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="No shared sifts yet" subtitle="Sifts shared by friends will land here." />
+                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="Inbox empty" subtitle="Individual Sifts sent to you by friends will land here." />
                                 ) : (
                                     sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
                                 )}

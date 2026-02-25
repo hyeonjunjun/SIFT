@@ -208,7 +208,7 @@ export default function ProfileScreen() {
                     />
                     <SettingsRow
                         label="Membership"
-                        description={tier === 'free' ? 'Upgrade for more sifts' : 'Manage your subscription'}
+                        description={tier === 'free' ? 'Change plans for more sifts' : 'Manage your subscription'}
                         onPress={() => router.push('/settings/subscription')}
                         icon={<Crown size={20} color={colors.ink} />}
                     />

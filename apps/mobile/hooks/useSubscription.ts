@@ -56,6 +56,8 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     },
 };
 
+let getCustomerInfoPromise: Promise<CustomerInfo> | null = null;
+
 export const useSubscription = () => {
     const { user, profile, updateProfileInDB } = useAuth();
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -64,22 +66,35 @@ export const useSubscription = () => {
     useEffect(() => {
         if (Platform.OS === 'web') return; // Skip RevenueCat on Web
 
+        let isMounted = true;
+
         const fetchInfo = async () => {
             try {
-                const info = await Purchases.getCustomerInfo();
-                setCustomerInfo(info);
-            } catch (e) {
+                if (!getCustomerInfoPromise) {
+                    getCustomerInfoPromise = Purchases.getCustomerInfo();
+                }
+                const info = await getCustomerInfoPromise;
+                if (isMounted) setCustomerInfo(info);
+            } catch (e: any) {
+                if (e?.code === 16) return; // Ignore concurrent request errors defensively
                 console.error('[useSubscription] Error fetching customer info:', e);
+            } finally {
+                // Clear the promise so future calls can request fresh data
+                // RevenueCat's internal cache will handle subsequent sequential calls efficiently
+                setTimeout(() => { getCustomerInfoPromise = null; }, 500);
             }
         };
 
         fetchInfo();
 
-        const listener = (info: CustomerInfo) => setCustomerInfo(info);
+        const listener = (info: CustomerInfo) => {
+            if (isMounted) setCustomerInfo(info);
+        };
         Purchases.addCustomerInfoUpdateListener(listener);
 
         return () => {
-            // Cleanup listener if needed
+            isMounted = false;
+            Purchases.removeCustomerInfoUpdateListener(listener);
         };
     }, []);
 

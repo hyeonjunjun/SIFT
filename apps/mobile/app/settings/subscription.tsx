@@ -42,19 +42,38 @@ export default function SubscriptionScreen() {
             name: 'Pro',
             icon: Crown,
             sub: 'Power through noise',
-            price: offerings?.monthly?.product.priceString || null
+            price: offerings?.monthly?.product.priceString ? `${offerings.monthly.product.priceString} / mo` : null
         },
         {
             id: 'unlimited',
             name: 'Unlimited',
             icon: InfinityIcon,
             sub: 'Sifts without limits',
-            price: offerings?.annual?.product.priceString || null
+            price: offerings?.annual?.product.priceString ? `${offerings.annual.product.priceString} / yr` : null
         },
     ];
 
     const handleUpgrade = async (tierId: Tier) => {
-        if (tierId === 'free') return;
+        if (tierId === 'free') {
+            Alert.alert(
+                "Manage Subscription",
+                "To switch to the Starter plan, please cancel your active subscription in your device's settings. You'll keep your premium features until the end of your billing cycle.",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                        text: "Open Settings",
+                        onPress: () => {
+                            if (Platform.OS === 'ios') {
+                                Linking.openURL('https://apps.apple.com/account/subscriptions');
+                            } else {
+                                Linking.openURL('https://play.google.com/store/account/subscriptions');
+                            }
+                        }
+                    }
+                ]
+            );
+            return;
+        }
 
         const packageToBuy = tierId === 'plus' ? offerings?.monthly : offerings?.annual;
 
@@ -173,8 +192,11 @@ export default function SubscriptionScreen() {
                 </View>
 
                 <View style={styles.legalInfo}>
-                    <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5 }}>
+                    <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5, marginBottom: 12 }}>
                         Subscriptions are managed via the Apple App Store or Google Play Store. Cancel anytime in your account settings.
+                    </Typography>
+                    <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5 }}>
+                        Payments are processed securely. Upgrades are charged immediately at a prorated difference. Downgrades or cancellations will leave your current higher-tier access active until your next billing/termination date.
                     </Typography>
                 </View>
             </ScrollView>
@@ -191,6 +213,7 @@ function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
 }) {
     const { colors } = useTheme();
     const Icon = tier.icon;
+    const isPremium = tier.id !== 'free';
 
     const benefits = tier.id === 'free'
         ? ["10 Total Sifts", "Basic Link Support", "Social Integration"]
@@ -209,23 +232,28 @@ function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
                 onPress={onPress}
                 style={[
                     styles.card,
-                    { backgroundColor: COLORS.paper },
-                    isCurrent && { borderColor: COLORS.ink, borderWidth: 1 }
+                    {
+                        backgroundColor: isPremium ? COLORS.ink : 'transparent',
+                        borderColor: isPremium ? 'transparent' : COLORS.separator,
+                        borderWidth: isPremium ? 0 : 1,
+                        ...(isPremium ? Theme.shadows.medium : {})
+                    },
+                    isCurrent && { borderColor: isPremium ? COLORS.stone : COLORS.ink, borderWidth: 2 }
                 ]}
             >
                 <View style={styles.cardTop}>
-                    <View style={styles.iconCircle}>
-                        <Icon size={24} color={COLORS.ink} weight={isCurrent ? "fill" : "regular"} />
+                    <View style={[styles.iconCircle, { backgroundColor: isPremium ? 'rgba(255,255,255,0.1)' : COLORS.canvas }]}>
+                        <Icon size={24} color={isPremium ? COLORS.paper : COLORS.ink} weight={isCurrent ? "fill" : "regular"} />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Typography variant="h3">{tier.name}</Typography>
-                        <Typography variant="caption" color={COLORS.stone}>{tier.sub}</Typography>
+                        <Typography variant="h3" style={{ color: isPremium ? COLORS.paper : COLORS.ink }}>{tier.name}</Typography>
+                        <Typography variant="caption" style={{ color: isPremium ? 'rgba(253, 252, 248, 0.7)' : COLORS.stone }}>{tier.sub}</Typography>
                     </View>
                     <View style={styles.priceContainer}>
                         {tier.price ? (
-                            <Typography variant="h3">{tier.price}</Typography>
+                            <Typography variant="h3" style={{ color: isPremium ? COLORS.paper : COLORS.ink }}>{tier.price}</Typography>
                         ) : isCurrent ? (
-                            <Typography variant="label" color={COLORS.stone} style={{ fontSize: 10 }}>INCLUDED</Typography>
+                            <Typography variant="label" style={{ color: isPremium ? 'rgba(253, 252, 248, 0.7)' : COLORS.stone, fontSize: 10 }}>INCLUDED</Typography>
                         ) : null}
                     </View>
                 </View>
@@ -233,21 +261,21 @@ function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
                 <View style={styles.cardMiddle}>
                     {benefits.map((benefit, i) => (
                         <View key={i} style={styles.benefitRow}>
-                            <Check size={14} color={COLORS.success} weight="bold" />
-                            <Typography variant="body" style={styles.benefitText}>{benefit}</Typography>
+                            <Check size={14} color={isPremium ? COLORS.paper : COLORS.success} weight="bold" />
+                            <Typography variant="body" style={[styles.benefitText, { color: isPremium ? COLORS.paper : COLORS.ink }]}>{benefit}</Typography>
                         </View>
                     ))}
                 </View>
 
                 <View style={[
                     styles.cardAction,
-                    { backgroundColor: isCurrent ? COLORS.subtle : !isAvailable ? COLORS.separator : COLORS.ink }
+                    { backgroundColor: isCurrent ? (isPremium ? 'rgba(255,255,255,0.1)' : COLORS.subtle) : !isAvailable ? COLORS.separator : (isPremium ? COLORS.paper : COLORS.ink) }
                 ]}>
                     <Typography
                         variant="label"
-                        style={{ color: isCurrent ? COLORS.ink : !isAvailable ? COLORS.stone : COLORS.paper, fontSize: 12 }}
+                        style={{ color: isCurrent ? (isPremium ? COLORS.paper : COLORS.ink) : !isAvailable ? COLORS.stone : (isPremium ? COLORS.ink : COLORS.paper), fontSize: 12, letterSpacing: 1 }}
                     >
-                        {isCurrent ? "ACTIVE PLAN" : !isAvailable ? "UNAVAILABLE" : "UPGRADE"}
+                        {isCurrent ? `ACTIVE PLAN${tier.price ? ` • ${tier.price.toUpperCase()}` : ''}` : !isAvailable ? "UNAVAILABLE" : "CHANGE PLANS"}
                     </Typography>
                 </View>
             </TouchableOpacity>
@@ -276,15 +304,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     heroTitle: {
-        fontSize: 36,
-        marginBottom: 12,
+        fontSize: 48,
+        fontFamily: 'PlayfairDisplay_700Bold',
+        marginBottom: 16,
         textAlign: 'center',
+        paddingHorizontal: 10,
+        lineHeight: 52,
     },
     heroSubtitle: {
         textAlign: 'center',
-        paddingHorizontal: 30,
-        lineHeight: 22,
+        paddingHorizontal: 36,
+        lineHeight: 24,
         color: COLORS.stone,
+        fontSize: 16,
     },
     card: {
         borderRadius: RADIUS.l,

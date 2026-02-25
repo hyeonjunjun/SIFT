@@ -315,7 +315,7 @@ export default function NotificationsScreen() {
         <ScreenWrapper edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <Typography variant="h2">Notifications</Typography>
+                <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 36 }}>Notifications</Typography>
                 {unreadCount > 0 && (
                     <TouchableOpacity onPress={handleMarkAllRead} hitSlop={16}>
                         <Typography variant="caption" color="accent" style={{ fontWeight: '600' }}>

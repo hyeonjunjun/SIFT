@@ -11,7 +11,7 @@ import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, Theme, RADIUS } from "../../lib/theme";
 import { API_URL } from "../../lib/config";
-import { HeroCarousel } from "../../components/home/HeroCarousel";
+// Removed HeroCarousel
 import { FilterBar } from "../../components/home/FilterBar";
 import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -562,6 +562,9 @@ export default function HomeScreen() {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
                     queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
+
+                    // If the auto-pasted URL matches the newly inserted Sift, clear it
+                    setManualUrl(prev => prev.trim() && newRecord.url && prev.trim() === newRecord.url.trim() ? "" : prev);
                 } else if (payload.eventType === 'UPDATE') {
                     if (!newRecord || !newRecord.id || newRecord.user_id !== user?.id) return;
 
@@ -574,6 +577,9 @@ export default function HomeScreen() {
                         queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                         if (statusChanged) triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                     }
+
+                    // If the auto-pasted URL matches the newly updated Sift, clear it
+                    setManualUrl(prev => prev.trim() && newRecord.url && prev.trim() === newRecord.url.trim() ? "" : prev);
                 } else if (payload.eventType === 'DELETE') {
                     queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                 }
@@ -847,7 +853,7 @@ export default function HomeScreen() {
                     <TextInput
                         ref={inputRef}
                         style={styles.textInput}
-                        placeholder="A link to sift..."
+                        placeholder="sift anything here!"
                         placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}
@@ -879,36 +885,9 @@ export default function HomeScreen() {
                 </View>
             )}
 
-            {/* 2. SEARCH BAR */}
-            <View style={styles.searchContainer}>
-                <View style={[styles.searchInputWrapper, { borderRadius: RADIUS.l }]}>
-                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" style={{ marginRight: 10 }} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Find a sift..."
-                        placeholderTextColor={COLORS.stone}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {searchQuery?.length > 0 && (
-                        <TouchableOpacity onPress={() => { setSearchQuery(""); triggerHaptic('selection'); }}>
-                            <XCircle size={18} color={COLORS.stone} weight="fill" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </View>
 
-            {/* 3. HERO CAROUSEL */}
-            <View style={{ marginHorizontal: -20 }}>
-                {activeFilter === 'All' && searchQuery === '' && (
-                    <HeroCarousel
-                        pages={filteredPages}
-                        onTogglePin={handlePin}
-                    />
-                )}
-            </View>
+
+
 
             {/* DAILY CATCH UP WIDGET */}
             {activeFilter === 'All' && searchQuery === '' && dailySifts && dailySifts.length > 0 && (
@@ -944,6 +923,31 @@ export default function HomeScreen() {
                     </ScrollView>
                 </View>
             )}
+
+            {activeFilter === 'All' && searchQuery === '' && (
+                <Typography variant="label" color="stone" style={{ letterSpacing: 1.5, marginTop: SPACING.s, marginBottom: 12 }}>RECENTLY SIFTED</Typography>
+            )}
+
+            {/* SEARCH BAR (Moved below Daily Catch Up) */}
+            <View style={[styles.searchContainer, { marginTop: 0, marginBottom: SPACING.m }]}>
+                <View style={[styles.searchInputWrapper, { borderRadius: RADIUS.l }]}>
+                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" style={{ marginRight: 10 }} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Find a sift..."
+                        placeholderTextColor={COLORS.stone}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    {searchQuery?.length > 0 && (
+                        <TouchableOpacity onPress={() => { setSearchQuery(""); triggerHaptic('selection'); }}>
+                            <XCircle size={18} color={COLORS.stone} weight="fill" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
 
             {/* 4. FILTER BAR */}
             <View style={{ marginHorizontal: -20 }}>

@@ -94,6 +94,7 @@ export default function LibraryScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [activeView, setActiveView] = useState<'personal' | 'shared'>('personal');
     const [isReordering, setIsReordering] = useState(false);
     const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
@@ -193,6 +194,40 @@ export default function LibraryScreen() {
 
     const collections = collectionsData || [];
 
+    // Fetch Shared Collections
+    const {
+        data: sharedFoldersData,
+        refetch: refetchSharedFolders,
+    } = useQuery({
+        queryKey: ['shared_folders', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            try {
+                const { data, error } = await supabase
+                    .from('folder_members')
+                    .select('folder:folder_id(*)')
+                    .eq('user_id', user.id);
+
+                if (error) {
+                    console.warn('Shared folders query error:', error.message);
+                    return [];
+                }
+
+                // Extract folder objects and filter out those owned by the user
+                const mapped = data.map((d: any) => d.folder).filter(Boolean) as CollectionData[];
+                return mapped.filter((f: any) => f.user_id !== user.id);
+            } catch (e) {
+                console.warn('Shared collections query failed:', e);
+                return [];
+            }
+        },
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5,
+        retry: 2,
+    });
+
+    const sharedFolders = sharedFoldersData || [];
+
     // Sync local collections with query data
     useEffect(() => {
         if (collectionsData) {
@@ -268,9 +303,11 @@ export default function LibraryScreen() {
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await Promise.all([refetch(), refetchCollections(), refetchSmartCollections()]);
+        await Promise.all([refetch(), refetchCollections(), refetchSmartCollections(), refetchSharedFolders()]);
         setRefreshing(false);
-    }, [refetch, refetchCollections, refetchSmartCollections]);
+    }, [refetch, refetchCollections, refetchSmartCollections, refetchSharedFolders]);
+
+    const displayCollections = activeView === 'personal' ? localCollections : sharedFolders;
 
     // Derived filtering
     const filteredPages = useMemo(() => {
@@ -519,7 +556,7 @@ export default function LibraryScreen() {
                 ) : (
                     <>
                         <View style={styles.header}>
-                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold' }}>Library</Typography>
+                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 36 }}>Library</Typography>
                             <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
                                 {isReordering ? (
                                     <TouchableOpacity onPress={() => setIsReordering(false)}>
@@ -527,9 +564,11 @@ export default function LibraryScreen() {
                                     </TouchableOpacity>
                                 ) : (
                                     <>
-                                        <TouchableOpacity onPress={() => { setIsReordering(true); setViewMode('list'); }}>
-                                            <ListDashes size={24} color={colors.ink} />
-                                        </TouchableOpacity>
+                                        {activeView === 'personal' && (
+                                            <TouchableOpacity onPress={() => { setIsReordering(true); setViewMode('list'); }}>
+                                                <ListDashes size={24} color={colors.ink} />
+                                            </TouchableOpacity>
+                                        )}
                                         <TouchableOpacity onPress={toggleViewMode}>
                                             {viewMode === 'grid' ? <Rows size={24} color={colors.ink} /> : <SquaresFour size={24} color={colors.ink} />}
                                         </TouchableOpacity>
@@ -538,6 +577,22 @@ export default function LibraryScreen() {
                                         </TouchableOpacity>
                                     </>
                                 )}
+                            </View>
+                        </View>
+                        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+                            <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.pill, padding: 4, alignSelf: 'flex-start' }}>
+                                <TouchableOpacity
+                                    style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'personal' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                    onPress={() => { setActiveView('personal'); Haptics.selectionAsync(); }}
+                                >
+                                    <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'personal' ? colors.ink : colors.stone, fontWeight: activeView === 'personal' ? '600' : '400' }}>Personal</Typography>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'shared' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                    onPress={() => { setActiveView('shared'); Haptics.selectionAsync(); }}
+                                >
+                                    <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'shared' ? colors.ink : colors.stone, fontWeight: activeView === 'shared' ? '600' : '400' }}>Shared</Typography>
+                                </TouchableOpacity>
                             </View>
                         </View>
 
@@ -560,16 +615,18 @@ export default function LibraryScreen() {
 
                             <View style={{ paddingHorizontal: 20 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
-                                    <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>COLLECTIONS</Typography>
-                                    <TouchableOpacity onPress={handleCreateCollection}>
+                                    <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
+                                        {activeView === 'shared' ? 'SHARED WITH ME' : 'COLLECTIONS'}
+                                    </Typography>
+                                    <TouchableOpacity onPress={handleCreateCollection} style={{ opacity: activeView === 'shared' ? 0 : 1 }} disabled={activeView === 'shared'}>
                                         <Plus size={20} color={colors.ink} />
                                     </TouchableOpacity>
                                 </View>
 
-                                {localCollections.length > 0 ? (
+                                {displayCollections.length > 0 ? (
                                     viewMode === 'grid' ? (
                                         <View style={styles.collectionRow}>
-                                            {localCollections.map((item: any, index: number) => (
+                                            {displayCollections.map((item: any, index: number) => (
                                                 <MotiView
                                                     key={item.id}
                                                     from={{ opacity: 0, scale: 0.9, translateY: 10 }}
@@ -607,9 +664,9 @@ export default function LibraryScreen() {
                                             ))}
                                         </View>
                                     ) : (
-                                        <View style={{ height: localCollections.length * 64, marginHorizontal: -20 }}>
+                                        <View style={{ height: displayCollections.length * 64, marginHorizontal: -20 }}>
                                             <DraggableFlatList
-                                                data={localCollections}
+                                                data={displayCollections}
                                                 onDragEnd={onDragEnd}
                                                 keyExtractor={(item) => item.id}
                                                 scrollEnabled={false}
@@ -646,108 +703,111 @@ export default function LibraryScreen() {
                                 ) : (
                                     <EmptyState
                                         type="no-collections"
-                                        title="No Collections"
-                                        description="Organize your sifts into bespoke collections."
-                                        actionLabel="New Collection"
-                                        onAction={handleCreateCollection}
+                                        title={activeView === 'shared' ? "No Shared Collections" : "No Collections"}
+                                        description={activeView === 'shared' ? "Collections your friends share with you will appear here." : "Organize your sifts into bespoke collections."}
+                                        actionLabel={activeView === 'shared' ? undefined : "New Collection"}
+                                        onAction={activeView === 'shared' ? undefined : handleCreateCollection}
                                     />
                                 )}
+                            </View>
 
-                                <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
-                                    SMART COLLECTIONS
-                                </Typography>
-                                <View style={viewMode === 'grid' ? styles.collectionRow : styles.listContainer}>
-                                    {smartCollections.map((item: any, index: number) => (
-                                        viewMode === 'grid' ? (
-                                            <MotiView
-                                                key={item.id}
-                                                from={{ opacity: 0, scale: 0.9, translateY: 10 }}
-                                                animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                                                transition={{ type: 'timing', duration: 400, delay: index * 50 + 200 }}
-                                                style={[
-                                                    styles.collectionTile,
-                                                    { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
-                                                ]}
-                                            >
-                                                <TouchableOpacity
-                                                    activeOpacity={0.7}
-                                                    style={{ alignItems: 'center', width: '100%' }}
-                                                    onPress={() => setActiveCategoryId(item.id)}
-                                                    onLongPress={() => handleLongPressSmartCollection(item)}
+                            {activeView === 'personal' && (
+                                <View style={{ marginTop: SPACING.xl, paddingHorizontal: 20 }}>
+                                    <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l, marginBottom: SPACING.m }]}>
+                                        SMART COLLECTIONS
+                                    </Typography>
+                                    <View style={viewMode === 'grid' ? styles.collectionRow : styles.listContainer}>
+                                        {smartCollections.map((item: any, index: number) => (
+                                            viewMode === 'grid' ? (
+                                                <MotiView
+                                                    key={item.id}
+                                                    from={{ opacity: 0, scale: 0.9, translateY: 10 }}
+                                                    animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                                    transition={{ type: 'timing', duration: 400, delay: index * 50 + 200 }}
+                                                    style={[
+                                                        styles.collectionTile,
+                                                        { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
+                                                    ]}
                                                 >
-                                                    <View style={styles.iconStackContainer}>
-                                                        <View style={[styles.stackBack, { backgroundColor: colors.subtle, opacity: 0.5 }]} />
-                                                        <View style={[styles.iconContainer, {
-                                                            backgroundColor: colors.subtle,
-                                                            borderStyle: 'dotted',
-                                                            borderWidth: 1,
-                                                            borderColor: colors.ink,
-                                                            overflow: 'hidden'
-                                                        }]}>
-                                                            {getSmartCollectionCover(item.tags) ? (
-                                                                <>
-                                                                    <Image
-                                                                        source={{ uri: getSmartCollectionCover(item.tags) }}
-                                                                        style={StyleSheet.absoluteFill}
-                                                                        contentFit="cover"
-                                                                    />
-                                                                    <LinearGradient
-                                                                        colors={['transparent', 'rgba(0,0,0,0.5)']}
-                                                                        style={StyleSheet.absoluteFill}
-                                                                    />
-                                                                    {getIcon(item.icon, 20, '#FFFFFF')}
-                                                                </>
-                                                            ) : (
-                                                                getIcon(item.icon, 24, colors.ink)
-                                                            )}
-                                                            <View style={styles.smartBadge}>
-                                                                <Sparkle size={8} color={colors.paper} weight="fill" />
+                                                    <TouchableOpacity
+                                                        activeOpacity={0.7}
+                                                        style={{ alignItems: 'center', width: '100%' }}
+                                                        onPress={() => setActiveCategoryId(item.id)}
+                                                        onLongPress={() => handleLongPressSmartCollection(item)}
+                                                    >
+                                                        <View style={styles.iconStackContainer}>
+                                                            <View style={[styles.stackBack, { backgroundColor: colors.subtle, opacity: 0.5 }]} />
+                                                            <View style={[styles.iconContainer, {
+                                                                backgroundColor: colors.subtle,
+                                                                borderStyle: 'dotted',
+                                                                borderWidth: 1,
+                                                                borderColor: colors.ink,
+                                                                overflow: 'hidden'
+                                                            }]}>
+                                                                {getSmartCollectionCover(item.tags) ? (
+                                                                    <>
+                                                                        <Image
+                                                                            source={{ uri: getSmartCollectionCover(item.tags) }}
+                                                                            style={StyleSheet.absoluteFill}
+                                                                            contentFit="cover"
+                                                                        />
+                                                                        <LinearGradient
+                                                                            colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                            style={StyleSheet.absoluteFill}
+                                                                        />
+                                                                        {getIcon(item.icon, 20, '#FFFFFF')}
+                                                                    </>
+                                                                ) : (
+                                                                    getIcon(item.icon, 24, colors.ink)
+                                                                )}
+                                                                <View style={styles.smartBadge}>
+                                                                    <Sparkle size={8} color={colors.paper} weight="fill" />
+                                                                </View>
                                                             </View>
                                                         </View>
-                                                    </View>
-                                                    <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
-                                                        {item.name}
-                                                    </Typography>
-                                                </TouchableOpacity>
-                                            </MotiView>
-                                        ) : (
-                                            <MotiView
-                                                key={item.id}
-                                                from={{ opacity: 0, translateX: -10 }}
-                                                animate={{ opacity: 1, translateX: 0 }}
-                                                transition={{ type: 'timing', duration: 300, delay: index * 30 }}
-                                            >
-                                                <TouchableOpacity
-                                                    activeOpacity={0.7}
-                                                    style={[styles.listItem, { borderBottomColor: colors.separator }]}
-                                                    onPress={() => setActiveCategoryId(item.id)}
-                                                    onLongPress={() => handleLongPressSmartCollection(item)}
+                                                        <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
+                                                            {item.name}
+                                                        </Typography>
+                                                    </TouchableOpacity>
+                                                </MotiView>
+                                            ) : (
+                                                <MotiView
+                                                    key={item.id}
+                                                    from={{ opacity: 0, translateX: -10 }}
+                                                    animate={{ opacity: 1, translateX: 0 }}
+                                                    transition={{ type: 'timing', duration: 300, delay: index * 30 }}
                                                 >
-                                                    <View style={[styles.listIconWrapper, { backgroundColor: colors.subtle, borderStyle: 'dotted', borderWidth: 1, borderColor: colors.ink }]}>
-                                                        {getSmartCollectionCover(item.tags) ? (
-                                                            <Image
-                                                                source={{ uri: getSmartCollectionCover(item.tags) }}
-                                                                style={StyleSheet.absoluteFill}
-                                                                contentFit="cover"
-                                                            />
-                                                        ) : (
-                                                            getIcon(item.icon, 18, colors.ink)
-                                                        )}
-                                                        <View style={styles.smartBadgeList}>
-                                                            <Sparkle size={6} color={colors.paper} weight="fill" />
+                                                    <TouchableOpacity
+                                                        activeOpacity={0.7}
+                                                        style={[styles.listItem, { borderBottomColor: colors.separator }]}
+                                                        onPress={() => setActiveCategoryId(item.id)}
+                                                        onLongPress={() => handleLongPressSmartCollection(item)}
+                                                    >
+                                                        <View style={[styles.listIconWrapper, { backgroundColor: colors.subtle, borderStyle: 'dotted', borderWidth: 1, borderColor: colors.ink }]}>
+                                                            {getSmartCollectionCover(item.tags) ? (
+                                                                <Image
+                                                                    source={{ uri: getSmartCollectionCover(item.tags) }}
+                                                                    style={StyleSheet.absoluteFill}
+                                                                    contentFit="cover"
+                                                                />
+                                                            ) : (
+                                                                getIcon(item.icon, 18, colors.ink)
+                                                            )}
+                                                            <View style={styles.smartBadgeList}>
+                                                                <Sparkle size={6} color={colors.paper} weight="fill" />
+                                                            </View>
                                                         </View>
-                                                    </View>
-                                                    <View style={styles.listItemText}>
-                                                        <Typography variant="body" weight="600">{item.name}</Typography>
-                                                        <Typography variant="caption" color="stone">Smart Collection</Typography>
-                                                    </View>
-                                                    <CaretRight size={16} color={colors.stone} />
-                                                </TouchableOpacity>
-                                            </MotiView>
-                                        )
-                                    ))}
+                                                        <View style={styles.listItemText}>
+                                                            <Typography variant="body" weight="600">{item.name}</Typography>
+                                                            <Typography variant="caption" color="stone">Smart Collection</Typography>
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                </MotiView>
+                                            )
+                                        ))}
+                                    </View>
                                 </View>
-                            </View>
+                            )}
                         </ScrollView>
                     </>
                 )}
@@ -810,7 +870,7 @@ export default function LibraryScreen() {
                     initialTags={selectedSiftTags}
                 />
             </ScreenWrapper>
-        </GestureHandlerRootView>
+        </GestureHandlerRootView >
     );
 }
 
