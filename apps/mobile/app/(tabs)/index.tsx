@@ -617,6 +617,32 @@ export default function HomeScreen() {
         }
     }, [queryClient, user?.id, triggerHaptic, refreshProfile]);
 
+    const handleRetry = async (id: string, url: string) => {
+        if (!user) return;
+        triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Light);
+        showToast({ message: "Retrying...", duration: 2000 });
+
+        // Optimistically set to pending
+        await supabase.from('pages').update({ metadata: { status: 'pending' } }).eq('id', id);
+        queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+
+        try {
+            await safeSift(url, user.id, id, tier);
+        } catch (apiError: any) {
+            console.error(`[RETRY] API Error for ${url}:`, apiError);
+            if (apiError.status === 'limit_reached') {
+                setUpgradeUrl(apiError.upgrade_url);
+                setLimitReachedVisible(true);
+                triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
+            } else {
+                await supabase.from('pages').update({
+                    metadata: { status: 'failed', error: apiError.message }
+                }).eq('id', id);
+                queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+            }
+        }
+    };
+
     const handleArchive = async (id: string) => {
         if (!user?.id) {
             showToast({ message: "Error: Identity not verified" });
@@ -1041,6 +1067,7 @@ export default function HomeScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                     setSelectedIds(new Set([id]));
                 }}
+                onRetry={handleRetry}
             />
 
             {/* Batch Actions Floating Toolbar */}

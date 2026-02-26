@@ -60,6 +60,7 @@ interface SiftFeedProps {
     selectedIds?: Set<string>;
     onToggleSelect?: (id: string) => void;
     onEnterSelectMode?: (id: string) => void;
+    onRetry?: (id: string, url: string) => void;
 }
 
 const GRID_PADDING = 20;
@@ -78,7 +79,7 @@ const getLayoutInfo = (screenWidth: number) => {
     return { numColumns, columnWidth };
 };
 
-const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed', isSelectMode, isSelected, onToggleSelect, onEnterSelectMode }: {
+const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, onRetry, mode = 'feed', isSelectMode, isSelected, onToggleSelect, onEnterSelectMode }: {
     item: Page,
     index: number,
     numColumns?: number,
@@ -88,6 +89,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     onEditTags?: (id: string, currentTags: string[]) => void,
     onOptions?: (item: any) => void,
     onRemove?: (id: string) => void,
+    onRetry?: (id: string, url: string) => void,
     mode?: 'feed' | 'archive' | 'edit' | 'reorder',
     isSelectMode?: boolean,
     isSelected?: boolean,
@@ -195,10 +197,6 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     const isFailedOrStale = item.status === 'failed' || isStale;
     const isPending = item.status === 'pending';
 
-    if (isFailedOrStale) {
-        return null;
-    }
-
     if (isPending) {
         return (
             <Animated.View style={[{
@@ -234,9 +232,15 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
-                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold' }}>
+                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold', marginBottom: 8 }}>
                                 {isStale ? "TIMED OUT" : "FAILED"}
                             </Typography>
+                            <Pressable
+                                onPress={(e) => { e.stopPropagation(); onRetry?.(item.id, page.url); }}
+                                style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                            >
+                                <Typography variant="label" style={{ color: 'white' }}>Retry</Typography>
+                            </Pressable>
                         </View>
                     ) : isFallback ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.paper }]}>
@@ -253,6 +257,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                             source={item.image}
                             placeholder={item.blurhash || 'LKO2?V%2Tw=w]~RBVZRi_Noz9HkC'} // Default blurhash
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                             transition={500}
                             style={[styles.image, mode === 'edit' && { opacity: 0.8 }]}
                         />
@@ -360,6 +365,7 @@ export default function SiftFeed({
     onToggleSelect,
     onEnterSelectMode,
     onDragEnd,
+    onRetry,
 }: SiftFeedProps) {
     const { colors, isDark } = useTheme();
 
@@ -454,10 +460,10 @@ export default function SiftFeed({
                         onOptions={onOptions}
                         onRemove={onRemove}
                         mode={mode}
-                        isSelectMode={isSelectMode}
                         isSelected={selectedIds?.has(item.id)}
                         onToggleSelect={onToggleSelect}
                         onEnterSelectMode={onEnterSelectMode}
+                        onRetry={onRetry}
                     />
                 )
             )}

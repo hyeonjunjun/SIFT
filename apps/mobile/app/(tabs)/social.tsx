@@ -347,7 +347,11 @@ export default function SocialScreen() {
                         {activeTab === 'shared' ? (
                             <View style={styles.feed}>
                                 {sharedSifts.length === 0 ? (
-                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="Inbox empty" subtitle="Individual Sifts sent to you by friends will land here." />
+                                    <EmptyState
+                                        icon={<ShareNetwork size={40} color={colors.stone} />}
+                                        title="Curate together"
+                                        subtitle="Send and receive Sifts directly with friends, completely separate from the algorithmic noise of typical social apps."
+                                    />
                                 ) : (
                                     sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
                                 )}
@@ -372,7 +376,11 @@ export default function SocialScreen() {
                                     </View>
                                 ) : (
                                     incomingRequests.length === 0 && (
-                                        <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing sifts." />
+                                        <EmptyState
+                                            icon={<Users size={40} color={colors.stone} />}
+                                            title="Build your network"
+                                            subtitle="Search for friends to start sharing your best finds directly with them."
+                                        />
                                     )
                                 )}
 
