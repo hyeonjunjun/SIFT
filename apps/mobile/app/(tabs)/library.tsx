@@ -969,7 +969,7 @@ export default function LibraryScreen() {
                     onClose={() => setSmartCollectionModalVisible(false)}
                     onSave={handleSaveSmartCollection}
                     onDelete={handleDeleteSmartCollection}
-                    existingCategory={editingSmartCollection}
+                    existingCollection={editingSmartCollection}
                 />
 
                 <SiftActionSheet

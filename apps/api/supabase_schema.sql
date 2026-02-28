@@ -511,3 +511,41 @@ alter table public.profiles add column if not exists push_token_updated_at times
 
 -- 14. Message column for shared sifts (Added 2026-02-25)
 alter table public.sift_shares add column if not exists message text;
+
+-- 15. Account Deletion RPC (Added 2026-02-28 for App Store Compliance)
+-- This function deletes all user data and then the auth user itself.
+create or replace function public.delete_user_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_user_id uuid;
+begin
+  target_user_id := auth.uid();
+  
+  if target_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  -- 1. Delete associated data (cascade deletes should handle most, but being explicit is safer)
+  delete from public.pages where user_id = target_user_id;
+  delete from public.categories where user_id = target_user_id;
+  delete from public.folder_members where user_id = target_user_id;
+  delete from public.notifications where user_id = target_user_id or actor_id = target_user_id;
+  delete from public.friendships where user_id = target_user_id or friend_id = target_user_id;
+  delete from public.sift_shares where sender_id = target_user_id or receiver_id = target_user_id;
+  delete from public.profiles where id = target_user_id;
+
+  -- 2. Delete the user from auth.users (Requires service role or security definer with bypass)
+  -- Note: In Supabase, deleting from auth.users via RPC usually requires a trigger or a specific policy.
+  -- The most reliable way for a self-service delete is to delete from public.profiles and have a trigger
+  -- OR call a management API. For simplicity and reliability in RLS, we delete the profile 
+  -- and provide a fallback info if the auth user deletion fails (it often needs service_role).
+  
+  -- However, we can use the 'auth.users' delete directly if the RPC has enough permissions.
+  delete from auth.users where id = target_user_id;
+end;
+$$;
+

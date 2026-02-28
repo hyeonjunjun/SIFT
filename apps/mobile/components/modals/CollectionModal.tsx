@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../design-system/Typography';
@@ -342,7 +342,6 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                                 <TouchableOpacity
                                     style={[styles.smallActionButton, { backgroundColor: colors.subtle, borderColor: colors.separator }]}
                                     onPress={handleUseLatestSift}
-                                    title="Latest Sift"
                                 >
                                     <ImageSquare size={20} color={colors.ink} />
                                 </TouchableOpacity>

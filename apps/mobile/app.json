@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "147",
+      "buildNumber": "148",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -37,7 +37,8 @@
           }
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Sift needs access to your photos to extract and summarize content from screenshots and images you select for sifting."
+        "NSPhotoLibraryUsageDescription": "Sift needs access to your photos to extract and summarize content from screenshots and images you select for sifting.",
+        "NSCameraUsageDescription": "Sift needs access to your camera to let you take photos of documents or scenes to sift and summarize instantly."
       }
     },
     "android": {
@@ -47,7 +48,7 @@
       },
       "package": "com.hkjstudio.sift",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 1112,
+      "versionCode": 1113,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
