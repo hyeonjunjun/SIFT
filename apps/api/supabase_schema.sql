@@ -197,7 +197,8 @@ create table if not exists public.folders (
   color text, -- hex color for folder icon
   icon text, -- phosphor icon name
   sort_order int default 0,
-  is_pinned boolean default false
+  is_pinned boolean default false,
+  image_url text
 );
 
 -- Enable RLS for folders
@@ -307,8 +308,10 @@ create table if not exists public.categories (
   user_id uuid references auth.users(id) not null,
   name text not null,
   icon text, -- phosphor icon name
-  tags text[], -- Array of tags this category watches
-  sort_order int default 0
+  tags text[] default '{}'::text[], -- Array of tags this category watches
+  sort_order int default 0,
+  color text,
+  image_url text
 );
 
 -- Enable RLS for categories

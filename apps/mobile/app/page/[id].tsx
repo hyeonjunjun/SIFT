@@ -27,8 +27,8 @@ import { Typography } from '../../components/design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
-import { Plus, X, ArrowSquareOut, PlusCircle, SpeakerSimpleHigh } from 'phosphor-react-native';
-import * as Speech from 'expo-speech';
+import { Plus, X, ArrowSquareOut, PlusCircle, Copy } from 'phosphor-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { useAuth } from '../../lib/auth';
 import { safeSift } from '../../lib/sift-api';
@@ -55,7 +55,7 @@ export default function PageDetail() {
     const [isShared, setIsShared] = useState(false);
     const [showDirectShare, setShowDirectShare] = useState(false);
     const [reSifting, setReSifting] = useState(false);
-    const [isSpeaking, setIsSpeaking] = useState(false);
+
 
     // 1. Fetch Neighbor IDs for Navigation
     const { data: neighborIds } = useQuery({
@@ -583,25 +583,16 @@ export default function PageDetail() {
                                             <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Send</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: isSpeaking ? COLORS.accent : colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
-                                            onPress={() => {
-                                                if (isSpeaking) {
-                                                    Speech.stop();
-                                                    setIsSpeaking(false);
-                                                } else {
-                                                    const textToRead = page?.summary || page?.title || 'No content';
-                                                    Speech.speak(textToRead, {
-                                                        onDone: () => setIsSpeaking(false),
-                                                        onStopped: () => setIsSpeaking(false),
-                                                        rate: 0.9,
-                                                    });
-                                                    setIsSpeaking(true);
-                                                }
-                                                Haptics.selectionAsync();
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            onPress={async () => {
+                                                const textToCopy = page?.content || `# ${page?.title}\n\n${page?.summary}`;
+                                                await Clipboard.setStringAsync(textToCopy);
+                                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                                Alert.alert("Copied", "Sift contents copied to clipboard.");
                                             }}
                                         >
-                                            <SpeakerSimpleHigh size={24} color={isSpeaking ? '#FFFFFF' : colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" style={{ color: isSpeaking ? '#FFFFFF' : colors.stone }} numberOfLines={1} adjustsFontSizeToFit>{isSpeaking ? 'Stop' : 'Listen'}</Typography>
+                                            <Copy size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
+                                            <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Copy</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}

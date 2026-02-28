@@ -30,7 +30,32 @@ import {
     SquaresFour,
     DotsThree,
     Sparkle,
-    ListDashes
+    ListDashes,
+    FolderOpen,
+    FolderStar,
+    Heart,
+    Star,
+    BookmarkSimple,
+    Lightning,
+    Fire,
+    Coffee,
+    GameController,
+    MusicNote,
+    Camera,
+    Palette,
+    Book,
+    Briefcase,
+    GraduationCap,
+    Trophy,
+    Target,
+    Lightbulb,
+    Rocket,
+    CookingPot,
+    Leaf,
+    Monitor,
+    Barbell,
+    Airplane,
+    Martini
 } from 'phosphor-react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { supabase } from '../../lib/supabase';
@@ -70,6 +95,15 @@ interface SiftItem {
         image_url?: string;
         category?: string;
     };
+}
+
+// Assuming CollectionData is defined in CollectionModal.tsx,
+// but for the purpose of this file, we'll extend its properties here
+// based on the instruction.
+declare module '../../components/modals/CollectionModal' {
+    interface CollectionData {
+        image_url?: string;
+    }
 }
 
 const DEFAULT_SMART_COLLECTIONS = [
@@ -392,13 +426,13 @@ export default function LibraryScreen() {
         if (editingCollection) {
             const { error } = await supabase
                 .from('folders')
-                .update(updateData)
+                .update({ ...updateData, image_url: data.image_url })
                 .eq('id', editingCollection.id);
             if (error) throw error;
         } else {
             const { error } = await supabase
                 .from('folders')
-                .insert({ ...updateData, user_id: user?.id });
+                .insert({ ...updateData, user_id: user?.id, image_url: data.image_url });
             if (error) throw error;
         }
         queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
@@ -444,22 +478,48 @@ export default function LibraryScreen() {
         setSmartCollectionModalVisible(true);
     };
 
-    const getIcon = (name: string, size: number, color: string) => {
-        switch (name) {
-            case 'Cooking': return <SelectionBackground size={size} color={color} weight="fill" />;
-            case 'Baking': return <SelectionBackground size={size} color={color} weight="fill" />;
-            case 'Tech': return <SelectionBackground size={size} color={color} weight="fill" />;
-            case 'Health': return <SelectionBackground size={size} color={color} weight="fill" />;
-            case 'Lifestyle': return <SelectionBackground size={size} color={color} weight="fill" />;
-            case 'Professional': return <SelectionBackground size={size} color={color} weight="fill" />;
-            default: return <Folder size={size} color={color} weight="fill" />;
+    const handleSaveSmartCollection = async (data: SmartCollectionData) => {
+        const { id, ...updateData } = data;
+        if (id) {
+            const { error } = await supabase
+                .from('categories')
+                .update(updateData)
+                .eq('id', id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase
+                .from('categories')
+                .insert({ ...updateData, user_id: user?.id });
+            if (error) throw error;
         }
+        queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+        setEditingSmartCollection(null);
+        setSmartCollectionModalVisible(false);
     };
 
-    const getSmartCollectionCover = (targetTags: string[]) => {
+    const handleDeleteSmartCollection = async (id: string) => {
+        const { error } = await supabase.from('categories').delete().eq('id', id);
+        if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+    };
+
+    const iconMap: Record<string, any> = {
+        Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple,
+        Lightning, Fire, Sparkle, Coffee, GameController, MusicNote,
+        Camera, Palette, Book, Briefcase, GraduationCap, Trophy,
+        Target, Lightbulb, Rocket, CookingPot, Leaf, Monitor, Barbell, Airplane, Martini
+    };
+
+    const getIcon = (name: string, size: number, color: string) => {
+        const IconComponent = iconMap[name] || Folder;
+        return <IconComponent size={size} color={color} weight="fill" />;
+    };
+
+    const getSmartCollectionCover = (item: any) => {
+        if (item.image_url) return item.image_url;
         if (!pages || pages.length === 0) return null;
         const matchingSift = pages.find(p =>
-            p.tags && p.tags.some(t => targetTags.includes(t.toUpperCase())) &&
+            p.tags && p.tags.some(t => item.tags.includes(t.toUpperCase())) &&
             p.metadata?.image_url
         );
         return matchingSift?.metadata?.image_url;
@@ -647,14 +707,42 @@ export default function LibraryScreen() {
                                                             <View style={[styles.stackBack, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '-3deg' }, { translateX: -2 }] }]} />
                                                             <View style={[styles.stackMid, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '2deg' }, { translateX: 2 }] }]} />
 
-                                                            <View style={[styles.iconContainer, { backgroundColor: item.color || colors.stone }]}>
-                                                                {getIcon(item.icon, 24, '#FFFFFF')}
+                                                            <View style={[styles.iconContainer, { backgroundColor: item.color || colors.stone, overflow: 'hidden' }]}>
+                                                                {item.image_url ? (
+                                                                    <>
+                                                                        <Image
+                                                                            source={{ uri: item.image_url }}
+                                                                            style={StyleSheet.absoluteFill}
+                                                                            contentFit="cover"
+                                                                        />
+                                                                        <LinearGradient
+                                                                            colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                            style={StyleSheet.absoluteFill}
+                                                                        />
+                                                                        {getIcon(item.icon, 20, '#FFFFFF')}
+                                                                    </>
+                                                                ) : (
+                                                                    getIcon(item.icon, 24, '#FFFFFF')
+                                                                )}
                                                                 {item.is_pinned && (
                                                                     <View style={styles.pinIndicator}>
                                                                         <Pin size={10} color={colors.ink} weight="fill" />
                                                                     </View>
                                                                 )}
                                                             </View>
+
+                                                            {activeView === 'personal' && (
+                                                                <TouchableOpacity
+                                                                    style={styles.gridSettingsButton}
+                                                                    onPress={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleLongPressCollection(item);
+                                                                    }}
+                                                                    hitSlop={8}
+                                                                >
+                                                                    <DotsThree size={20} color="#FFFFFF" weight="bold" />
+                                                                </TouchableOpacity>
+                                                            )}
                                                         </View>
                                                         <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
                                                             {item.name}
@@ -687,13 +775,31 @@ export default function LibraryScreen() {
                                                             onPress={() => router.push(`/collection/${item.id}`)}
                                                         >
                                                             <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
-                                                                {getIcon(item.icon, 18, '#FFFFFF')}
+                                                                {item.image_url ? (
+                                                                    <Image
+                                                                        source={{ uri: item.image_url }}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                        contentFit="cover"
+                                                                    />
+                                                                ) : (
+                                                                    getIcon(item.icon, 18, '#FFFFFF')
+                                                                )}
                                                             </View>
                                                             <View style={styles.listItemText}>
                                                                 <Typography variant="body" weight="600">{item.name}</Typography>
                                                                 {item.is_pinned && <Pin size={12} color={colors.stone} weight="fill" />}
                                                             </View>
-                                                            <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                            {activeView === 'personal' && (
+                                                                <TouchableOpacity
+                                                                    onPress={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleLongPressCollection(item);
+                                                                    }}
+                                                                    style={{ padding: 8 }}
+                                                                >
+                                                                    <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                                </TouchableOpacity>
+                                                            )}
                                                         </TouchableOpacity>
                                                     </ScaleDecorator>
                                                 )}
@@ -713,9 +819,14 @@ export default function LibraryScreen() {
 
                             {activeView === 'personal' && (
                                 <View style={{ marginTop: SPACING.xl, paddingHorizontal: 20 }}>
-                                    <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.l, marginBottom: SPACING.m }]}>
-                                        SMART COLLECTIONS
-                                    </Typography>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+                                        <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
+                                            SMART COLLECTIONS
+                                        </Typography>
+                                        <TouchableOpacity onPress={() => { setEditingSmartCollection(null); setSmartCollectionModalVisible(true); }}>
+                                            <Plus size={20} color={colors.ink} />
+                                        </TouchableOpacity>
+                                    </View>
                                     <View style={viewMode === 'grid' ? styles.collectionRow : styles.listContainer}>
                                         {smartCollections.map((item: any, index: number) => (
                                             viewMode === 'grid' ? (
@@ -737,17 +848,17 @@ export default function LibraryScreen() {
                                                     >
                                                         <View style={styles.iconStackContainer}>
                                                             <View style={[styles.stackBack, { backgroundColor: colors.subtle, opacity: 0.5 }]} />
-                                                            <View style={[styles.iconContainer, {
-                                                                backgroundColor: colors.subtle,
-                                                                borderStyle: 'dotted',
-                                                                borderWidth: 1,
-                                                                borderColor: colors.ink,
-                                                                overflow: 'hidden'
-                                                            }]}>
-                                                                {getSmartCollectionCover(item.tags) ? (
+                                                            <View style={[
+                                                                styles.iconContainer,
+                                                                {
+                                                                    backgroundColor: item.color || colors.subtle,
+                                                                    overflow: 'hidden'
+                                                                }
+                                                            ]}>
+                                                                {getSmartCollectionCover(item) ? (
                                                                     <>
                                                                         <Image
-                                                                            source={{ uri: getSmartCollectionCover(item.tags) }}
+                                                                            source={{ uri: getSmartCollectionCover(item) }}
                                                                             style={StyleSheet.absoluteFill}
                                                                             contentFit="cover"
                                                                         />
@@ -758,12 +869,23 @@ export default function LibraryScreen() {
                                                                         {getIcon(item.icon, 20, '#FFFFFF')}
                                                                     </>
                                                                 ) : (
-                                                                    getIcon(item.icon, 24, colors.ink)
+                                                                    getIcon(item.icon, 24, item.color ? '#FFFFFF' : colors.ink)
                                                                 )}
                                                                 <View style={styles.smartBadge}>
                                                                     <Sparkle size={8} color={colors.paper} weight="fill" />
                                                                 </View>
                                                             </View>
+
+                                                            <TouchableOpacity
+                                                                style={styles.gridSettingsButton}
+                                                                onPress={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleLongPressSmartCollection(item);
+                                                                }}
+                                                                hitSlop={8}
+                                                            >
+                                                                <DotsThree size={20} color="#FFFFFF" weight="bold" />
+                                                            </TouchableOpacity>
                                                         </View>
                                                         <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
                                                             {item.name}
@@ -779,28 +901,49 @@ export default function LibraryScreen() {
                                                 >
                                                     <TouchableOpacity
                                                         activeOpacity={0.7}
-                                                        style={[styles.listItem, { borderBottomColor: colors.separator }]}
+                                                        style={[
+                                                            styles.listItem,
+                                                            {
+                                                                borderBottomColor: colors.separator,
+                                                                paddingHorizontal: 0,
+                                                            }
+                                                        ]}
                                                         onPress={() => setActiveCategoryId(item.id)}
-                                                        onLongPress={() => handleLongPressSmartCollection(item)}
                                                     >
-                                                        <View style={[styles.listIconWrapper, { backgroundColor: colors.subtle, borderStyle: 'dotted', borderWidth: 1, borderColor: colors.ink }]}>
-                                                            {getSmartCollectionCover(item.tags) ? (
-                                                                <Image
-                                                                    source={{ uri: getSmartCollectionCover(item.tags) }}
-                                                                    style={StyleSheet.absoluteFill}
-                                                                    contentFit="cover"
-                                                                />
+                                                        <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.subtle, borderStyle: item.color ? 'solid' : 'dotted', borderWidth: 1, borderColor: item.color || colors.ink }]}>
+                                                            {getSmartCollectionCover(item) ? (
+                                                                <>
+                                                                    <Image
+                                                                        source={{ uri: getSmartCollectionCover(item) }}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                        contentFit="cover"
+                                                                    />
+                                                                    <LinearGradient
+                                                                        colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                    />
+                                                                    {getIcon(item.icon, 18, '#FFFFFF')}
+                                                                </>
                                                             ) : (
-                                                                getIcon(item.icon, 18, colors.ink)
+                                                                getIcon(item.icon, 18, item.color ? '#FFFFFF' : colors.ink)
                                                             )}
                                                             <View style={styles.smartBadgeList}>
-                                                                <Sparkle size={6} color={colors.paper} weight="fill" />
+                                                                <Sparkle size={8} color={colors.paper} weight="fill" />
                                                             </View>
                                                         </View>
                                                         <View style={styles.listItemText}>
                                                             <Typography variant="body" weight="600">{item.name}</Typography>
                                                             <Typography variant="caption" color="stone">Smart Collection</Typography>
                                                         </View>
+                                                        <TouchableOpacity
+                                                            onPress={(e) => {
+                                                                e.stopPropagation();
+                                                                handleLongPressSmartCollection(item);
+                                                            }}
+                                                            style={{ padding: 8 }}
+                                                        >
+                                                            <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                        </TouchableOpacity>
                                                     </TouchableOpacity>
                                                 </MotiView>
                                             )
@@ -819,6 +962,14 @@ export default function LibraryScreen() {
                     onDelete={handleDeleteCollection}
                     onPin={handlePinCollection}
                     existingCollection={editingCollection}
+                />
+
+                <SmartCollectionModal
+                    visible={smartCollectionModalVisible}
+                    onClose={() => setSmartCollectionModalVisible(false)}
+                    onSave={handleSaveSmartCollection}
+                    onDelete={handleDeleteSmartCollection}
+                    existingCategory={editingSmartCollection}
                 />
 
                 <SiftActionSheet
@@ -869,7 +1020,7 @@ export default function LibraryScreen() {
                     onSave={handleSaveTags}
                     initialTags={selectedSiftTags}
                 />
-            </ScreenWrapper>
+            </ScreenWrapper >
         </GestureHandlerRootView >
     );
 }
@@ -932,11 +1083,21 @@ const styles = StyleSheet.create({
     pinIndicator: {
         position: 'absolute',
         top: 8,
-        right: 8,
+        left: 8,
         backgroundColor: 'rgba(255,255,255,0.9)',
         padding: 4,
         borderRadius: 10,
         ...Theme.shadows.sharp,
+    },
+    gridSettingsButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     iconStackContainer: {
         width: TILE_WIDTH,

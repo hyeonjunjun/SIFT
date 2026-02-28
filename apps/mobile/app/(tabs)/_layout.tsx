@@ -102,7 +102,7 @@ export default function TabLayout() {
                     },
                 })}
                 options={{
-                    title: "SOCIAL",
+                    title: "FRIENDS",
                     tabBarIcon: ({ color, focused }) => (
                         <UsersThree
                             size={26}

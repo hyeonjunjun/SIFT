@@ -879,7 +879,7 @@ export default function HomeScreen() {
                     <TextInput
                         ref={inputRef}
                         style={styles.textInput}
-                        placeholder="sift anything here!"
+                        placeholder="sift a link or image here!"
                         placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}

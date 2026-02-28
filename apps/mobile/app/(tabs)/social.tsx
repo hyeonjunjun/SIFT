@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
-import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset } from 'phosphor-react-native';
+import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset, ArrowLeft, CaretRight } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -38,7 +38,7 @@ export default function SocialScreen() {
     const queryClient = useQueryClient();
     const { showToast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'friends' | 'shared'>('shared');
+    const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const triggerHaptic = (type: 'selection' | 'impact' | 'notification' | 'error') => {
         if (type === 'selection') Haptics.selectionAsync();
@@ -96,6 +96,26 @@ export default function SocialScreen() {
         staleTime: 1000 * 60 * 5, // 5 minutes cache
         retry: 2,
     });
+
+    // Derived states for grouped shares
+    const sharesBySender = React.useMemo(() => {
+        const map: Record<string, any[]> = {};
+        sharedSifts.forEach(s => {
+            if (!map[s.sender_id]) map[s.sender_id] = [];
+            map[s.sender_id].push(s);
+        });
+        return map;
+    }, [sharedSifts]);
+
+    const sortedNetwork = React.useMemo(() => {
+        return [...myNetwork].sort((a, b) => {
+            const friendIdA = a.user_id === user?.id ? a.friend_id : a.user_id;
+            const friendIdB = b.user_id === user?.id ? b.friend_id : b.user_id;
+            const lastA = sharesBySender[friendIdA]?.[0] ? new Date(sharesBySender[friendIdA][0].created_at).getTime() : 0;
+            const lastB = sharesBySender[friendIdB]?.[0] ? new Date(sharesBySender[friendIdB][0].created_at).getTime() : 0;
+            return lastB - lastA;
+        });
+    }, [myNetwork, sharesBySender, user?.id]);
 
     // 3. Discovery (Search)
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -252,151 +272,209 @@ export default function SocialScreen() {
         );
     };
 
-    // Swipe gesture handler
-    const panGesture = Gesture.Pan()
-        .onUpdate((event) => {
-            translateX.value = event.translationX;
-        })
-        .onEnd((event) => {
-            const threshold = width * 0.2; // 20% of screen width
-            if (event.translationX > threshold && activeTab === 'friends') {
-                runOnJS(setActiveTab)('shared');
-            } else if (event.translationX < -threshold && activeTab === 'shared') {
-                runOnJS(setActiveTab)('friends');
-            }
-            translateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
-        });
+    // Animation for detail view
+    const detailTranslateX = useSharedValue(width);
+    const mainOpacity = useSharedValue(1);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: translateX.value }]
+    React.useEffect(() => {
+        if (selectedFriendId) {
+            detailTranslateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
+            mainOpacity.value = withTiming(0.4, { duration: 300 });
+        } else {
+            detailTranslateX.value = withTiming(width, { duration: 300, easing: Easing.out(Easing.quad) });
+            mainOpacity.value = withTiming(1, { duration: 300 });
+        }
+    }, [selectedFriendId]);
+
+    const detailStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: detailTranslateX.value }],
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: colors.canvas,
+        zIndex: 10,
+        paddingHorizontal: 20,
     }));
+
+    const mainStyle = useAnimatedStyle(() => ({
+        opacity: mainOpacity.value,
+        flex: 1,
+    }));
+
+    const selectedFriend = React.useMemo(() => {
+        if (!selectedFriendId) return null;
+        const friendship = friendships.find((f: any) =>
+            f.user_id === selectedFriendId || f.friend_id === selectedFriendId
+        );
+        if (!friendship) return null;
+        return friendship.user_id === user?.id ? friendship.receiver : friendship.requester;
+    }, [selectedFriendId, friendships, user?.id]);
 
     return (
         <ScreenWrapper edges={['top']}>
-            <View style={styles.header}>
-                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NATIVE • NETWORK</Typography>
-                <Typography variant="h1" style={styles.serifTitle}>Inbox & Activity</Typography>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                    <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
-                    <TextInput
-                        style={[styles.searchInput, { color: colors.ink }]}
-                        placeholder="Find friends by @username or ID..."
-                        placeholderTextColor={colors.stone}
-                        value={searchQuery}
-                        onChangeText={handleSearch}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {isSearching && (
-                        <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
-                    )}
+            <Animated.View style={mainStyle}>
+                <View style={styles.header}>
+                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NETWORK • ACTIVITY</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>Friends</Typography>
                 </View>
-            </View>
 
-            {searchResults.length > 0 ? (
-                <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
-                    {searchResults.map(u => (
-                        <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
-                            <Image source={u.avatar_url} style={styles.miniAvatar} />
-                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Typography variant="label">{u.display_name}</Typography>
-                                <Typography variant="caption" color="stone">@{u.username}</Typography>
-                            </View>
-                            <UserPlus size={20} color={colors.ink} />
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            ) : (
-                searchQuery.length >= 3 && !isSearching && (
-                    <View style={[styles.searchResultsBox, { backgroundColor: colors.paper, padding: 20, alignItems: 'center' }]}>
-                        <Typography variant="body" color="stone">No users found matching "{searchQuery}"</Typography>
-                        <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>Try searching by @username or exact email</Typography>
-                    </View>
-                )
-            )}
-
-            <View style={styles.tabsContainer}>
-                <TouchableOpacity onPress={() => { setActiveTab('shared'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>INBOX</Typography>
-                        {sharedSifts.length > 0 && (
-                            <View style={[styles.badge, { backgroundColor: colors.subtle }]}>
-                                <Typography style={{ fontSize: 10, color: colors.ink }}>{sharedSifts.length}</Typography>
-                            </View>
+                <View style={styles.searchContainer}>
+                    <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                        <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
+                        <TextInput
+                            style={[styles.searchInput, { color: colors.ink }]}
+                            placeholder="Find friends by @username or ID..."
+                            placeholderTextColor={colors.stone}
+                            value={searchQuery}
+                            onChangeText={handleSearch}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {isSearching && (
+                            <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
                         )}
                     </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setActiveTab('friends'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>FRIENDS</Typography>
+                </View>
+
+                {searchResults.length > 0 ? (
+                    <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
+                        {searchResults.map(u => (
+                            <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
+                                <Image source={u.avatar_url} style={styles.miniAvatar} />
+                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                    <Typography variant="label">{u.display_name}</Typography>
+                                    <Typography variant="caption" color="stone">@{u.username}</Typography>
+                                </View>
+                                <UserPlus size={20} color={colors.ink} />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                ) : (
+                    searchQuery.length >= 3 && !isSearching && (
+                        <View style={[styles.searchResultsBox, { backgroundColor: colors.paper, padding: 20, alignItems: 'center' }]}>
+                            <Typography variant="body" color="stone">No users found matching "{searchQuery}"</Typography>
+                            <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>Try searching by @username or exact email</Typography>
+                        </View>
+                    )
+                )}
+
+                <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
+                    <View style={styles.friendsList}>
                         {incomingRequests.length > 0 && (
-                            <View style={[styles.badge, { backgroundColor: COLORS.accent }]}>
-                                <Typography style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>{incomingRequests.length}</Typography>
+                            <View style={styles.section}>
+                                <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
+                                {incomingRequests.map((f: any) => (
+                                    <FriendItem
+                                        key={f.id}
+                                        friendship={f}
+                                        currentUserId={user?.id}
+                                        colors={colors}
+                                        onAccept={() => handleAccept(f.id)}
+                                        onDecline={() => handleDecline(f.id)}
+                                        onBlock={handleBlockUser}
+                                        onReport={handleReportUser}
+                                    />
+                                ))}
+                            </View>
+                        )}
+
+                        <View style={styles.section}>
+                            <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
+                            {sortedNetwork.length > 0 ? (
+                                sortedNetwork.map((f: any) => {
+                                    const friendId = f.user_id === user?.id ? f.friend_id : f.user_id;
+                                    const shares = sharesBySender[friendId] || [];
+                                    return (
+                                        <FriendItem
+                                            key={f.id}
+                                            friendship={f}
+                                            currentUserId={user?.id}
+                                            colors={colors}
+                                            onBlock={handleBlockUser}
+                                            onReport={handleReportUser}
+                                            onPress={() => shares.length > 0 ? setSelectedFriendId(friendId) : null}
+                                            shareCount={shares.length}
+                                            latestShare={shares[0]}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                incomingRequests.length === 0 && (
+                                    <EmptyState
+                                        icon={<Users size={40} color={colors.stone} />}
+                                        title="Build your network"
+                                        subtitle="Search for friends to start sharing your best finds directly with them."
+                                    />
+                                )
+                            )}
+                        </View>
+
+                        {outgoingRequests.length > 0 && (
+                            <View style={[styles.section, { opacity: 0.6 }]}>
+                                <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
+                                {outgoingRequests.map((f: any) => (
+                                    <FriendItem
+                                        key={f.id}
+                                        friendship={f}
+                                        currentUserId={user?.id}
+                                        colors={colors}
+                                        onDecline={() => handleDecline(f.id)}
+                                        onBlock={handleBlockUser}
+                                        onReport={handleReportUser}
+                                    />
+                                ))}
                             </View>
                         )}
                     </View>
-                </TouchableOpacity>
-            </View>
+                </ScrollView>
+            </Animated.View>
 
-            <GestureDetector gesture={panGesture}>
-                <Animated.View style={animatedStyle}>
-                    <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
-                        {activeTab === 'shared' ? (
+            {/* DETAIL VIEW OVERLAY */}
+            {selectedFriendId && (
+                <Animated.View style={detailStyle}>
+                    <View style={{ marginTop: 20, marginBottom: 20 }}>
+                        <TouchableOpacity
+                            onPress={() => setSelectedFriendId(null)}
+                            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}
+                            hitSlop={16}
+                        >
+                            <ArrowLeft size={20} color={colors.ink} weight="bold" />
+                            <Typography variant="h3" style={{ marginLeft: 12 }}>Inbox</Typography>
+                        </TouchableOpacity>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 32 }}>
+                            {selectedFriend?.avatar_url ? (
+                                <Image source={selectedFriend.avatar_url} style={styles.mediumAvatar} />
+                            ) : (
+                                <View style={[styles.mediumAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                                    <User size={24} color={colors.stone} weight="thin" />
+                                </View>
+                            )}
+                            <View style={{ marginLeft: 16 }}>
+                                <Typography variant="h2">{selectedFriend?.display_name}</Typography>
+                                <Typography variant="body" color="stone">@{selectedFriend?.username}</Typography>
+                            </View>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
                             <View style={styles.feed}>
-                                {sharedSifts.length === 0 ? (
-                                    <EmptyState
-                                        icon={<ShareNetwork size={40} color={colors.stone} />}
-                                        title="Curate together"
-                                        subtitle="Send and receive Sifts directly with friends, completely separate from the algorithmic noise of typical social apps."
+                                {(sharesBySender[selectedFriendId] || []).map((share: any) => (
+                                    <SharedSiftCard
+                                        key={share.id}
+                                        share={share}
+                                        user={user}
+                                        colors={colors}
+                                        queryClient={queryClient}
+                                        router={useRouter()}
                                     />
-                                ) : (
-                                    sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
-                                )}
+                                ))}
                             </View>
-                        ) : (
-                            <View style={styles.friendsList}>
-                                {incomingRequests.length > 0 && (
-                                    <View style={styles.section}>
-                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
-                                        {incomingRequests.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} onBlock={handleBlockUser} onReport={handleReportUser} />
-                                        ))}
-                                    </View>
-                                )}
-
-                                {myNetwork.length > 0 ? (
-                                    <View style={styles.section}>
-                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
-                                        {myNetwork.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onBlock={handleBlockUser} onReport={handleReportUser} />
-                                        ))}
-                                    </View>
-                                ) : (
-                                    incomingRequests.length === 0 && (
-                                        <EmptyState
-                                            icon={<Users size={40} color={colors.stone} />}
-                                            title="Build your network"
-                                            subtitle="Search for friends to start sharing your best finds directly with them."
-                                        />
-                                    )
-                                )}
-
-                                {outgoingRequests.length > 0 && (
-                                    <View style={[styles.section, { opacity: 0.6 }]}>
-                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
-                                        {outgoingRequests.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onDecline={() => handleDecline(f.id)} onBlock={handleBlockUser} onReport={handleReportUser} />
-                                        ))}
-                                    </View>
-                                )}
-                            </View>
-                        )}
-                    </ScrollView>
+                        </ScrollView>
+                    </View>
                 </Animated.View>
-            </GestureDetector>
+            )}
         </ScreenWrapper>
     );
 }
@@ -452,7 +530,7 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
     );
 }
 
-function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport }: any) {
+function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport, onPress, shareCount = 0, latestShare }: any) {
     const friend = friendship.user_id === currentUserId ? friendship.receiver : friendship.requester;
     const isPending = friendship.status === 'pending';
     const amRequester = friendship.user_id === currentUserId;
@@ -473,6 +551,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
     return (
         <TouchableOpacity
             style={[styles.friendItem, { borderBottomColor: colors.separator }]}
+            onPress={onPress}
             onLongPress={handleLongPress}
             delayLongPress={500}
             activeOpacity={0.7}
@@ -485,8 +564,17 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                 </View>
             )}
             <View style={{ flex: 1, marginLeft: 16 }}>
-                <Typography variant="h3">{friend.display_name}</Typography>
-                <Typography variant="caption" color="stone">@{friend.username}</Typography>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h3">{friend.display_name}</Typography>
+                    {shareCount > 0 && (
+                        <View style={[styles.badge, { backgroundColor: colors.subtle, marginLeft: 0 }]}>
+                            <Typography style={{ fontSize: 10, color: colors.ink }}>{shareCount}</Typography>
+                        </View>
+                    )}
+                </View>
+                <Typography variant="caption" color="stone" numberOfLines={1}>
+                    {latestShare ? latestShare.sift.title : `@${friend.username}`}
+                </Typography>
             </View>
             {isPending ? (
                 amRequester ? (
@@ -503,7 +591,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                         </TouchableOpacity>
                     </View>
                 )
-            ) : <ChatCircleText size={20} color={colors.stone} />}
+            ) : <CaretRight size={16} color={colors.stone} weight="bold" />}
         </TouchableOpacity>
     );
 }
