@@ -103,6 +103,8 @@ export const useSubscription = () => {
         if (!user) return 'free';
         // Admin override first
         if (profile?.tier === 'admin') return 'admin';
+        // Unlimited override from backend
+        if (profile?.tier === 'unlimited') return 'unlimited';
 
         if (Platform.OS === 'web') return 'unlimited'; // Mock for web
 

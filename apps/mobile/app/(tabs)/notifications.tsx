@@ -145,9 +145,32 @@ export default function NotificationsScreen() {
 
     const handleAcceptFriend = async (friendshipId: string) => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
-        queryClient.invalidateQueries({ queryKey: ['friends'] });
-        refetch();
+
+        try {
+            // Get the friendship to find the requester
+            const { data: friendship } = await supabase
+                .from('friendships')
+                .select('user_id')
+                .eq('id', friendshipId)
+                .single();
+
+            await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+
+            // Notify the requester that their request was accepted
+            if (friendship?.user_id) {
+                await supabase.from('notifications').insert([{
+                    user_id: friendship.user_id,
+                    actor_id: user?.id,
+                    type: 'friend_accepted',
+                    reference_id: friendshipId,
+                }]);
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['friends'] });
+            refetch();
+        } catch (e: any) {
+            console.error('Failed to accept friend:', e);
+        }
     };
 
     const handleDeclineFriend = async (friendshipId: string) => {

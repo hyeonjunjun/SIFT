@@ -42,12 +42,11 @@ const SYSTEM_PROMPT = `
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
     - **Tone**: Casual, informal, and conversational. Sound like a knowledgeable friend explaining what this link is about.
     - **Format Rules**: 
-        - DO NOT use heavy markdown formatting like ## Headers, bold words, or bulleted lists.
-        - Write in natural, flowing paragraphs.
+        - For most content, write in natural, flowing paragraphs. DO NOT use heavy markdown formatting like ## Headers or bold words unnecessarily.
     - **Depth**: While the tone is casual, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: Explain the ingredients and steps in paragraph form, as if explaining verbally. Still ensure zero details or measurements are missed!
+    - **Recipes/How-To**: IMPORTANT: You MUST return ingredients and steps using a clear bulleted or numbered list format to make it easy to follow as a recipe. Keep the introduction/conclusion personable, but the actual recipe steps and ingredients MUST be a list! Ensure zero details or measurements are missed!
     - **Technical/Tutorials**: Explain the core concept naturally rather than dropping raw code blocks.
     - **Images/Videos**: Infer as much context as possible. If it's a TikTok/Reel with no transcript, use the title/caption and visuals to infer the complete high-quality takeaway.
 `;

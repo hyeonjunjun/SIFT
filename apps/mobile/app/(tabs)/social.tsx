@@ -516,6 +516,11 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
                 )}
                 <Typography variant="caption" color="stone" style={{ marginLeft: 8 }}>{share.sender.display_name} shared a Sift</Typography>
             </View>
+            {share.message && (
+                <View style={{ marginBottom: 16, padding: 12, backgroundColor: colors.subtle, borderRadius: RADIUS.s }}>
+                    <Typography variant="body" style={{ fontStyle: 'italic', color: colors.ink }}>"{share.message}"</Typography>
+                </View>
+            )}
             <View style={styles.cardBody}>
                 <Typography variant="h3" numberOfLines={1}>{share.sift.title}</Typography>
                 <Typography variant="body" color="stone" numberOfLines={2} style={{ marginTop: 4 }}>{share.sift.summary}</Typography>
