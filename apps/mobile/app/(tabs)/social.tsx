@@ -412,7 +412,7 @@ export default function SocialScreen() {
                         </View>
 
                         {outgoingRequests.length > 0 && (
-                            <View style={[styles.section, { opacity: 0.6 }]}>
+                            <View style={[styles.section]}>
                                 <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
                                 {outgoingRequests.map((f: any) => (
                                     <FriendItem
@@ -538,7 +538,7 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
 function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport, onPress, shareCount = 0, latestShare }: any) {
     const friend = friendship.user_id === currentUserId ? friendship.receiver : friendship.requester;
     const isPending = friendship.status === 'pending';
-    const amRequester = friendship.user_id === currentUserId;
+    const isOutgoing = isPending && friendship.user_id === currentUserId;
 
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -582,10 +582,15 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                 </Typography>
             </View>
             {isPending ? (
-                amRequester ? (
-                    <View style={[styles.statusBadge, { backgroundColor: colors.subtle }]}>
-                        <Typography variant="caption" color="stone">Pending</Typography>
-                    </View>
+                isOutgoing ? (
+                    <TouchableOpacity
+                        style={[styles.statusBadge, { backgroundColor: colors.subtle, flexDirection: 'row', alignItems: 'center' }]}
+                        onPress={onDecline}
+                        hitSlop={12}
+                    >
+                        <X size={12} color={colors.stone} weight="bold" style={{ marginRight: 4 }} />
+                        <Typography variant="caption" color="stone">Cancel</Typography>
+                    </TouchableOpacity>
                 ) : (
                     <View style={styles.actionRow}>
                         <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.success }]} onPress={onAccept} hitSlop={12}>

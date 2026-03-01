@@ -221,6 +221,10 @@ begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'folders' and column_name = 'page_order') then
     alter table public.folders add column page_order uuid[] default '{}'::uuid[];
   end if;
+
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'folders' and column_name = 'image_url') then
+    alter table public.folders add column image_url text;
+  end if;
 end $$;
 
 -- 6.5 Create folder_members table for shared collections
@@ -359,11 +363,13 @@ alter table public.sift_shares enable row level security;
 -- RLS Policies for Friendships
 do $$
 begin
-  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own friendships' and tablename = 'friendships') then
-    create policy "Users can manage their own friendships" on public.friendships
-      for all to authenticated
-      using (auth.uid() = user_id or auth.uid() = friend_id);
+  if exists (select 1 from pg_policies where policyname = 'Users can manage their own friendships' and tablename = 'friendships') then
+    drop policy "Users can manage their own friendships" on public.friendships;
   end if;
+
+  create policy "Users can manage their own friendships" on public.friendships
+    for all to authenticated
+    using (auth.uid() = user_id or auth.uid() = friend_id);
 end $$;
 
 -- RLS Policies for Sift Shares

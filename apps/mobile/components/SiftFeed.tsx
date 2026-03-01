@@ -391,28 +391,45 @@ export default function SiftFeed({
             renderItem={({ item, drag, isActive }: RenderItemParams<Page>) => (
                 <ScaleDecorator>
                     <TouchableOpacity
-                        activeOpacity={1}
+                        activeOpacity={0.8}
                         onLongPress={drag}
                         disabled={isActive}
-                        style={{ opacity: isActive ? 0.7 : 1, marginVertical: 4 }}
+                        style={{
+                            opacity: isActive ? 0.8 : 1,
+                            marginVertical: 6,
+                            backgroundColor: colors.paper,
+                            borderRadius: RADIUS.m,
+                            borderWidth: isDark ? 1 : 0,
+                            borderColor: 'rgba(255,255,255,0.05)',
+                            padding: 12,
+                            ...Theme.shadows.soft,
+                            shadowOpacity: isActive ? 0.2 : 0.05,
+                        }}
                     >
                         <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                            <TouchableOpacity onLongPress={drag} style={{ padding: 10 }}>
-                                <ListDashes size={20} color={colors.stone} />
+                            <TouchableOpacity onPressIn={drag} hitSlop={10} style={{ paddingRight: 12 }}>
+                                <ListDashes size={24} color={colors.stone} weight="bold" />
                             </TouchableOpacity>
-                            <View style={{ flex: 1 }}>
-                                <PageCard
-                                    id={item.id}
-                                    title={item.title}
-                                    gist={item.summary || ""}
-                                    url={item.url}
-                                    tags={item.tags}
-                                    isPinned={item.is_pinned}
-                                    imageUrl={item.metadata?.image_url}
-                                    onPin={onPin}
-                                    onDelete={onArchive}
-                                    onDeleteForever={onDeleteForever}
+
+                            {item.metadata?.image_url ? (
+                                <Image
+                                    source={item.metadata.image_url}
+                                    style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: 12 }}
+                                    contentFit="cover"
                                 />
+                            ) : (
+                                <View style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+                                    <Article size={24} color={colors.stone} weight="thin" />
+                                </View>
+                            )}
+
+                            <View style={{ flex: 1, justifyContent: 'center' }}>
+                                <Typography variant="label" color="stone" numberOfLines={1} style={{ fontSize: 10, letterSpacing: 0.5, marginBottom: 4 }}>
+                                    {getDomain(item.url)?.toUpperCase() || 'SIFT'}
+                                </Typography>
+                                <Typography variant="h3" color="ink" numberOfLines={2} style={{ fontSize: 15, lineHeight: 20 }}>
+                                    {item.title || 'Untitled Page'}
+                                </Typography>
                             </View>
                         </View>
                     </TouchableOpacity>

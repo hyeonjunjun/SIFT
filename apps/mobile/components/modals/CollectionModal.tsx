@@ -120,7 +120,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
             } as any);
 
             const { data, error } = await supabase.storage
-                .from('collection_covers')
+                .from('covers')
                 .upload(fileName, formData, {
                     contentType: 'image/jpeg',
                     upsert: true
@@ -129,7 +129,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
             if (error) throw error;
 
             const { data: { publicUrl } } = supabase.storage
-                .from('collection_covers')
+                .from('covers')
                 .getPublicUrl(fileName);
 
             setImageUrl(publicUrl);
@@ -193,15 +193,14 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                 .from('pages')
                 .select('image_url')
                 .eq('folder_id', existingFolder.id)
+                .not('image_url', 'is', null)
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(1);
 
             if (error) throw error;
 
-            const firstWithImage = pages?.find(p => p.image_url)?.image_url;
-
-            if (firstWithImage) {
-                setImageUrl(firstWithImage);
+            if (pages && pages.length > 0 && pages[0].image_url) {
+                setImageUrl(pages[0].image_url);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } else {
                 Alert.alert('No Images', 'No sifts with images found in this collection.');

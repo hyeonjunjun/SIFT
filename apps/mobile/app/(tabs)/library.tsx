@@ -426,13 +426,13 @@ export default function LibraryScreen() {
         if (editingCollection) {
             const { error } = await supabase
                 .from('folders')
-                .update({ ...updateData, image_url: data.image_url })
+                .update({ ...updateData, image_url: data.image_url || null })
                 .eq('id', editingCollection.id);
             if (error) throw error;
         } else {
             const { error } = await supabase
                 .from('folders')
-                .insert({ ...updateData, user_id: user?.id, image_url: data.image_url });
+                .insert({ ...updateData, user_id: user?.id, image_url: data.image_url || null });
             if (error) throw error;
         }
         queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
@@ -719,7 +719,9 @@ export default function LibraryScreen() {
                                                                             colors={['transparent', 'rgba(0,0,0,0.5)']}
                                                                             style={StyleSheet.absoluteFill}
                                                                         />
-                                                                        {getIcon(item.icon, 20, '#FFFFFF')}
+                                                                        <View style={{ position: 'absolute' }}>
+                                                                            {getIcon(item.icon, 20, '#FFFFFF')}
+                                                                        </View>
                                                                     </>
                                                                 ) : (
                                                                     getIcon(item.icon, 24, '#FFFFFF')
@@ -776,11 +778,17 @@ export default function LibraryScreen() {
                                                         >
                                                             <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
                                                                 {item.image_url ? (
-                                                                    <Image
-                                                                        source={{ uri: item.image_url }}
-                                                                        style={StyleSheet.absoluteFill}
-                                                                        contentFit="cover"
-                                                                    />
+                                                                    <>
+                                                                        <Image
+                                                                            source={{ uri: item.image_url }}
+                                                                            style={StyleSheet.absoluteFill}
+                                                                            contentFit="cover"
+                                                                        />
+                                                                        <LinearGradient
+                                                                            colors={['transparent', 'rgba(0,0,0,0.3)']}
+                                                                            style={StyleSheet.absoluteFill}
+                                                                        />
+                                                                    </>
                                                                 ) : (
                                                                     getIcon(item.icon, 18, '#FFFFFF')
                                                                 )}
@@ -957,7 +965,10 @@ export default function LibraryScreen() {
 
                 <CollectionModal
                     visible={collectionModalVisible}
-                    onClose={() => setCollectionModalVisible(false)}
+                    onClose={() => {
+                        setCollectionModalVisible(false);
+                        setEditingCollection(null);
+                    }}
                     onSave={handleSaveCollection}
                     onDelete={handleDeleteCollection}
                     onPin={handlePinCollection}
@@ -984,13 +995,15 @@ export default function LibraryScreen() {
 
                 <ActionSheet
                     visible={categoryActionSheetVisible}
-                    onClose={() => { setCategoryActionSheetVisible(false); if (!collectionModalVisible) setEditingCollection(null); }}
+                    onClose={() => setCategoryActionSheetVisible(false)}
                     title={editingCollection?.name || "Collection Options"}
                     options={[
                         {
                             label: 'Edit Details',
                             onPress: () => {
-                                setCollectionModalVisible(true);
+                                setTimeout(() => {
+                                    setCollectionModalVisible(true);
+                                }, 200);
                             }
                         },
                         {
