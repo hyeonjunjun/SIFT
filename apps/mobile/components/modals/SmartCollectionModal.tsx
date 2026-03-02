@@ -363,7 +363,11 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                                         setSelectedColor(color);
                                         Haptics.selectionAsync();
                                     }}
-                                />
+                                >
+                                    {selectedColor === color && (
+                                        <Check size={16} color="#FFFFFF" weight="bold" />
+                                    )}
+                                </TouchableOpacity>
                             ))}
                         </View>
 
@@ -556,9 +560,9 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     iconOption: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -583,19 +587,19 @@ const styles = StyleSheet.create({
     colorGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: 12,
         marginBottom: SPACING.l,
     },
     colorOption: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        borderWidth: 2,
-        borderColor: 'transparent',
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     colorSelected: {
-        borderColor: COLORS.ink,
-        transform: [{ scale: 1.1 }],
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.8)',
     },
     smallActionButton: {
         width: 52,

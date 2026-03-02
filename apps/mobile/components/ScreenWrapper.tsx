@@ -19,8 +19,12 @@ export default function ScreenWrapper({ children, style, contentStyle, edges = [
     const { colors } = useTheme();
 
     useEffect(() => {
-        const unsubscribe = navigation.addListener('beforeRemove', () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        // 'beforeRemove' natively disables iOS swipe-to-go-back in React Navigation Stack.
+        // Instead, we listen to transitionStart on the stack navigation to detect back navigation
+        const unsubscribe = navigation.addListener('transitionStart' as any, (e: any) => {
+            if (e.data?.closing) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
         });
         return unsubscribe;
     }, [navigation]);

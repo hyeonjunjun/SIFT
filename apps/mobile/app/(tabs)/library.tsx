@@ -3,7 +3,8 @@ import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { View, TextInput, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator, RefreshControl, Alert, Pressable, ActionSheetIOS, Modal, Platform } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
-import Animated, { runOnJS } from 'react-native-reanimated';
+import Animated, { runOnJS, useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import { Typography } from '../../components/design-system/Typography';
@@ -139,6 +140,7 @@ export default function LibraryScreen() {
 
     // Collection Modal State
     const [collectionModalVisible, setCollectionModalVisible] = useState(false);
+    const insets = useSafeAreaInsets();
     const [editingCollection, setEditingCollection] = useState<CollectionData | null>(null);
 
     // Smart Collection Modal State
@@ -372,6 +374,59 @@ export default function LibraryScreen() {
         return pages.filter(p => p.tags.some(t => activeCollection.tags.includes(t.toUpperCase())));
     }, [pages, activeCollection]);
 
+    // Active Smart Collection Animation & Gesture State
+    const activeCollectionTranslateX = useSharedValue(Dimensions.get('window').width);
+    const [renderedCollection, setRenderedCollection] = useState<any>(null);
+    const [renderedPages, setRenderedPages] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (activeCategoryId && activeCollection) {
+            setRenderedCollection(activeCollection);
+            activeCollectionTranslateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
+        } else if (!activeCategoryId) {
+            activeCollectionTranslateX.value = withTiming(Dimensions.get('window').width, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
+                runOnJS(setRenderedCollection)(null);
+                runOnJS(setRenderedPages)([]);
+            });
+        }
+    }, [activeCategoryId, activeCollection]);
+
+    useEffect(() => {
+        if (activeCategoryId) {
+            setRenderedPages(activeCategoryPages);
+        }
+    }, [activeCategoryPages, activeCategoryId]);
+
+    const activeCollectionPanGesture = Gesture.Pan()
+        .activeOffsetX([20, 1000]) // Only right swipes
+        .onUpdate((e) => {
+            if (e.translationX > 0) {
+                activeCollectionTranslateX.value = e.translationX;
+            }
+        })
+        .onEnd((e) => {
+            if (e.translationX > Dimensions.get('window').width / 3 || e.velocityX > 500) {
+                activeCollectionTranslateX.value = withTiming(Dimensions.get('window').width, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
+                    runOnJS(setActiveCategoryId)(null);
+                });
+                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+            } else {
+                activeCollectionTranslateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
+            }
+        });
+
+    const activeCollectionStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: activeCollectionTranslateX.value }],
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: colors.canvas,
+        zIndex: 10,
+        paddingTop: insets.top,
+    }));
+
     // Handlers
     const handlePin = async (id: string, isPinned: boolean) => {
         const { error } = await supabase.from('pages').update({ is_pinned: isPinned }).eq('id', id);
@@ -501,6 +556,9 @@ export default function LibraryScreen() {
         const { error } = await supabase.from('categories').delete().eq('id', id);
         if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+        if (activeCategoryId === id) {
+            setActiveCategoryId(null);
+        }
     };
 
     const iconMap: Record<string, any> = {
@@ -568,17 +626,377 @@ export default function LibraryScreen() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <ScreenWrapper edges={['top']}>
-                {activeCategoryId && activeCollection ? (
-                    <>
-                        <View style={styles.header}>
-                            <TouchableOpacity onPress={() => setActiveCategoryId(null)} style={styles.backButton}>
-                                <CaretLeft size={24} color={colors.ink} />
+                <View style={{ flex: 1 }}>
+                    <View style={styles.header}>
+                        <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 36 }}>Library</Typography>
+                        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+                            {isReordering ? (
+                                <TouchableOpacity onPress={() => setIsReordering(false)}>
+                                    <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
+                                </TouchableOpacity>
+                            ) : (
+                                <>
+                                    {activeView === 'personal' && (
+                                        <TouchableOpacity onPress={() => { setIsReordering(true); setViewMode('list'); }}>
+                                            <ListDashes size={24} color={colors.ink} />
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity onPress={toggleViewMode}>
+                                        {viewMode === 'grid' ? <Rows size={24} color={colors.ink} /> : <SquaresFour size={24} color={colors.ink} />}
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => router.push('/settings')}>
+                                        <Gear size={24} color={colors.ink} />
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                        </View>
+                    </View>
+                    <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+                        <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.pill, padding: 4, alignSelf: 'flex-start' }}>
+                            <TouchableOpacity
+                                style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'personal' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                onPress={() => { setActiveView('personal'); Haptics.selectionAsync(); }}
+                            >
+                                <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'personal' ? colors.ink : colors.stone, fontWeight: activeView === 'personal' ? '600' : '400' }}>Personal</Typography>
                             </TouchableOpacity>
-                            <Typography variant="h2">{activeCollection.name}</Typography>
+                            <TouchableOpacity
+                                style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'shared' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                onPress={() => { setActiveView('shared'); Haptics.selectionAsync(); }}
+                            >
+                                <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'shared' ? colors.ink : colors.stone, fontWeight: activeView === 'shared' ? '600' : '400' }}>Shared</Typography>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    <ScrollView
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                    >
+                        <View style={styles.searchContainer}>
+                            <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper }]}>
+                                <MagnifyingGlass size={20} color={colors.stone} weight="bold" />
+                                <TextInput
+                                    style={[styles.searchInput, { color: colors.ink }]}
+                                    placeholder="Search your collections..."
+                                    placeholderTextColor={colors.stone}
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={{ paddingHorizontal: 20 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+                                <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
+                                    {activeView === 'shared' ? 'SHARED WITH ME' : 'COLLECTIONS'}
+                                </Typography>
+                                <TouchableOpacity onPress={handleCreateCollection} style={{ opacity: activeView === 'shared' ? 0 : 1 }} disabled={activeView === 'shared'}>
+                                    <Plus size={20} color={colors.ink} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {displayCollections.length > 0 ? (
+                                viewMode === 'grid' ? (
+                                    <View style={styles.collectionRow}>
+                                        {displayCollections.map((item: any, index: number) => (
+                                            <MotiView
+                                                key={item.id}
+                                                from={{ opacity: 0, scale: 0.9, translateY: 10 }}
+                                                animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                                transition={{ type: 'timing', duration: 400, delay: index * 50 }}
+                                                style={[
+                                                    styles.collectionTile,
+                                                    { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
+                                                ]}
+                                            >
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={{ alignItems: 'center', width: '100%' }}
+                                                    onPress={() => router.push(`/collection/${item.id}`)}
+                                                    onLongPress={() => handleLongPressCollection(item)}
+                                                >
+                                                    <View style={styles.iconStackContainer}>
+                                                        <View style={[styles.stackBack, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '-3deg' }, { translateX: -2 }] }]} />
+                                                        <View style={[styles.stackMid, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '2deg' }, { translateX: 2 }] }]} />
+
+                                                        <View style={[styles.iconContainer, { backgroundColor: item.color || colors.stone, overflow: 'hidden' }]}>
+                                                            {item.image_url ? (
+                                                                <>
+                                                                    <Image
+                                                                        source={{ uri: item.image_url }}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                        contentFit="cover"
+                                                                    />
+                                                                    <LinearGradient
+                                                                        colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                    />
+                                                                    <View style={{ position: 'absolute' }}>
+                                                                        {getIcon(item.icon, 20, '#FFFFFF')}
+                                                                    </View>
+                                                                </>
+                                                            ) : (
+                                                                getIcon(item.icon, 24, '#FFFFFF')
+                                                            )}
+                                                            {item.is_pinned && (
+                                                                <View style={styles.pinIndicator}>
+                                                                    <Pin size={10} color={colors.ink} weight="fill" />
+                                                                </View>
+                                                            )}
+                                                        </View>
+
+                                                        {activeView === 'personal' && (
+                                                            <TouchableOpacity
+                                                                style={styles.gridSettingsButton}
+                                                                onPress={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleLongPressCollection(item);
+                                                                }}
+                                                                hitSlop={8}
+                                                            >
+                                                                <DotsThree size={20} color="#FFFFFF" weight="bold" />
+                                                            </TouchableOpacity>
+                                                        )}
+                                                    </View>
+                                                    <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
+                                                        {item.name}
+                                                    </Typography>
+                                                </TouchableOpacity>
+                                            </MotiView>
+                                        ))}
+                                    </View>
+                                ) : (
+                                    <View style={{ height: displayCollections.length * 64, marginHorizontal: -20 }}>
+                                        <DraggableFlatList
+                                            data={displayCollections}
+                                            onDragEnd={onDragEnd}
+                                            keyExtractor={(item) => item.id}
+                                            scrollEnabled={false}
+                                            renderItem={({ item, drag, isActive }: RenderItemParams<CollectionData>) => (
+                                                <ScaleDecorator>
+                                                    <TouchableOpacity
+                                                        activeOpacity={0.7}
+                                                        onLongPress={drag}
+                                                        disabled={isActive}
+                                                        style={[
+                                                            styles.listItem,
+                                                            {
+                                                                borderBottomColor: colors.separator,
+                                                                backgroundColor: isActive ? (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') : 'transparent',
+                                                                paddingHorizontal: 20,
+                                                            }
+                                                        ]}
+                                                        onPress={() => router.push(`/collection/${item.id}`)}
+                                                    >
+                                                        <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
+                                                            {item.image_url ? (
+                                                                <>
+                                                                    <Image
+                                                                        source={{ uri: item.image_url }}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                        contentFit="cover"
+                                                                    />
+                                                                    <LinearGradient
+                                                                        colors={['transparent', 'rgba(0,0,0,0.3)']}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                    />
+                                                                </>
+                                                            ) : (
+                                                                getIcon(item.icon, 18, '#FFFFFF')
+                                                            )}
+                                                        </View>
+                                                        <View style={styles.listItemText}>
+                                                            <Typography variant="body" weight="600">{item.name}</Typography>
+                                                            {item.is_pinned && <Pin size={12} color={colors.stone} weight="fill" />}
+                                                        </View>
+                                                        {activeView === 'personal' && (
+                                                            <TouchableOpacity
+                                                                onPress={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleLongPressCollection(item);
+                                                                }}
+                                                                style={{ padding: 8 }}
+                                                            >
+                                                                <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                            </TouchableOpacity>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                </ScaleDecorator>
+                                            )}
+                                        />
+                                    </View>
+                                )
+                            ) : (
+                                <EmptyState
+                                    type="no-collections"
+                                    title={activeView === 'shared' ? "No Shared Collections" : "No Collections"}
+                                    description={activeView === 'shared' ? "Collections your friends share with you will appear here." : "Organize your sifts into bespoke collections."}
+                                    actionLabel={activeView === 'shared' ? undefined : "New Collection"}
+                                    onAction={activeView === 'shared' ? undefined : handleCreateCollection}
+                                />
+                            )}
+                        </View>
+
+                        {activeView === 'personal' && (
+                            <View style={{ marginTop: SPACING.xl, paddingHorizontal: 20 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+                                    <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
+                                        SMART COLLECTIONS
+                                    </Typography>
+                                    <TouchableOpacity onPress={() => { setEditingSmartCollection(null); setSmartCollectionModalVisible(true); }}>
+                                        <Plus size={20} color={colors.ink} />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={viewMode === 'grid' ? styles.collectionRow : styles.listContainer}>
+                                    {smartCollections.map((item: any, index: number) => (
+                                        viewMode === 'grid' ? (
+                                            <MotiView
+                                                key={item.id}
+                                                from={{ opacity: 0, scale: 0.9, translateY: 10 }}
+                                                animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                                transition={{ type: 'timing', duration: 400, delay: index * 50 + 200 }}
+                                                style={[
+                                                    styles.collectionTile,
+                                                    { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
+                                                ]}
+                                            >
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={{ alignItems: 'center', width: '100%' }}
+                                                    onPress={() => setActiveCategoryId(item.id)}
+                                                    onLongPress={() => handleLongPressSmartCollection(item)}
+                                                >
+                                                    <View style={styles.iconStackContainer}>
+                                                        <View style={[styles.stackBack, { backgroundColor: colors.subtle, opacity: 0.5 }]} />
+                                                        <View style={[
+                                                            styles.iconContainer,
+                                                            {
+                                                                backgroundColor: item.color || colors.subtle,
+                                                                overflow: 'hidden'
+                                                            }
+                                                        ]}>
+                                                            {getSmartCollectionCover(item) ? (
+                                                                <>
+                                                                    <Image
+                                                                        source={{ uri: getSmartCollectionCover(item) }}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                        contentFit="cover"
+                                                                    />
+                                                                    <LinearGradient
+                                                                        colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                        style={StyleSheet.absoluteFill}
+                                                                    />
+                                                                    {getIcon(item.icon, 20, '#FFFFFF')}
+                                                                </>
+                                                            ) : (
+                                                                getIcon(item.icon, 24, item.color ? '#FFFFFF' : colors.ink)
+                                                            )}
+                                                            <View style={styles.smartBadge}>
+                                                                <Sparkle size={8} color={colors.paper} weight="fill" />
+                                                            </View>
+                                                        </View>
+
+                                                        <TouchableOpacity
+                                                            style={styles.gridSettingsButton}
+                                                            onPress={(e) => {
+                                                                e.stopPropagation();
+                                                                handleLongPressSmartCollection(item);
+                                                            }}
+                                                            hitSlop={8}
+                                                        >
+                                                            <DotsThree size={20} color="#FFFFFF" weight="bold" />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                    <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
+                                                        {item.name}
+                                                    </Typography>
+                                                </TouchableOpacity>
+                                            </MotiView>
+                                        ) : (
+                                            <MotiView
+                                                key={item.id}
+                                                from={{ opacity: 0, translateX: -10 }}
+                                                animate={{ opacity: 1, translateX: 0 }}
+                                                transition={{ type: 'timing', duration: 300, delay: index * 30 }}
+                                            >
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[
+                                                        styles.listItem,
+                                                        {
+                                                            borderBottomColor: colors.separator,
+                                                            paddingHorizontal: 0,
+                                                        }
+                                                    ]}
+                                                    onPress={() => setActiveCategoryId(item.id)}
+                                                >
+                                                    <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.subtle, borderStyle: item.color ? 'solid' : 'dotted', borderWidth: 1, borderColor: item.color || colors.ink }]}>
+                                                        {getSmartCollectionCover(item) ? (
+                                                            <>
+                                                                <Image
+                                                                    source={{ uri: getSmartCollectionCover(item) }}
+                                                                    style={StyleSheet.absoluteFill}
+                                                                    contentFit="cover"
+                                                                />
+                                                                <LinearGradient
+                                                                    colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                                                    style={StyleSheet.absoluteFill}
+                                                                />
+                                                                {getIcon(item.icon, 18, '#FFFFFF')}
+                                                            </>
+                                                        ) : (
+                                                            getIcon(item.icon, 18, item.color ? '#FFFFFF' : colors.ink)
+                                                        )}
+                                                        <View style={styles.smartBadgeList}>
+                                                            <Sparkle size={8} color={colors.paper} weight="fill" />
+                                                        </View>
+                                                    </View>
+                                                    <View style={styles.listItemText}>
+                                                        <Typography variant="body" weight="600">{item.name}</Typography>
+                                                        <Typography variant="caption" color="stone">Smart Collection</Typography>
+                                                    </View>
+                                                    <TouchableOpacity
+                                                        onPress={(e) => {
+                                                            e.stopPropagation();
+                                                            handleLongPressSmartCollection(item);
+                                                        }}
+                                                        style={{ padding: 8 }}
+                                                    >
+                                                        <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                    </TouchableOpacity>
+                                                </TouchableOpacity>
+                                            </MotiView>
+                                        )
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+                    </ScrollView>
+                </View>
+
+                {renderedCollection && (
+                    <Animated.View style={activeCollectionStyle}>
+                        <View style={[styles.header, { marginHorizontal: 0, paddingHorizontal: 20 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                <TouchableOpacity onPress={() => {
+                                    activeCollectionTranslateX.value = withTiming(Dimensions.get('window').width, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
+                                        runOnJS(setActiveCategoryId)(null);
+                                    });
+                                }} style={styles.backButton}>
+                                    <CaretLeft size={24} color={colors.ink} />
+                                </TouchableOpacity>
+                                <Typography variant="h2" numberOfLines={1} style={{ flex: 1, marginRight: 8 }}>{renderedCollection.name}</Typography>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => handleLongPressSmartCollection(renderedCollection)}
+                                style={{ padding: 8, backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: RADIUS.s }}
+                            >
+                                <DotsThree size={24} color={colors.ink} weight="bold" />
+                            </TouchableOpacity>
                         </View>
 
                         <SiftFeed
-                            pages={activeCategoryPages as any}
+                            pages={renderedPages as any}
                             onPin={(id) => handlePin(id, true)}
                             onArchive={handleArchive}
                             onDeleteForever={handleDeleteForever}
@@ -610,357 +1028,21 @@ export default function LibraryScreen() {
                             visible={siftPickerVisible}
                             onClose={() => setSiftPickerVisible(false)}
                             onSelect={handleAddSmartCollectionSifts}
-                            currentCollectionSiftIds={activeCategoryPages.map(p => p.id)}
+                            currentCollectionSiftIds={renderedPages.map(p => p.id)}
                         />
-                    </>
-                ) : (
-                    <>
-                        <View style={styles.header}>
-                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 36 }}>Library</Typography>
-                            <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-                                {isReordering ? (
-                                    <TouchableOpacity onPress={() => setIsReordering(false)}>
-                                        <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <>
-                                        {activeView === 'personal' && (
-                                            <TouchableOpacity onPress={() => { setIsReordering(true); setViewMode('list'); }}>
-                                                <ListDashes size={24} color={colors.ink} />
-                                            </TouchableOpacity>
-                                        )}
-                                        <TouchableOpacity onPress={toggleViewMode}>
-                                            {viewMode === 'grid' ? <Rows size={24} color={colors.ink} /> : <SquaresFour size={24} color={colors.ink} />}
-                                        </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => router.push('/settings')}>
-                                            <Gear size={24} color={colors.ink} />
-                                        </TouchableOpacity>
-                                    </>
-                                )}
-                            </View>
-                        </View>
-                        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-                            <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.pill, padding: 4, alignSelf: 'flex-start' }}>
-                                <TouchableOpacity
-                                    style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'personal' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
-                                    onPress={() => { setActiveView('personal'); Haptics.selectionAsync(); }}
-                                >
-                                    <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'personal' ? colors.ink : colors.stone, fontWeight: activeView === 'personal' ? '600' : '400' }}>Personal</Typography>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'shared' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
-                                    onPress={() => { setActiveView('shared'); Haptics.selectionAsync(); }}
-                                >
-                                    <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'shared' ? colors.ink : colors.stone, fontWeight: activeView === 'shared' ? '600' : '400' }}>Shared</Typography>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
 
-                        <ScrollView
-                            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                        >
-                            <View style={styles.searchContainer}>
-                                <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper }]}>
-                                    <MagnifyingGlass size={20} color={colors.stone} weight="bold" />
-                                    <TextInput
-                                        style={[styles.searchInput, { color: colors.ink }]}
-                                        placeholder="Search your collections..."
-                                        placeholderTextColor={colors.stone}
-                                        value={searchQuery}
-                                        onChangeText={setSearchQuery}
-                                    />
-                                </View>
-                            </View>
-
-                            <View style={{ paddingHorizontal: 20 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
-                                    <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
-                                        {activeView === 'shared' ? 'SHARED WITH ME' : 'COLLECTIONS'}
-                                    </Typography>
-                                    <TouchableOpacity onPress={handleCreateCollection} style={{ opacity: activeView === 'shared' ? 0 : 1 }} disabled={activeView === 'shared'}>
-                                        <Plus size={20} color={colors.ink} />
-                                    </TouchableOpacity>
-                                </View>
-
-                                {displayCollections.length > 0 ? (
-                                    viewMode === 'grid' ? (
-                                        <View style={styles.collectionRow}>
-                                            {displayCollections.map((item: any, index: number) => (
-                                                <MotiView
-                                                    key={item.id}
-                                                    from={{ opacity: 0, scale: 0.9, translateY: 10 }}
-                                                    animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                                                    transition={{ type: 'timing', duration: 400, delay: index * 50 }}
-                                                    style={[
-                                                        styles.collectionTile,
-                                                        { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
-                                                    ]}
-                                                >
-                                                    <TouchableOpacity
-                                                        activeOpacity={0.7}
-                                                        style={{ alignItems: 'center', width: '100%' }}
-                                                        onPress={() => router.push(`/collection/${item.id}`)}
-                                                        onLongPress={() => handleLongPressCollection(item)}
-                                                    >
-                                                        <View style={styles.iconStackContainer}>
-                                                            <View style={[styles.stackBack, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '-3deg' }, { translateX: -2 }] }]} />
-                                                            <View style={[styles.stackMid, { backgroundColor: item.color || colors.stone, transform: [{ rotate: '2deg' }, { translateX: 2 }] }]} />
-
-                                                            <View style={[styles.iconContainer, { backgroundColor: item.color || colors.stone, overflow: 'hidden' }]}>
-                                                                {item.image_url ? (
-                                                                    <>
-                                                                        <Image
-                                                                            source={{ uri: item.image_url }}
-                                                                            style={StyleSheet.absoluteFill}
-                                                                            contentFit="cover"
-                                                                        />
-                                                                        <LinearGradient
-                                                                            colors={['transparent', 'rgba(0,0,0,0.5)']}
-                                                                            style={StyleSheet.absoluteFill}
-                                                                        />
-                                                                        <View style={{ position: 'absolute' }}>
-                                                                            {getIcon(item.icon, 20, '#FFFFFF')}
-                                                                        </View>
-                                                                    </>
-                                                                ) : (
-                                                                    getIcon(item.icon, 24, '#FFFFFF')
-                                                                )}
-                                                                {item.is_pinned && (
-                                                                    <View style={styles.pinIndicator}>
-                                                                        <Pin size={10} color={colors.ink} weight="fill" />
-                                                                    </View>
-                                                                )}
-                                                            </View>
-
-                                                            {activeView === 'personal' && (
-                                                                <TouchableOpacity
-                                                                    style={styles.gridSettingsButton}
-                                                                    onPress={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleLongPressCollection(item);
-                                                                    }}
-                                                                    hitSlop={8}
-                                                                >
-                                                                    <DotsThree size={20} color="#FFFFFF" weight="bold" />
-                                                                </TouchableOpacity>
-                                                            )}
-                                                        </View>
-                                                        <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
-                                                            {item.name}
-                                                        </Typography>
-                                                    </TouchableOpacity>
-                                                </MotiView>
-                                            ))}
-                                        </View>
-                                    ) : (
-                                        <View style={{ height: displayCollections.length * 64, marginHorizontal: -20 }}>
-                                            <DraggableFlatList
-                                                data={displayCollections}
-                                                onDragEnd={onDragEnd}
-                                                keyExtractor={(item) => item.id}
-                                                scrollEnabled={false}
-                                                renderItem={({ item, drag, isActive }: RenderItemParams<CollectionData>) => (
-                                                    <ScaleDecorator>
-                                                        <TouchableOpacity
-                                                            activeOpacity={0.7}
-                                                            onLongPress={drag}
-                                                            disabled={isActive}
-                                                            style={[
-                                                                styles.listItem,
-                                                                {
-                                                                    borderBottomColor: colors.separator,
-                                                                    backgroundColor: isActive ? (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') : 'transparent',
-                                                                    paddingHorizontal: 20,
-                                                                }
-                                                            ]}
-                                                            onPress={() => router.push(`/collection/${item.id}`)}
-                                                        >
-                                                            <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.stone }]}>
-                                                                {item.image_url ? (
-                                                                    <>
-                                                                        <Image
-                                                                            source={{ uri: item.image_url }}
-                                                                            style={StyleSheet.absoluteFill}
-                                                                            contentFit="cover"
-                                                                        />
-                                                                        <LinearGradient
-                                                                            colors={['transparent', 'rgba(0,0,0,0.3)']}
-                                                                            style={StyleSheet.absoluteFill}
-                                                                        />
-                                                                    </>
-                                                                ) : (
-                                                                    getIcon(item.icon, 18, '#FFFFFF')
-                                                                )}
-                                                            </View>
-                                                            <View style={styles.listItemText}>
-                                                                <Typography variant="body" weight="600">{item.name}</Typography>
-                                                                {item.is_pinned && <Pin size={12} color={colors.stone} weight="fill" />}
-                                                            </View>
-                                                            {activeView === 'personal' && (
-                                                                <TouchableOpacity
-                                                                    onPress={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleLongPressCollection(item);
-                                                                    }}
-                                                                    style={{ padding: 8 }}
-                                                                >
-                                                                    <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
-                                                                </TouchableOpacity>
-                                                            )}
-                                                        </TouchableOpacity>
-                                                    </ScaleDecorator>
-                                                )}
-                                            />
-                                        </View>
-                                    )
-                                ) : (
-                                    <EmptyState
-                                        type="no-collections"
-                                        title={activeView === 'shared' ? "No Shared Collections" : "No Collections"}
-                                        description={activeView === 'shared' ? "Collections your friends share with you will appear here." : "Organize your sifts into bespoke collections."}
-                                        actionLabel={activeView === 'shared' ? undefined : "New Collection"}
-                                        onAction={activeView === 'shared' ? undefined : handleCreateCollection}
-                                    />
-                                )}
-                            </View>
-
-                            {activeView === 'personal' && (
-                                <View style={{ marginTop: SPACING.xl, paddingHorizontal: 20 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
-                                        <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
-                                            SMART COLLECTIONS
-                                        </Typography>
-                                        <TouchableOpacity onPress={() => { setEditingSmartCollection(null); setSmartCollectionModalVisible(true); }}>
-                                            <Plus size={20} color={colors.ink} />
-                                        </TouchableOpacity>
-                                    </View>
-                                    <View style={viewMode === 'grid' ? styles.collectionRow : styles.listContainer}>
-                                        {smartCollections.map((item: any, index: number) => (
-                                            viewMode === 'grid' ? (
-                                                <MotiView
-                                                    key={item.id}
-                                                    from={{ opacity: 0, scale: 0.9, translateY: 10 }}
-                                                    animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                                                    transition={{ type: 'timing', duration: 400, delay: index * 50 + 200 }}
-                                                    style={[
-                                                        styles.collectionTile,
-                                                        { width: TILE_WIDTH, marginLeft: index % 2 !== 0 ? 15 : 0 }
-                                                    ]}
-                                                >
-                                                    <TouchableOpacity
-                                                        activeOpacity={0.7}
-                                                        style={{ alignItems: 'center', width: '100%' }}
-                                                        onPress={() => setActiveCategoryId(item.id)}
-                                                        onLongPress={() => handleLongPressSmartCollection(item)}
-                                                    >
-                                                        <View style={styles.iconStackContainer}>
-                                                            <View style={[styles.stackBack, { backgroundColor: colors.subtle, opacity: 0.5 }]} />
-                                                            <View style={[
-                                                                styles.iconContainer,
-                                                                {
-                                                                    backgroundColor: item.color || colors.subtle,
-                                                                    overflow: 'hidden'
-                                                                }
-                                                            ]}>
-                                                                {getSmartCollectionCover(item) ? (
-                                                                    <>
-                                                                        <Image
-                                                                            source={{ uri: getSmartCollectionCover(item) }}
-                                                                            style={StyleSheet.absoluteFill}
-                                                                            contentFit="cover"
-                                                                        />
-                                                                        <LinearGradient
-                                                                            colors={['transparent', 'rgba(0,0,0,0.5)']}
-                                                                            style={StyleSheet.absoluteFill}
-                                                                        />
-                                                                        {getIcon(item.icon, 20, '#FFFFFF')}
-                                                                    </>
-                                                                ) : (
-                                                                    getIcon(item.icon, 24, item.color ? '#FFFFFF' : colors.ink)
-                                                                )}
-                                                                <View style={styles.smartBadge}>
-                                                                    <Sparkle size={8} color={colors.paper} weight="fill" />
-                                                                </View>
-                                                            </View>
-
-                                                            <TouchableOpacity
-                                                                style={styles.gridSettingsButton}
-                                                                onPress={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleLongPressSmartCollection(item);
-                                                                }}
-                                                                hitSlop={8}
-                                                            >
-                                                                <DotsThree size={20} color="#FFFFFF" weight="bold" />
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                        <Typography variant="caption" style={styles.collectionName} numberOfLines={1}>
-                                                            {item.name}
-                                                        </Typography>
-                                                    </TouchableOpacity>
-                                                </MotiView>
-                                            ) : (
-                                                <MotiView
-                                                    key={item.id}
-                                                    from={{ opacity: 0, translateX: -10 }}
-                                                    animate={{ opacity: 1, translateX: 0 }}
-                                                    transition={{ type: 'timing', duration: 300, delay: index * 30 }}
-                                                >
-                                                    <TouchableOpacity
-                                                        activeOpacity={0.7}
-                                                        style={[
-                                                            styles.listItem,
-                                                            {
-                                                                borderBottomColor: colors.separator,
-                                                                paddingHorizontal: 0,
-                                                            }
-                                                        ]}
-                                                        onPress={() => setActiveCategoryId(item.id)}
-                                                    >
-                                                        <View style={[styles.listIconWrapper, { backgroundColor: item.color || colors.subtle, borderStyle: item.color ? 'solid' : 'dotted', borderWidth: 1, borderColor: item.color || colors.ink }]}>
-                                                            {getSmartCollectionCover(item) ? (
-                                                                <>
-                                                                    <Image
-                                                                        source={{ uri: getSmartCollectionCover(item) }}
-                                                                        style={StyleSheet.absoluteFill}
-                                                                        contentFit="cover"
-                                                                    />
-                                                                    <LinearGradient
-                                                                        colors={['transparent', 'rgba(0,0,0,0.5)']}
-                                                                        style={StyleSheet.absoluteFill}
-                                                                    />
-                                                                    {getIcon(item.icon, 18, '#FFFFFF')}
-                                                                </>
-                                                            ) : (
-                                                                getIcon(item.icon, 18, item.color ? '#FFFFFF' : colors.ink)
-                                                            )}
-                                                            <View style={styles.smartBadgeList}>
-                                                                <Sparkle size={8} color={colors.paper} weight="fill" />
-                                                            </View>
-                                                        </View>
-                                                        <View style={styles.listItemText}>
-                                                            <Typography variant="body" weight="600">{item.name}</Typography>
-                                                            <Typography variant="caption" color="stone">Smart Collection</Typography>
-                                                        </View>
-                                                        <TouchableOpacity
-                                                            onPress={(e) => {
-                                                                e.stopPropagation();
-                                                                handleLongPressSmartCollection(item);
-                                                            }}
-                                                            style={{ padding: 8 }}
-                                                        >
-                                                            <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
-                                                        </TouchableOpacity>
-                                                    </TouchableOpacity>
-                                                </MotiView>
-                                            )
-                                        ))}
-                                    </View>
-                                </View>
-                            )}
-                        </ScrollView>
-                    </>
+                        {/* Edge Swipe Area to prevent conflict with SiftFeed Swipeables */}
+                        <GestureDetector gesture={activeCollectionPanGesture}>
+                            <View style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 120, // Below header
+                                bottom: 0,
+                                width: 30, // Edge width
+                                zIndex: 100,
+                            }} />
+                        </GestureDetector>
+                    </Animated.View>
                 )}
 
                 <CollectionModal

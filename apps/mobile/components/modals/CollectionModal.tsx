@@ -490,9 +490,9 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     colorOption: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -507,9 +507,9 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     iconOption: {
-        width: 44, // Match colorOption width
-        height: 44, // Match colorOption height
-        borderRadius: 22, // Circular to match colorOption
+        width: 40, // Match colorOption width
+        height: 40, // Match colorOption height
+        borderRadius: 20, // Circular to match colorOption
         justifyContent: 'center',
         alignItems: 'center',
     },
