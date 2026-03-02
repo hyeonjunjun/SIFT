@@ -263,7 +263,12 @@ async function performFullSift(
 
             if (rawItem) {
                 if (domain.includes('tiktok.com')) {
-                    scrapedData = { title: rawItem.text || "TikTok", description: rawItem.text, imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl };
+                    scrapedData = {
+                        title: rawItem.text || "TikTok",
+                        description: rawItem.text,
+                        imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl,
+                        transcript: rawItem.transcript || rawItem.subtitles || (rawItem.videoMeta && rawItem.videoMeta.subtitle) || (rawItem.suggestedWords ? rawItem.suggestedWords.join(' ') : "")
+                    };
                 } else if (domain.includes('instagram.com')) {
                     const images: string[] = [];
                     if (rawItem.displayUrl) images.push(rawItem.displayUrl);
@@ -272,7 +277,13 @@ async function performFullSift(
                             if (post.displayUrl && !images.includes(post.displayUrl)) images.push(post.displayUrl);
                         });
                     }
-                    scrapedData = { title: rawItem.caption?.substring(0, 100) || "Instagram", description: rawItem.caption, imageUrl: rawItem.displayUrl, images: images.slice(0, 10) };
+                    scrapedData = {
+                        title: rawItem.caption?.substring(0, 100) || "Instagram",
+                        description: rawItem.caption,
+                        imageUrl: rawItem.displayUrl,
+                        images: images.slice(0, 10),
+                        transcript: rawItem.transcript || rawItem.subtitles || rawItem.video_subtitles || rawItem.video_transcripts || ""
+                    };
                 } else if (domain.includes('youtube.com')) {
                     scrapedData = { title: rawItem.title, description: rawItem.description, imageUrl: rawItem.thumbnailUrl, transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "" };
                 } else {
