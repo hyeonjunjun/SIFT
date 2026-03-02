@@ -50,3 +50,20 @@ export const getDomain = (url: string | null | undefined): string => {
         return 'sift.app';
     }
 };
+
+// Strips markdown formatting to produce clean plain-text for compact preview cards.
+// Handles: headers (##), bold (**), italic (*/_), bullets (- / *), numbered lists.
+export const stripMarkdown = (text: string | null | undefined): string => {
+    if (!text) return '';
+    return text
+        .replace(/#{1,6}\s+/g, '')        // Remove ## headers
+        .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** -> bold
+        .replace(/\*(.+?)\*/g, '$1')       // *italic* -> italic
+        .replace(/__(.+?)__/g, '$1')       // __bold__
+        .replace(/_(.+?)_/g, '$1')         // _italic_
+        .replace(/^\s*[-*]\s+/gm, '')      // Remove bullet markers
+        .replace(/^\s*\d+\.\s+/gm, '')     // Remove numbered list markers
+        .replace(/\n{2,}/g, ' ')           // Collapse blank lines
+        .replace(/\n/g, ' ')               // Replace single newlines with space
+        .trim();
+};

@@ -20,7 +20,7 @@ import { EmptyState } from "../../components/design-system/EmptyState";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useShareIntent } from 'expo-share-intent';
 import { safeSift } from "../../lib/sift-api";
-import { getDomain } from "../../lib/utils";
+import { getDomain, stripMarkdown } from "../../lib/utils";
 import { useImageSifter } from "../../hooks/useImageSifter";
 // Fuse.js removed — using server-side search now
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
@@ -574,7 +574,17 @@ export default function HomeScreen() {
                     const archivedChanged = newRecord.is_archived !== oldRecord.is_archived;
 
                     if (statusChanged || titleChanged || pinnedChanged || archivedChanged) {
-                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+                        // Instant Optimistic Update from Realtime Payload
+                        queryClient.setQueryData(['pages', user?.id, tier], (old: any) => {
+                            if (!old || !old.pages) return old;
+                            return {
+                                ...old,
+                                pages: old.pages.map((page: any[]) =>
+                                    page.map((p: any) => p.id === newRecord.id ? { ...p, ...newRecord } : p)
+                                )
+                            };
+                        });
+
                         if (statusChanged) triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
                     }
 
@@ -669,15 +679,14 @@ export default function HomeScreen() {
 
             if (!response.ok) {
                 const text = await response.text();
-                console.error('[Archive] Failed:', response.status, text);
                 throw new Error(`Server returned ${response.status}: ${text || 'Unknown archive error'}`);
             }
 
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             showToast({ message: "Moved to Archive" });
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Archive] Exception:', error);
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] }); // Revert optimistic update
             showToast({ message: error.message.includes('JSON') ? "Invalid Server Response" : `Archive failed: ${error.message}` });
         }
     };
@@ -704,15 +713,14 @@ export default function HomeScreen() {
 
             if (!response.ok) {
                 const text = await response.text();
-                console.error('[Delete] Failed:', response.status, text);
                 throw new Error(`Server returned ${response.status}: ${text || 'Unknown delete error'}`);
             }
 
-            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             showToast({ message: "Permanently Deleted" });
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
             console.error('[Delete] Exception:', error);
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] }); // Revert optimistic update
             showToast({ message: error.message.includes('JSON') ? "Invalid Server Response" : `Delete failed: ${error.message}` });
         }
     };
@@ -959,7 +967,7 @@ export default function HomeScreen() {
                                     {sift.title}
                                 </Typography>
                                 <Typography variant="caption" color="stone" numberOfLines={3} style={{ lineHeight: 18 }}>
-                                    {sift.summary || "No summary available."}
+                                    {stripMarkdown(sift.summary) || "No summary available."}
                                 </Typography>
                             </TouchableOpacity>
                         ))}
@@ -1009,12 +1017,12 @@ export default function HomeScreen() {
                 <TouchableOpacity
                     onPress={cycleSortMode}
                     style={{
-                        flexDirection: 'row', alignItems: 'center', gap: 4,
-                        paddingHorizontal: 10, paddingVertical: 4,
+                        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                        paddingHorizontal: 10, paddingVertical: 4, minWidth: 90,
                         backgroundColor: COLORS.subtle, borderRadius: RADIUS.pill,
                     }}
                 >
-                    <Typography variant="caption" color="stone" style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.5 }}>
+                    <Typography variant="caption" color="stone" style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.5, textAlign: 'center' }}>
                         {sortBy === 'date' ? '↓ NEWEST' : sortBy === 'title' ? 'A→Z' : '🌐 DOMAIN'}
                     </Typography>
                 </TouchableOpacity>

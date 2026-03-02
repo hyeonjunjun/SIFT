@@ -49,9 +49,27 @@ const SYSTEM_PROMPT = `
     - **Depth**: While the tone is casual and the format is structured, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: IMPORTANT: You MUST return ingredients and steps using a clear bulleted or numbered list format to make it easy to follow as a recipe. Keep the introduction/conclusion personable, but the actual recipe steps and ingredients MUST be a list! Ensure zero details or measurements are missed!
     - **Technical/Tutorials**: Explain the core concept naturally rather than dropping raw code blocks.
     - **Images/Videos**: Infer as much context as possible. If it's a TikTok/Reel with no transcript, use the title/caption and visuals to infer the complete high-quality takeaway.
+
+    =========================================
+    CRITICAL OVERRIDE FOR RECIPES / COOKING:
+    =========================================
+    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the 2-part format rule above! 
+    Instead, your 'summary' string MUST be formatted exactly like this markdown template:
+    
+    ## Overview
+    [1 short paragraph introducing the recipe]
+    
+    ## Ingredients
+    - **[quantity] [item]**, [prep]
+    
+    ## Preparation
+    1. **[Step Name]**:
+        - [Step detail]
+    
+    [Brief 1-sentence conclusion]
+    =========================================
 `;
 
 function extractMetaTags(html: string) {

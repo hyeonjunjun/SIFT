@@ -47,7 +47,18 @@ const SYSTEM_PROMPT = `
     - **Depth**: While the tone is casual and the format is structured, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: IMPORTANT: You MUST return ingredients and steps using a clear bulleted or numbered list format to make it easy to follow as a recipe. Keep the introduction/conclusion personable, but the actual recipe steps and ingredients MUST be a list! Ensure zero details or measurements are missed!
+    - **Recipes/How-To**: YOU MUST completely abandon the standard summary format and instead return a beautifully formatted Markdown string with exact headers. Your 'summary' MUST be formatted exactly like this template:
+        ## Overview
+        [1-paragraph description]
+        
+        ## Ingredients
+        - **[quantity] [item]**, [prep]
+        
+        ## Preparation
+        1. **[Step Name]**:
+            - [Step detail]
+        
+        [Brief concluding sentence]
     - **Technical Articles/Tutorials**: Explain the core concept and what you achieve, weaving necessary terminology naturally into the sentences rather than dropping raw code blocks.
 `;
 
