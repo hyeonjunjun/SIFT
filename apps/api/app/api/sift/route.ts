@@ -56,19 +56,22 @@ const SYSTEM_PROMPT = `
     CRITICAL OVERRIDE FOR RECIPES / COOKING:
     =========================================
     If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the 2-part format rule above! 
-    Instead, your 'summary' string MUST be formatted exactly like this markdown template:
+    Instead, your 'summary' string MUST use this highly readable markdown structure, adapting intelligently to the content's length and complexity:
     
     ## Overview
-    [1 short paragraph introducing the recipe]
+    [1-2 introductory paragraphs describing the recipe, taste profile, or origin]
     
     ## Ingredients
-    - **[quantity] [item]**, [prep]
+    - **[quantity] [item]**, [prep/notes]
+    *(If the recipe has multiple parts e.g. Dough vs Filling, group them under ### Sub-headers)*
     
     ## Preparation
-    1. **[Step Name]**:
-        - [Step detail]
+    *(If the recipe has distinct phases, use ### Sub-headers to break them up)*
+    1. **[Step Focus/Action]**: [Clear, concise instructions. Avoid giant walls of text per step.]
+    2. **[Step Focus/Action]**: [Next step...]
     
-    [Brief 1-sentence conclusion]
+    ## Notes & Equipment (Optional)
+    - [Capture any crucial tips, required pan sizes, storage advice, or ingredient substitutions mentioned]
     =========================================
 `;
 

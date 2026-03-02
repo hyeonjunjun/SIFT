@@ -46,19 +46,27 @@ const SYSTEM_PROMPT = `
         - DO NOT use heavy markdown formatting like ## Headers or bold words.
     - **Depth**: While the tone is casual and the format is structured, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
     
-    **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: YOU MUST completely abandon the standard summary format and instead return a beautifully formatted Markdown string with exact headers. Your 'summary' MUST be formatted exactly like this template:
-        ## Overview
-        [1-paragraph description]
-        
-        ## Ingredients
-        - **[quantity] [item]**, [prep]
-        
-        ## Preparation
-        1. **[Step Name]**:
-            - [Step detail]
-        
-        [Brief concluding sentence]
+    =========================================
+    CRITICAL OVERRIDE FOR RECIPES / COOKING:
+    =========================================
+    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the standard format rules.
+    Instead, your 'summary' string MUST use this highly readable markdown structure, adapting intelligently to the content's length and complexity:
+    
+    ## Overview
+    [1-2 introductory paragraphs describing the recipe, taste profile, or origin]
+    
+    ## Ingredients
+    - **[quantity] [item]**, [prep/notes]
+    *(If the recipe has multiple parts e.g. Dough vs Filling, group them under ### Sub-headers)*
+    
+    ## Preparation
+    *(If the recipe has distinct phases, use ### Sub-headers to break them up)*
+    1. **[Step Focus/Action]**: [Clear, concise instructions. Avoid giant walls of text per step.]
+    2. **[Step Focus/Action]**: [Next step...]
+    
+    ## Notes & Equipment (Optional)
+    - [Capture any crucial tips, required pan sizes, storage advice, or ingredient substitutions mentioned]
+    =========================================
     - **Technical Articles/Tutorials**: Explain the core concept and what you achieve, weaving necessary terminology naturally into the sentences rather than dropping raw code blocks.
 `;
 
