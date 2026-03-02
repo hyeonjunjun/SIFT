@@ -652,6 +652,14 @@ export default function HomeScreen() {
         try {
             const apiUrl = `${API_URL}/api/archive`;
 
+            // Optimistic Update
+            queryClient.setQueryData(['pages', user?.id, tier], (old: any) => {
+                if (!old || !old.pages) return old;
+                return {
+                    ...old,
+                    pages: old.pages.map((page: any[]) => page.filter((p: any) => p.id !== id))
+                };
+            });
 
             const response = await fetch(apiUrl, {
                 method: 'PUT',
@@ -682,6 +690,15 @@ export default function HomeScreen() {
 
         try {
             const apiUrl = `${API_URL}/api/archive?id=${id}&user_id=${user.id}`;
+
+            // Optimistic Update
+            queryClient.setQueryData(['pages', user?.id, tier], (old: any) => {
+                if (!old || !old.pages) return old;
+                return {
+                    ...old,
+                    pages: old.pages.map((page: any[]) => page.filter((p: any) => p.id !== id))
+                };
+            });
 
             const response = await fetch(apiUrl, { method: 'DELETE' });
 

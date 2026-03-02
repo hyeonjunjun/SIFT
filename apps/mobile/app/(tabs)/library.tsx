@@ -379,12 +379,14 @@ export default function LibraryScreen() {
     const [renderedCollection, setRenderedCollection] = useState<any>(null);
     const [renderedPages, setRenderedPages] = useState<any[]>([]);
 
+    const screenWidth = Dimensions.get('window').width;
+
     useEffect(() => {
         if (activeCategoryId && activeCollection) {
             setRenderedCollection(activeCollection);
             activeCollectionTranslateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
         } else if (!activeCategoryId) {
-            activeCollectionTranslateX.value = withTiming(Dimensions.get('window').width, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
+            activeCollectionTranslateX.value = withTiming(screenWidth, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
                 runOnJS(setRenderedCollection)(null);
                 runOnJS(setRenderedPages)([]);
             });
@@ -405,8 +407,8 @@ export default function LibraryScreen() {
             }
         })
         .onEnd((e) => {
-            if (e.translationX > Dimensions.get('window').width / 3 || e.velocityX > 500) {
-                activeCollectionTranslateX.value = withTiming(Dimensions.get('window').width, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
+            if (e.translationX > screenWidth / 3 || e.velocityX > 500) {
+                activeCollectionTranslateX.value = withTiming(screenWidth, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
                     runOnJS(setActiveCategoryId)(null);
                 });
                 runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
@@ -429,18 +431,33 @@ export default function LibraryScreen() {
 
     // Handlers
     const handlePin = async (id: string, isPinned: boolean) => {
+        // Optimistic Update
+        queryClient.setQueryData(['pages', user?.id], (old: any) => {
+            if (!old) return old;
+            return old.map((p: any) => p.id === id ? { ...p, is_pinned: isPinned } : p);
+        });
         const { error } = await supabase.from('pages').update({ is_pinned: isPinned }).eq('id', id);
-        if (!error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        if (error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }); // Revert on error
     };
 
     const handleArchive = async (id: string) => {
+        // Optimistic Update
+        queryClient.setQueryData(['pages', user?.id], (old: any) => {
+            if (!old) return old;
+            return old.filter((p: any) => p.id !== id);
+        });
         const { error } = await supabase.from('pages').update({ is_archived: true }).eq('id', id);
-        if (!error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        if (error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }); // Revert on error
     };
 
     const handleDeleteForever = async (id: string) => {
+        // Optimistic Update
+        queryClient.setQueryData(['pages', user?.id], (old: any) => {
+            if (!old) return old;
+            return old.filter((p: any) => p.id !== id);
+        });
         const { error } = await supabase.from('pages').delete().eq('id', id);
-        if (!error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] });
+        if (error) queryClient.invalidateQueries({ queryKey: ['pages', user?.id] }); // Revert on error
     };
 
     const handleEditTagsTrigger = (id: string, tags: string[]) => {
