@@ -373,11 +373,13 @@ export default function PageDetail() {
     const handleDirectShare = async (friendId: string) => {
         try {
             const { error } = await supabase
-                .from('sift_shares')
+                .from('direct_messages')
                 .insert([{
                     sift_id: id,
                     sender_id: user?.id,
-                    receiver_id: friendId
+                    receiver_id: friendId,
+                    content: 'Shared a Sift',
+                    message_type: 'sift'
                 }]);
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

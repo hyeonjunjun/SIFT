@@ -81,27 +81,6 @@ export default function SocialScreen() {
     const myNetwork = friendships.filter((f: any) => f.status === 'accepted');
     const outgoingRequests = friendships.filter((f: any) => f.user_id === user?.id && f.status === 'pending');
 
-    // 2. Fetch Shared Sifts
-    const { data: sharedSifts = [] } = useQuery({
-        queryKey: ['shared_sifts', user?.id],
-        queryFn: async () => {
-            if (!user?.id) return [];
-            const { data, error } = await supabase
-                .from('sift_shares')
-                .select(`
-                    *,
-                    sift:sift_id (*),
-                    sender:sender_id (username, display_name, avatar_url)
-                `)
-                .eq('receiver_id', user.id)
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!user?.id,
-        staleTime: 1000 * 60 * 5, // 5 minutes cache
-        retry: 2,
-    });
 
     // 2b. Fetch Direct Messages for selected friend
     const { data: messages = [] } = useQuery({
@@ -142,7 +121,7 @@ export default function SocialScreen() {
         staleTime: 1000 * 60 * 5,
     });
 
-    // Build unified conversation timeline (messages + shared sifts merged by time)
+    // Build unified conversation timeline (messages only now)
     const conversationTimeline = React.useMemo(() => {
         if (!selectedFriendId) return [];
 
@@ -156,23 +135,11 @@ export default function SocialScreen() {
             sift: m.sift || null,
         }));
 
-        // Map shared sifts from this friend into timeline
-        const friendShares = (sharedSifts || []).filter(
-            (s: any) => s.sender_id === selectedFriendId
-        ).map((s: any) => ({
-            id: `share-${s.id}`,
-            type: 'sift' as const,
-            content: s.message || null,
-            sender_id: s.sender_id,
-            created_at: s.created_at,
-            sift: s.sift,
-        }));
-
-        // Merge and sort chronologically
-        return [...msgItems, ...friendShares].sort(
+        // Sort chronologically
+        return [...msgItems].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
-    }, [messages, sharedSifts, selectedFriendId]);
+    }, [messages, selectedFriendId]);
 
     // Send a message
     const sendMessage = useCallback(async (content: string, type: 'text' | 'sift' | 'emoji' = 'text', siftId?: string) => {
@@ -227,33 +194,11 @@ export default function SocialScreen() {
         };
     }, [user?.id, selectedFriendId, queryClient]);
 
-    // Derived states for grouped shares
-    const sharesBySender = React.useMemo(() => {
-        const map: Record<string, any[]> = {};
-        sharedSifts.forEach(s => {
-            if (!map[s.sender_id]) map[s.sender_id] = [];
-            map[s.sender_id].push(s);
-        });
-        return map;
-    }, [sharedSifts]);
-
-    // Sort network: friends with latest activity first (messages or shares)
-    const latestMessageByFriend = React.useMemo(() => {
-        const map: Record<string, any> = {};
-        // We only have messages for the currently selected friend,
-        // so we rely on shares for the list ordering (messages are fetched on-demand)
-        return map;
-    }, []);
-
     const sortedNetwork = React.useMemo(() => {
         return [...myNetwork].sort((a, b) => {
-            const friendIdA = a.user_id === user?.id ? a.friend_id : a.user_id;
-            const friendIdB = b.user_id === user?.id ? b.friend_id : b.user_id;
-            const lastA = sharesBySender[friendIdA]?.[0] ? new Date(sharesBySender[friendIdA][0].created_at).getTime() : 0;
-            const lastB = sharesBySender[friendIdB]?.[0] ? new Date(sharesBySender[friendIdB][0].created_at).getTime() : 0;
-            return lastB - lastA;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
-    }, [myNetwork, sharesBySender, user?.id]);
+    }, [myNetwork]);
 
     // 3. Discovery (Search)
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -358,7 +303,6 @@ export default function SocialScreen() {
         setRefreshing(true);
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] }),
-            queryClient.invalidateQueries({ queryKey: ['shared_sifts', user?.id] }),
             queryClient.invalidateQueries({ queryKey: ['direct_messages', user?.id, selectedFriendId] }),
         ]);
         setRefreshing(false);
@@ -545,7 +489,6 @@ export default function SocialScreen() {
                             {sortedNetwork.length > 0 ? (
                                 sortedNetwork.map((f: any) => {
                                     const friendId = f.user_id === user?.id ? f.friend_id : f.user_id;
-                                    const shares = sharesBySender[friendId] || [];
                                     return (
                                         <FriendItem
                                             key={f.id}
@@ -555,8 +498,6 @@ export default function SocialScreen() {
                                             onBlock={handleBlockUser}
                                             onReport={handleReportUser}
                                             onPress={() => setSelectedFriendId(friendId)}
-                                            shareCount={shares.length}
-                                            latestShare={shares[0]}
                                         />
                                     );
                                 })
@@ -763,7 +704,7 @@ export default function SocialScreen() {
                                                 }}
                                             >
                                                 {sift.metadata?.image_url ? (
-                                                    <Image source={sift.metadata.image_url} style={{ width: '100%', height: 80, backgroundColor: 'rgba(0,0,0,0.05)' }} contentFit="cover" />
+                                                    <Image source={sift.metadata.image_url} style={{ width: '100%', height: 110, backgroundColor: 'rgba(0,0,0,0.05)' }} contentFit="cover" />
                                                 ) : (
                                                     <View style={{ width: '100%', height: 80, backgroundColor: 'rgba(0,0,0,0.02)', justifyContent: 'center', alignItems: 'center' }}>
                                                         <LinkSimple size={24} color={colors.stone} />
@@ -826,8 +767,9 @@ export default function SocialScreen() {
                         </KeyboardAvoidingView>
                     </Animated.View>
                 </GestureDetector>
-            )}
-        </ScreenWrapper>
+            )
+            }
+        </ScreenWrapper >
     );
 }
 
@@ -887,7 +829,7 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
     );
 }
 
-function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport, onPress, shareCount = 0, latestShare }: any) {
+function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport, onPress }: any) {
     const friend = friendship.user_id === currentUserId ? friendship.receiver : friendship.requester;
     const isPending = friendship.status === 'pending';
     const isOutgoing = isPending && friendship.user_id === currentUserId;
@@ -923,14 +865,9 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
             <View style={{ flex: 1, marginLeft: 16 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h3">{friend.display_name}</Typography>
-                    {shareCount > 0 && (
-                        <View style={[styles.badge, { backgroundColor: colors.subtle, marginLeft: 0 }]}>
-                            <Typography style={{ fontSize: 10, color: colors.ink }}>{shareCount}</Typography>
-                        </View>
-                    )}
                 </View>
                 <Typography variant="caption" color="stone" numberOfLines={1}>
-                    {latestShare ? latestShare.sift.title : `@${friend.username}`}
+                    {`@${friend.username}`}
                 </Typography>
             </View>
             {isPending ? (

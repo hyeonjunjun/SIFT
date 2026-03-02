@@ -619,7 +619,6 @@ begin
   delete from public.direct_messages where sender_id = target_user_id or receiver_id = target_user_id;
   delete from public.notifications where user_id = target_user_id or actor_id = target_user_id;
   delete from public.friendships where user_id = target_user_id or friend_id = target_user_id;
-  delete from public.sift_shares where sender_id = target_user_id or receiver_id = target_user_id;
   delete from public.profiles where id = target_user_id;
 
   -- 2. Delete the user from auth.users (Requires service role or security definer with bypass)

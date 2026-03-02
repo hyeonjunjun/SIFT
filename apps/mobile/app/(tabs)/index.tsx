@@ -1,11 +1,12 @@
 import { Platform, View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Pressable, Keyboard, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle, Trash, FolderOpen, X } from 'phosphor-react-native';
+import { Archive, Plus, House, User, MagnifyingGlass, SquaresFour, Rows, Books, Fingerprint, ImageSquare, XCircle, Trash, FolderOpen, X, ClockCounterClockwise, TextAa, Globe } from 'phosphor-react-native';
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../../components/Toast";
 import { Typography } from "../../components/design-system/Typography";
@@ -1013,18 +1014,32 @@ export default function HomeScreen() {
             </View>
 
             {/* Sort Toggle */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4, marginBottom: -4 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12, marginBottom: 8, paddingRight: SPACING.m }}>
                 <TouchableOpacity
                     onPress={cycleSortMode}
-                    style={{
-                        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                        paddingHorizontal: 10, paddingVertical: 4, minWidth: 90,
-                        backgroundColor: COLORS.subtle, borderRadius: RADIUS.pill,
-                    }}
+                    activeOpacity={0.7}
                 >
-                    <Typography variant="caption" color="stone" style={{ fontSize: 10, fontWeight: '600', letterSpacing: 0.5, textAlign: 'center' }}>
-                        {sortBy === 'date' ? '↓ NEWEST' : sortBy === 'title' ? 'A→Z' : '🌐 DOMAIN'}
-                    </Typography>
+                    <Animated.View
+                        layout={LinearTransition.springify().damping(18).stiffness(150)}
+                        style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            paddingHorizontal: 12, paddingVertical: 6,
+                            backgroundColor: COLORS.paper, borderRadius: RADIUS.pill,
+                            borderWidth: 1, borderColor: COLORS.separator,
+                            ...Theme.shadows.soft
+                        }}
+                    >
+                        {sortBy === 'date' ? (
+                            <ClockCounterClockwise size={14} color={COLORS.stone} weight="bold" />
+                        ) : sortBy === 'title' ? (
+                            <TextAa size={14} color={COLORS.stone} weight="bold" />
+                        ) : (
+                            <Globe size={14} color={COLORS.stone} weight="bold" />
+                        )}
+                        <Typography variant="caption" color="stone" style={{ fontSize: 11, fontWeight: '600', letterSpacing: 0.5 }}>
+                            {sortBy === 'date' ? 'NEWEST' : sortBy === 'title' ? 'A→Z' : 'DOMAIN'}
+                        </Typography>
+                    </Animated.View>
                 </TouchableOpacity>
             </View>
 
@@ -1033,7 +1048,7 @@ export default function HomeScreen() {
                 <SiftLimitTracker />
             </View>
         </View >
-    ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts]);
+    ), [pages, profile, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts, sortBy]);
 
     const HomeEmptyState = useMemo(() => (
         <View style={{ paddingTop: 40 }}>
