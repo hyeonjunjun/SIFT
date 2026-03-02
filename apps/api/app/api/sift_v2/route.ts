@@ -44,7 +44,9 @@ const SYSTEM_PROMPT = `
           1. A concise **bulleted list** highlighting the key points (using standard markdown bullets \`-\`).
           2. FOLLOWED BY a short **conversational paragraph** providing additional context in natural, short sentences when needed.
         - DO NOT use heavy markdown formatting like ## Headers or bold words.
-    - **Depth**: While the tone is casual and the format is structured, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
+    - **Depth & Complexity (CRITICAL)**: Do NOT write generic, high-level fluff. You MUST extract the specific, high-resolution details that make the content valuable.
+        - Capture the exact arguments, unique data points, clever techniques, or nuanced perspectives.
+        - Your goal is to make the user feel like they consumed the full content themselves. Never leave out the "secret sauce", the core complexities, or the subtle context of the original link.
     
     =========================================
     CRITICAL OVERRIDE FOR RECIPES / COOKING:
