@@ -612,30 +612,30 @@ export default function SocialScreen() {
                                                 activeOpacity={0.7}
                                             >
                                                 {item.content && (
-                                                    <Typography variant="body" style={{ color: isMine ? '#FFFFFF' : colors.ink, marginBottom: 8 }}>
+                                                    <Typography variant="body" style={{ color: isMine ? colors.paper : colors.ink, marginBottom: 8 }}>
                                                         {item.content}
                                                     </Typography>
                                                 )}
-                                                <View style={{ borderRadius: RADIUS.s, backgroundColor: isMine ? 'rgba(255,255,255,0.15)' : colors.subtle, overflow: 'hidden' }}>
+                                                <View style={{ borderRadius: RADIUS.s, backgroundColor: isMine ? (colors.paper === '#FDFCF8' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)') : colors.subtle, overflow: 'hidden' }}>
                                                     {item.sift.metadata?.image_url && (
                                                         <Image
                                                             source={item.sift.metadata.image_url}
-                                                            style={{ width: '100%', height: 140, backgroundColor: isMine ? 'rgba(255,255,255,0.1)' : colors.separator }}
+                                                            style={{ width: '100%', height: 140, backgroundColor: isMine ? (colors.paper === '#FDFCF8' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : colors.separator }}
                                                             contentFit="cover"
                                                         />
                                                     )}
                                                     <View style={{ padding: 12 }}>
-                                                        <Typography variant="h3" numberOfLines={2} style={{ color: isMine ? '#FFFFFF' : colors.ink }}>
+                                                        <Typography variant="h3" numberOfLines={2} style={{ color: isMine ? colors.paper : colors.ink }}>
                                                             {item.sift.title}
                                                         </Typography>
                                                         {item.sift.summary && (
-                                                            <Typography variant="body" numberOfLines={5} style={{ color: isMine ? 'rgba(255,255,255,0.8)' : colors.stone, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
+                                                            <Typography variant="body" numberOfLines={5} style={{ color: isMine ? colors.paper : colors.stone, opacity: isMine ? 0.8 : 1, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
                                                                 {item.sift.summary}
                                                             </Typography>
                                                         )}
                                                     </View>
                                                 </View>
-                                                <Typography variant="caption" style={{ color: isMine ? 'rgba(255,255,255,0.5)' : colors.stone, marginTop: 6, alignSelf: 'flex-end' }}>
+                                                <Typography variant="caption" style={{ color: isMine ? colors.paper : colors.stone, opacity: isMine ? 0.6 : 1, marginTop: 6, alignSelf: 'flex-end' }}>
                                                     {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </Typography>
                                             </TouchableOpacity>
@@ -651,10 +651,10 @@ export default function SocialScreen() {
                                             borderBottomRightRadius: isMine ? 4 : RADIUS.m,
                                             borderBottomLeftRadius: isMine ? RADIUS.m : 4,
                                         }]}>
-                                            <Typography variant="body" style={{ color: isMine ? '#FFFFFF' : colors.ink }}>
+                                            <Typography variant="body" style={{ color: isMine ? colors.paper : colors.ink }}>
                                                 {item.content}
                                             </Typography>
-                                            <Typography variant="caption" style={{ color: isMine ? 'rgba(255,255,255,0.5)' : colors.stone, marginTop: 4, alignSelf: 'flex-end' }}>
+                                            <Typography variant="caption" style={{ color: isMine ? colors.paper : colors.stone, opacity: isMine ? 0.6 : 1, marginTop: 4, alignSelf: 'flex-end' }}>
                                                 {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </Typography>
                                         </View>
@@ -761,7 +761,7 @@ export default function SocialScreen() {
                                     style={[chatStyles.sendButton, { backgroundColor: messageText.trim() ? colors.ink : colors.subtle }]}
                                     disabled={!messageText.trim()}
                                 >
-                                    <PaperPlaneTilt size={18} color={messageText.trim() ? '#FFFFFF' : colors.stone} weight="fill" />
+                                    <PaperPlaneTilt size={18} color={messageText.trim() ? colors.paper : colors.stone} weight="fill" />
                                 </TouchableOpacity>
                             </View>
                         </KeyboardAvoidingView>
