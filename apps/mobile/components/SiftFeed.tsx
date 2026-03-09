@@ -60,6 +60,7 @@ interface SiftFeedProps {
     selectedIds?: Set<string>;
     onToggleSelect?: (id: string) => void;
     onEnterSelectMode?: (id: string) => void;
+    onRetry?: (id: string, url: string) => void;
 }
 
 const GRID_PADDING = 20;
@@ -78,7 +79,7 @@ const getLayoutInfo = (screenWidth: number) => {
     return { numColumns, columnWidth };
 };
 
-const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, mode = 'feed', isSelectMode, isSelected, onToggleSelect, onEnterSelectMode }: {
+const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, onDeleteForever, onEditTags, onOptions, onRemove, onRetry, mode = 'feed', isSelectMode, isSelected, onToggleSelect, onEnterSelectMode }: {
     item: Page,
     index: number,
     numColumns?: number,
@@ -88,6 +89,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     onEditTags?: (id: string, currentTags: string[]) => void,
     onOptions?: (item: any) => void,
     onRemove?: (id: string) => void,
+    onRetry?: (id: string, url: string) => void,
     mode?: 'feed' | 'archive' | 'edit' | 'reorder',
     isSelectMode?: boolean,
     isSelected?: boolean,
@@ -195,10 +197,6 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
     const isFailedOrStale = item.status === 'failed' || isStale;
     const isPending = item.status === 'pending';
 
-    if (isFailedOrStale) {
-        return null;
-    }
-
     if (isPending) {
         return (
             <Animated.View style={[{
@@ -234,9 +232,15 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
-                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold' }}>
+                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold', marginBottom: 8 }}>
                                 {isStale ? "TIMED OUT" : "FAILED"}
                             </Typography>
+                            <Pressable
+                                onPress={(e) => { e.stopPropagation(); onRetry?.(item.id, page.url); }}
+                                style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                            >
+                                <Typography variant="label" style={{ color: 'white' }}>Retry</Typography>
+                            </Pressable>
                         </View>
                     ) : isFallback ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.paper }]}>
@@ -253,6 +257,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                             source={item.image}
                             placeholder={item.blurhash || 'LKO2?V%2Tw=w]~RBVZRi_Noz9HkC'} // Default blurhash
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                             transition={500}
                             style={[styles.image, mode === 'edit' && { opacity: 0.8 }]}
                         />
@@ -360,6 +365,7 @@ export default function SiftFeed({
     onToggleSelect,
     onEnterSelectMode,
     onDragEnd,
+    onRetry,
 }: SiftFeedProps) {
     const { colors, isDark } = useTheme();
 
@@ -385,28 +391,45 @@ export default function SiftFeed({
             renderItem={({ item, drag, isActive }: RenderItemParams<Page>) => (
                 <ScaleDecorator>
                     <TouchableOpacity
-                        activeOpacity={1}
+                        activeOpacity={0.8}
                         onLongPress={drag}
                         disabled={isActive}
-                        style={{ opacity: isActive ? 0.7 : 1, marginVertical: 4 }}
+                        style={{
+                            opacity: isActive ? 0.8 : 1,
+                            marginVertical: 6,
+                            backgroundColor: colors.paper,
+                            borderRadius: RADIUS.m,
+                            borderWidth: isDark ? 1 : 0,
+                            borderColor: 'rgba(255,255,255,0.05)',
+                            padding: 12,
+                            ...Theme.shadows.soft,
+                            shadowOpacity: isActive ? 0.2 : 0.05,
+                        }}
                     >
                         <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                            <TouchableOpacity onLongPress={drag} style={{ padding: 10 }}>
-                                <ListDashes size={20} color={colors.stone} />
+                            <TouchableOpacity onPressIn={drag} hitSlop={10} style={{ paddingRight: 12 }}>
+                                <ListDashes size={24} color={colors.stone} weight="bold" />
                             </TouchableOpacity>
-                            <View style={{ flex: 1 }}>
-                                <PageCard
-                                    id={item.id}
-                                    title={item.title}
-                                    gist={item.summary || ""}
-                                    url={item.url}
-                                    tags={item.tags}
-                                    isPinned={item.is_pinned}
-                                    imageUrl={item.metadata?.image_url}
-                                    onPin={onPin}
-                                    onDelete={onArchive}
-                                    onDeleteForever={onDeleteForever}
+
+                            {item.metadata?.image_url ? (
+                                <Image
+                                    source={item.metadata.image_url}
+                                    style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: 12 }}
+                                    contentFit="cover"
                                 />
+                            ) : (
+                                <View style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+                                    <Article size={24} color={colors.stone} weight="thin" />
+                                </View>
+                            )}
+
+                            <View style={{ flex: 1, justifyContent: 'center' }}>
+                                <Typography variant="label" color="stone" numberOfLines={1} style={{ fontSize: 10, letterSpacing: 0.5, marginBottom: 4 }}>
+                                    {getDomain(item.url)?.toUpperCase() || 'SIFT'}
+                                </Typography>
+                                <Typography variant="h3" color="ink" numberOfLines={2} style={{ fontSize: 15, lineHeight: 20 }}>
+                                    {item.title || 'Untitled Page'}
+                                </Typography>
                             </View>
                         </View>
                     </TouchableOpacity>
@@ -454,10 +477,10 @@ export default function SiftFeed({
                         onOptions={onOptions}
                         onRemove={onRemove}
                         mode={mode}
-                        isSelectMode={isSelectMode}
                         isSelected={selectedIds?.has(item.id)}
                         onToggleSelect={onToggleSelect}
                         onEnterSelectMode={onEnterSelectMode}
+                        onRetry={onRetry}
                     />
                 )
             )}

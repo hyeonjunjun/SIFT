@@ -41,20 +41,44 @@ const SYSTEM_PROMPT = `
     - You must select tags **ONLY** from this list: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"].
     - **DO NOT** create new tags.
     - If no tag fits, use "Lifestyle".
-    - Select exactly 2-3 tags.
+    - Select exactly 1-2 tags.
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
     - **Tone**: Professional yet accessible. Sound like a knowledgeable expert providing a definitive briefing.
-    - **Formatting (ALLOWED & ENCOURAGED)**: 
+    - **Format Rules**: 
         - Use Markdown structure to organize information.
         - Use bulleted lists for sequences, features, or ingredients.
         - Use bolding for emphasis on key terms or data points.
-        - Use headers (###) if the content is long and requires sections.
-    - **Depth**: Cover ALL essential details. Do not use vague generalizations. If a source lists 5 steps, your summary should clearly reflect those 5 steps.
+        - Use headers (###) for distinct sections.
+        - YOU MUST WRITE THE SUMMARY WITH TWO PARTS (unless it's a recipe):
+          1. A concise **bulleted list** highlighting the key points (using standard markdown bullets \`-\`).
+          2. FOLLOWED BY a short **conversational paragraph** providing additional context in natural, short sentences when needed.
+    - **Depth & Complexity (CRITICAL)**: Do NOT write generic, high-level fluff. You MUST extract the specific, high-resolution details that make the content valuable.
+        - Capture the exact arguments, unique data points, clever techniques, or nuanced perspectives.
+        - Your goal is to make the user feel like they consumed the full content themselves. Never leave out the "secret sauce", the core complexities, or the subtle context of the original link.
     
-    **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: List ingredients and steps clearly using markdown formatting. Ensure no measurements or nuances are lost.
-    - **Technical/Tutorials**: Maintain technical accuracy. Use proper terminology. Include specific constraints or requirements mentioned in the source.
+    =========================================
+    CRITICAL OVERRIDE FOR RECIPES / COOKING:
+    =========================================
+    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the standard format rules.
+    Instead, your 'summary' string MUST use this highly readable markdown structure, adapting intelligently to the content's length and complexity:
+    
+    ## Overview
+    [1-2 introductory paragraphs describing the recipe, taste profile, or origin]
+    
+    ## Ingredients
+    - **[quantity] [item]**, [prep/notes]
+    *(If the recipe has multiple parts e.g. Dough vs Filling, group them under ### Sub-headers)*
+    
+    ## Preparation
+    *(If the recipe has distinct phases, use ### Sub-headers to break them up)*
+    1. **[Step Focus/Action]**: [Clear, concise instructions. Avoid giant walls of text per step.]
+    2. **[Step Focus/Action]**: [Next step...]
+    
+    ## Notes & Equipment (Optional)
+    - [Capture any crucial tips, required pan sizes, storage advice, or ingredient substitutions mentioned]
+    =========================================
+    - **Technical Articles/Tutorials**: Explain the core concept and what you achieve, weaving necessary terminology naturally into the sentences rather than dropping raw code blocks.
 `;
 
 function extractMetaTags(html: string) {

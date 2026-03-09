@@ -1,23 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
-import { X, Trash, PushPin, Check, Plus } from 'phosphor-react-native';
-// Import same icons as FolderModal plus generic ones
 import {
-    Folder, FolderOpen, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle,
+    X, Trash, PushPin, Check, Plus, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle,
     Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase,
     GraduationCap, Trophy, Target, Lightbulb, Rocket, CookingPot, Leaf,
-    Monitor, Barbell, Airplane, Martini
+    Monitor, Barbell, Airplane, Martini, ImageSquare, UploadSimple
 } from 'phosphor-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../lib/auth';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// Extended Smart Collection icons
+const COLLECTION_COLORS = [
+    '#3B82F6', // Blue
+    '#8B5CF6', // Purple
+    '#EC4899', // Pink
+    '#EF4444', // Red
+    '#F97316', // Orange
+    '#EAB308', // Yellow
+    '#22C55E', // Green
+    '#14B8A6', // Teal
+    '#6B7280', // Gray
+    '#1F2937', // Dark
+];
+
 const COLLECTION_ICONS = [
     { name: 'Cooking', icon: CookingPot },
-    { name: 'Baking', icon: CookingPot }, // Fallback/Duplicate
     { name: 'Tech', icon: Monitor },
     { name: 'Health', icon: Heart },
     { name: 'Lifestyle', icon: Leaf },
@@ -41,6 +56,8 @@ export interface SmartCollectionData {
     name: string;
     icon: string;
     tags: string[];
+    color?: string;
+    image_url?: string;
     sort_order?: number;
 }
 
@@ -49,36 +66,98 @@ interface SmartCollectionModalProps {
     onClose: () => void;
     onSave: (category: SmartCollectionData) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
-    existingCategory?: SmartCollectionData | null;
+    existingCollection?: SmartCollectionData | null;
     suggestedTags?: string[];
 }
 
-export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, existingCategory, suggestedTags = [] }: SmartCollectionModalProps) => {
+export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, existingCollection, suggestedTags = [] }: SmartCollectionModalProps) => {
+    const { user } = useAuth();
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('Folder');
+    const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
+    const [imageUrl, setImageUrl] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-    const isEditMode = !!existingCategory?.id;
+    const isEditMode = !!existingCollection?.id;
 
-    // Reset form when modal opens
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 1,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            uploadCoverImage(result.assets[0].uri);
+        }
+    };
+
+    const uploadCoverImage = async (uri: string) => {
+        if (!user?.id) return;
+        setUploading(true);
+        try {
+            const manipulated = await ImageManipulator.manipulateAsync(
+                uri,
+                [{ resize: { width: 800 } }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const fileExt = 'jpg';
+            const fileName = `${user.id}/smart_cover_${Date.now()}.${fileExt}`;
+
+            const formData = new FormData();
+            formData.append('file', {
+                uri: manipulated.uri,
+                name: fileName,
+                type: 'image/jpeg',
+            } as any);
+
+            const { data, error } = await supabase.storage
+                .from('collection_covers')
+                .upload(fileName, formData, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('collection_covers')
+                .getPublicUrl(fileName);
+
+            setImageUrl(publicUrl);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error: any) {
+            Alert.alert('Upload Failed', error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     useEffect(() => {
         if (visible) {
-            if (existingCategory) {
-                setName(existingCategory.name);
-                setSelectedIcon(existingCategory.icon || 'Folder');
-                setTags(existingCategory.tags || []);
+            if (existingCollection) {
+                setName(existingCollection.name);
+                setSelectedIcon(existingCollection.icon || 'Folder');
+                setSelectedColor(existingCollection.color || COLLECTION_COLORS[0]);
+                setImageUrl(existingCollection.image_url || '');
+                setTags(existingCollection.tags || []);
                 setTagInput('');
             } else {
                 setName('');
                 setSelectedIcon('Folder');
+                setSelectedColor(COLLECTION_COLORS[0]);
+                setImageUrl('');
                 setTags([]);
                 setTagInput('');
             }
         }
-    }, [visible, existingCategory]);
+    }, [visible, existingCollection]);
 
     const handleAddTag = () => {
         const newTag = tagInput.trim().toUpperCase();
@@ -103,9 +182,11 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
         setSaving(true);
         try {
             await onSave({
-                id: existingCategory?.id,
+                id: existingCollection?.id,
                 name: name.trim(),
                 icon: selectedIcon,
+                color: selectedColor,
+                image_url: imageUrl,
                 tags: tags
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -117,12 +198,36 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
         }
     };
 
+    const handleUseLatestSift = async () => {
+        try {
+            const { data: pages, error } = await supabase
+                .from('pages')
+                .select('image_url')
+                .contains('tags', tags)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (error) throw error;
+
+            const firstWithImage = pages?.find(p => p.image_url)?.image_url;
+
+            if (firstWithImage) {
+                setImageUrl(firstWithImage);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+                Alert.alert('No Images', 'Could not find any sifts with images matching these tags.');
+            }
+        } catch (error: any) {
+            Alert.alert('Error', 'Failed to fetch latest sift image.');
+        }
+    };
+
     const handleDelete = () => {
-        if (!existingCategory?.id || !onDelete) return;
+        if (!existingCollection?.id || !onDelete) return;
 
         Alert.alert(
             'Delete Collection',
-            `Are you sure you want to delete "${existingCategory.name}"?`,
+            `Are you sure you want to delete "${existingCollection.name}"?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -130,7 +235,7 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await onDelete(existingCategory.id!);
+                            await onDelete(existingCollection.id!);
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             onClose();
                         } catch (error: any) {
@@ -156,10 +261,9 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                 style={styles.overlay}
             >
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>
-                    {/* Header */}
                     <View style={styles.header}>
                         <Typography variant="h3" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 24 }}>
-                            {isEditMode ? 'Edit' : 'New'} Smart Sift
+                            {isEditMode ? 'Edit' : 'New'} Smart collection
                         </Typography>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <X size={22} color={colors.stone} />
@@ -167,10 +271,24 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                     </View>
 
                     <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollContent}>
-                        {/* Preview */}
                         <View style={styles.previewContainer}>
-                            <View style={[styles.previewIcon, { backgroundColor: colors.subtle }]}>
-                                <SelectedIconComponent size={32} color={colors.ink} weight="fill" />
+                            <View style={[styles.previewIcon, { backgroundColor: selectedColor }]}>
+                                {imageUrl ? (
+                                    <>
+                                        <Image
+                                            source={{ uri: imageUrl }}
+                                            style={StyleSheet.absoluteFill}
+                                            contentFit="cover"
+                                        />
+                                        <LinearGradient
+                                            colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                            style={StyleSheet.absoluteFill}
+                                        />
+                                        <SelectedIconComponent size={24} color="#FFFFFF" weight="fill" />
+                                    </>
+                                ) : (
+                                    <SelectedIconComponent size={32} color="#FFFFFF" weight="fill" />
+                                )}
                             </View>
                             <Typography variant="h2" style={{ marginTop: 12, fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 20 }}>
                                 {name || 'Smart Collection'}
@@ -180,7 +298,6 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                             </Typography>
                         </View>
 
-                        {/* Name Input */}
                         <Typography variant="label" color="stone" style={styles.sectionLabel}>
                             COLLECTION NAME
                         </Typography>
@@ -194,7 +311,91 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                             maxLength={30}
                         />
 
-                        {/* Tags Input */}
+                        <Typography variant="label" color="stone" style={styles.sectionLabel}>
+                            COVER IMAGE
+                        </Typography>
+                        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: SPACING.l }}>
+                            <TouchableOpacity
+                                style={[styles.uploadButton, { backgroundColor: colors.subtle, borderColor: colors.separator }]}
+                                onPress={pickImage}
+                                disabled={uploading}
+                            >
+                                {uploading ? (
+                                    <ActivityIndicator size="small" color={colors.ink} />
+                                ) : (
+                                    <>
+                                        <UploadSimple size={20} color={colors.ink} weight="bold" />
+                                        <Typography variant="body" style={{ marginLeft: 8 }}>{imageUrl ? 'Change Cover' : 'Upload Cover'}</Typography>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.smallActionButton, { backgroundColor: colors.subtle, borderColor: colors.separator }]}
+                                onPress={handleUseLatestSift}
+                            >
+                                <ImageSquare size={20} color={colors.ink} />
+                            </TouchableOpacity>
+
+                            {imageUrl !== '' && (
+                                <TouchableOpacity
+                                    style={[styles.smallActionButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'transparent' }]}
+                                    onPress={() => setImageUrl('')}
+                                >
+                                    <X size={20} color="#EF4444" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <Typography variant="label" color="stone" style={styles.sectionLabel}>
+                            COLOR
+                        </Typography>
+                        <View style={styles.colorGrid}>
+                            {COLLECTION_COLORS.map((color) => (
+                                <TouchableOpacity
+                                    key={color}
+                                    style={[
+                                        styles.colorOption,
+                                        { backgroundColor: color },
+                                        selectedColor === color && styles.colorSelected,
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedColor(color);
+                                        Haptics.selectionAsync();
+                                    }}
+                                >
+                                    {selectedColor === color && (
+                                        <Check size={16} color="#FFFFFF" weight="bold" />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <Typography variant="label" color="stone" style={styles.sectionLabel}>
+                            ICON
+                        </Typography>
+                        <View style={styles.iconGrid}>
+                            {COLLECTION_ICONS.map((item) => (
+                                <TouchableOpacity
+                                    key={item.name}
+                                    style={[
+                                        styles.iconOption,
+                                        { backgroundColor: selectedIcon === item.name ? colors.ink : colors.subtle },
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedIcon(item.name);
+                                        Haptics.selectionAsync();
+                                    }}
+                                >
+                                    <item.icon
+                                        size={20}
+                                        color={selectedIcon === item.name ? colors.paper : colors.stone}
+                                        weight={selectedIcon === item.name ? "fill" : "regular"}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
                         <Typography variant="label" color="stone" style={styles.sectionLabel}>
                             TAGS (SMART FILTER)
                         </Typography>
@@ -213,7 +414,6 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                             </TouchableOpacity>
                         </View>
 
-                        {/* Active Tags */}
                         {tags.length > 0 && (
                             <View style={styles.tagsContainer}>
                                 {tags.map(tag => (
@@ -229,7 +429,6 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                             </View>
                         )}
 
-                        {/* Suggested Tags (Toggle) */}
                         {suggestedTags && suggestedTags.length > 0 && (
                             <>
                                 <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.m }]}>
@@ -254,7 +453,6 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                         )}
                     </ScrollView>
 
-                    {/* Actions */}
                     <View style={styles.actions}>
                         {isEditMode && onDelete && (
                             <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
@@ -362,9 +560,9 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     iconOption: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -385,5 +583,39 @@ const styles = StyleSheet.create({
     saveButton: {
         flex: 1,
         borderRadius: RADIUS.m,
+    },
+    colorGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginBottom: SPACING.l,
+    },
+    colorOption: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    colorSelected: {
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.8)',
+    },
+    smallActionButton: {
+        width: 52,
+        height: 52,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    uploadButton: {
+        flex: 1,
+        height: 52,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

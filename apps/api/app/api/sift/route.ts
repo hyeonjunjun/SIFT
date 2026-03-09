@@ -47,17 +47,43 @@ const SYSTEM_PROMPT = `
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
     - **Tone**: Professional yet accessible. Sound like a knowledgeable expert providing a definitive briefing.
-    - **Formatting (ALLOWED & ENCOURAGED)**: 
+    - **Format Rules**: 
         - Use Markdown structure to organize information.
         - Use bulleted lists for sequences, features, or ingredients.
         - Use bolding for emphasis on key terms or data points.
-        - Use headers (###) if the content is long and requires sections.
-    - **Depth**: Cover ALL essential details. Do not use vague generalizations. If a source lists 5 steps, your summary should clearly reflect those 5 steps.
+        - Use headers (###) for distinct sections.
+        - YOU MUST WRITE THE SUMMARY WITH TWO PARTS (unless it's a recipe):
+          1. A concise **bulleted list** highlighting the key points (using standard markdown bullets \`-\`).
+          2. FOLLOWED BY a short **conversational paragraph** providing additional context in natural, short sentences when needed.
+    - **Depth & Complexity (CRITICAL)**: Do NOT write generic, high-level fluff. You MUST extract the specific, high-resolution details that make the content valuable.
+        - Capture the exact arguments, unique data points, clever techniques, or nuanced perspectives.
+        - Your goal is to make the user feel like they consumed the full content themselves. Never leave out the "secret sauce", the core complexities, or the subtle context of the original link.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: List ingredients and steps clearly using markdown formatting. Ensure no measurements or nuances are lost.
-    - **Technical/Tutorials**: Maintain technical accuracy. Use proper terminology. Include specific constraints or requirements mentioned in the source.
-    - **Images/Videos**: Infer maximum context. If it's a video, extract the core "value" or "takeaway" without fluff.
+    - **Technical/Tutorials**: Explain the core concept naturally rather than dropping raw code blocks. Maintain technical accuracy.
+    - **Images/Videos**: Infer maximum context. If it's a TikTok/Reel with no transcript, use the title/caption and visuals to infer the complete high-quality takeaway.
+
+    =========================================
+    CRITICAL OVERRIDE FOR RECIPES / COOKING:
+    =========================================
+    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the 2-part format rule above! 
+    Instead, your 'summary' string MUST use this highly readable markdown structure, adapting intelligently to the content's length and complexity:
+    
+    ## Overview
+    [1-2 introductory paragraphs describing the recipe, taste profile, or origin]
+    
+    ## Ingredients
+    - **[quantity] [item]**, [prep/notes]
+    *(If the recipe has multiple parts e.g. Dough vs Filling, group them under ### Sub-headers)*
+    
+    ## Preparation
+    *(If the recipe has distinct phases, use ### Sub-headers to break them up)*
+    1. **[Step Focus/Action]**: [Clear, concise instructions. Avoid giant walls of text per step.]
+    2. **[Step Focus/Action]**: [Next step...]
+    
+    ## Notes & Equipment (Optional)
+    - [Capture any crucial tips, required pan sizes, storage advice, or ingredient substitutions mentioned]
+    =========================================
 `;
 
 function extractMetaTags(html: string) {
@@ -269,7 +295,12 @@ async function performFullSift(
 
             if (rawItem) {
                 if (domain.includes('tiktok.com')) {
-                    scrapedData = { title: rawItem.text || "TikTok", description: rawItem.text, imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl };
+                    scrapedData = {
+                        title: rawItem.text || "TikTok",
+                        description: rawItem.text,
+                        imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl,
+                        transcript: rawItem.transcript || rawItem.subtitles || (rawItem.videoMeta && rawItem.videoMeta.subtitle) || (rawItem.suggestedWords ? rawItem.suggestedWords.join(' ') : "")
+                    };
                 } else if (domain.includes('instagram.com')) {
                     const images: string[] = [];
                     if (rawItem.displayUrl) images.push(rawItem.displayUrl);
@@ -278,7 +309,13 @@ async function performFullSift(
                             if (post.displayUrl && !images.includes(post.displayUrl)) images.push(post.displayUrl);
                         });
                     }
-                    scrapedData = { title: rawItem.caption?.substring(0, 100) || "Instagram", description: rawItem.caption, imageUrl: rawItem.displayUrl, images: images.slice(0, 10) };
+                    scrapedData = {
+                        title: rawItem.caption?.substring(0, 100) || "Instagram",
+                        description: rawItem.caption,
+                        imageUrl: rawItem.displayUrl,
+                        images: images.slice(0, 10),
+                        transcript: rawItem.transcript || rawItem.subtitles || rawItem.video_subtitles || rawItem.video_transcripts || ""
+                    };
                 } else if (domain.includes('youtube.com')) {
                     scrapedData = { title: rawItem.title, description: rawItem.description, imageUrl: rawItem.thumbnailUrl, transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "" };
                 } else {

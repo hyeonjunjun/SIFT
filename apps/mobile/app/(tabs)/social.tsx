@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions, FlatList, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
-import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset } from 'phosphor-react-native';
+import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset, ArrowLeft, CaretRight, PaperPlaneTilt, Smiley, LinkSimple } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -15,6 +15,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Sift {
     id: string;
@@ -34,12 +35,17 @@ interface Share {
 
 export default function SocialScreen() {
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const { showToast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'friends' | 'shared'>('shared');
+    const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [messageText, setMessageText] = useState('');
+    const [showEmojiGrid, setShowEmojiGrid] = useState(false);
+    const [showSiftPicker, setShowSiftPicker] = useState(false);
+    const router = useRouter();
     const triggerHaptic = (type: 'selection' | 'impact' | 'notification' | 'error') => {
         if (type === 'selection') Haptics.selectionAsync();
         else if (type === 'impact') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -75,27 +81,124 @@ export default function SocialScreen() {
     const myNetwork = friendships.filter((f: any) => f.status === 'accepted');
     const outgoingRequests = friendships.filter((f: any) => f.user_id === user?.id && f.status === 'pending');
 
-    // 2. Fetch Shared Sifts
-    const { data: sharedSifts = [] } = useQuery({
-        queryKey: ['shared_sifts', user?.id],
+
+    // 2b. Fetch Direct Messages for selected friend
+    const { data: messages = [] } = useQuery({
+        queryKey: ['direct_messages', user?.id, selectedFriendId],
         queryFn: async () => {
-            if (!user?.id) return [];
+            if (!user?.id || !selectedFriendId) return [];
             const { data, error } = await supabase
-                .from('sift_shares')
+                .from('direct_messages')
                 .select(`
                     *,
-                    sift:sift_id (*),
-                    sender:sender_id (username, display_name, avatar_url)
+                    sift:sift_id (id, title, summary, url, metadata)
                 `)
-                .eq('receiver_id', user.id)
-                .order('created_at', { ascending: false });
+                .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${user.id})`)
+                .order('created_at', { ascending: true });
             if (error) throw error;
             return data;
         },
-        enabled: !!user?.id,
-        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        enabled: !!user?.id && !!selectedFriendId,
+        staleTime: 1000 * 30, // 30s cache for active chats
         retry: 2,
     });
+
+    // 2c. Fetch user's sifts for the sift picker
+    const { data: mySifts = [] } = useQuery({
+        queryKey: ['my_sifts_for_picker', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            const { data, error } = await supabase
+                .from('pages')
+                .select('id, title, summary, url, metadata')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user?.id && showSiftPicker,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    // Build unified conversation timeline (messages only now)
+    const conversationTimeline = React.useMemo(() => {
+        if (!selectedFriendId) return [];
+
+        // Map direct messages to timeline items
+        const msgItems = messages.map((m: any) => ({
+            id: `dm-${m.id}`,
+            type: m.message_type || 'text',
+            content: m.content,
+            sender_id: m.sender_id,
+            created_at: m.created_at,
+            sift: m.sift || null,
+        }));
+
+        // Sort chronologically
+        return [...msgItems].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+    }, [messages, selectedFriendId]);
+
+    // Send a message
+    const sendMessage = useCallback(async (content: string, type: 'text' | 'sift' | 'emoji' = 'text', siftId?: string) => {
+        if (!user?.id || !selectedFriendId) return;
+        if (type === 'text' && !content.trim()) return;
+
+        triggerHaptic('impact');
+        try {
+            const { error } = await supabase
+                .from('direct_messages')
+                .insert([{
+                    sender_id: user.id,
+                    receiver_id: selectedFriendId,
+                    content: type === 'emoji' ? content : content.trim(),
+                    message_type: type,
+                    sift_id: siftId || null,
+                }]);
+            if (error) throw error;
+
+            setMessageText('');
+            setShowEmojiGrid(false);
+            Keyboard.dismiss();
+            queryClient.invalidateQueries({ queryKey: ['direct_messages', user.id, selectedFriendId] });
+        } catch (e: any) {
+            showToast({ message: e.message, type: 'error' });
+        }
+    }, [user?.id, selectedFriendId, queryClient, showToast, triggerHaptic]);
+
+    // Real-time subscription for incoming messages
+    React.useEffect(() => {
+        if (!user?.id) return;
+
+        const channel = supabase
+            .channel('direct_messages_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'direct_messages',
+                    filter: `receiver_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    // Refresh the messages list when a new message arrives
+                    queryClient.invalidateQueries({ queryKey: ['direct_messages', user.id, selectedFriendId] });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, selectedFriendId, queryClient]);
+
+    const sortedNetwork = React.useMemo(() => {
+        return [...myNetwork].sort((a, b) => {
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+    }, [myNetwork]);
 
     // 3. Discovery (Search)
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -200,7 +303,7 @@ export default function SocialScreen() {
         setRefreshing(true);
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] }),
-            queryClient.invalidateQueries({ queryKey: ['shared_sifts', user?.id] })
+            queryClient.invalidateQueries({ queryKey: ['direct_messages', user?.id, selectedFriendId] }),
         ]);
         setRefreshing(false);
     };
@@ -252,144 +355,421 @@ export default function SocialScreen() {
         );
     };
 
-    // Swipe gesture handler
-    const panGesture = Gesture.Pan()
-        .onUpdate((event) => {
-            translateX.value = event.translationX;
-        })
-        .onEnd((event) => {
-            const threshold = width * 0.2; // 20% of screen width
-            if (event.translationX > threshold && activeTab === 'friends') {
-                runOnJS(setActiveTab)('shared');
-            } else if (event.translationX < -threshold && activeTab === 'shared') {
-                runOnJS(setActiveTab)('friends');
-            }
-            translateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) });
-        });
+    // Animation for detail view
+    const detailTranslateX = useSharedValue(width);
+    const mainOpacity = useSharedValue(1);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: translateX.value }]
+    React.useEffect(() => {
+        if (selectedFriendId) {
+            detailTranslateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
+            mainOpacity.value = withTiming(0.4, { duration: 300 });
+        } else {
+            detailTranslateX.value = withTiming(width, { duration: 300, easing: Easing.out(Easing.quad) });
+            mainOpacity.value = withTiming(1, { duration: 300 });
+        }
+    }, [selectedFriendId]);
+
+    const detailStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: detailTranslateX.value }],
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: colors.canvas,
+        zIndex: 10,
+        paddingTop: insets.top,
     }));
+
+    const mainStyle = useAnimatedStyle(() => ({
+        opacity: mainOpacity.value,
+        flex: 1,
+    }));
+
+    const selectedFriend = React.useMemo(() => {
+        if (!selectedFriendId) return null;
+        const friendship = friendships.find((f: any) =>
+            f.user_id === selectedFriendId || f.friend_id === selectedFriendId
+        );
+        if (!friendship) return null;
+        return friendship.user_id === user?.id ? friendship.receiver : friendship.requester;
+    }, [selectedFriendId, friendships, user?.id]);
+
+    const chatPanGesture = Gesture.Pan()
+        .activeOffsetX([20, 1000]) // Only activate on horizontal swiping right
+        .onUpdate((e) => {
+            if (e.translationX > 0) {
+                detailTranslateX.value = e.translationX;
+            }
+        })
+        .onEnd((e) => {
+            if (e.translationX > width / 3 || e.velocityX > 500) {
+                detailTranslateX.value = withTiming(width, { duration: 300, easing: Easing.out(Easing.quad) }, () => {
+                    runOnJS(setSelectedFriendId)(null);
+                    runOnJS(setShowEmojiGrid)(false);
+                    runOnJS(setShowSiftPicker)(false);
+                });
+                mainOpacity.value = withTiming(1, { duration: 300 });
+                runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+            } else {
+                detailTranslateX.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) });
+            }
+        });
 
     return (
         <ScreenWrapper edges={['top']}>
-            <View style={styles.header}>
-                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NATIVE • NETWORK</Typography>
-                <Typography variant="h1" style={styles.serifTitle}>Inbox & Activity</Typography>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                    <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
-                    <TextInput
-                        style={[styles.searchInput, { color: colors.ink }]}
-                        placeholder="Find friends by @username or ID..."
-                        placeholderTextColor={colors.stone}
-                        value={searchQuery}
-                        onChangeText={handleSearch}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {isSearching && (
-                        <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
-                    )}
+            <Animated.View style={mainStyle}>
+                <View style={styles.header}>
+                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NETWORK • ACTIVITY</Typography>
+                    <Typography variant="h1" style={styles.serifTitle}>Friends</Typography>
                 </View>
-            </View>
 
-            {searchResults.length > 0 ? (
-                <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
-                    {searchResults.map(u => (
-                        <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
-                            <Image source={u.avatar_url} style={styles.miniAvatar} />
-                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                <Typography variant="label">{u.display_name}</Typography>
-                                <Typography variant="caption" color="stone">@{u.username}</Typography>
-                            </View>
-                            <UserPlus size={20} color={colors.ink} />
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            ) : (
-                searchQuery.length >= 3 && !isSearching && (
-                    <View style={[styles.searchResultsBox, { backgroundColor: colors.paper, padding: 20, alignItems: 'center' }]}>
-                        <Typography variant="body" color="stone">No users found matching "{searchQuery}"</Typography>
-                        <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>Try searching by @username or exact email</Typography>
-                    </View>
-                )
-            )}
-
-            <View style={styles.tabsContainer}>
-                <TouchableOpacity onPress={() => { setActiveTab('shared'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'shared' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="label" color={activeTab === 'shared' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>INBOX</Typography>
-                        {sharedSifts.length > 0 && (
-                            <View style={[styles.badge, { backgroundColor: colors.subtle }]}>
-                                <Typography style={{ fontSize: 10, color: colors.ink }}>{sharedSifts.length}</Typography>
-                            </View>
+                <View style={styles.searchContainer}>
+                    <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                        <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
+                        <TextInput
+                            style={[styles.searchInput, { color: colors.ink }]}
+                            placeholder="Find friends by @username or ID..."
+                            placeholderTextColor={colors.stone}
+                            value={searchQuery}
+                            onChangeText={handleSearch}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {isSearching && (
+                            <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
                         )}
                     </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setActiveTab('friends'); triggerHaptic('selection'); }} style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.ink, borderBottomWidth: 1.5 }]} hitSlop={16}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="label" color={activeTab === 'friends' ? "ink" : "stone"} style={{ fontSize: 13, letterSpacing: 1 }}>FRIENDS</Typography>
+                </View>
+
+                {searchResults.length > 0 ? (
+                    <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
+                        {searchResults.map(u => (
+                            <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
+                                <Image source={u.avatar_url} style={styles.miniAvatar} />
+                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                    <Typography variant="label">{u.display_name}</Typography>
+                                    <Typography variant="caption" color="stone">@{u.username}</Typography>
+                                </View>
+                                <UserPlus size={20} color={colors.ink} />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                ) : (
+                    searchQuery.length >= 3 && !isSearching && (
+                        <View style={[styles.searchResultsBox, { backgroundColor: colors.paper, padding: 20, alignItems: 'center' }]}>
+                            <Typography variant="body" color="stone">No users found matching "{searchQuery}"</Typography>
+                            <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>Try searching by @username or exact email</Typography>
+                        </View>
+                    )
+                )}
+
+                <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
+                    <View style={styles.friendsList}>
                         {incomingRequests.length > 0 && (
-                            <View style={[styles.badge, { backgroundColor: COLORS.accent }]}>
-                                <Typography style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>{incomingRequests.length}</Typography>
+                            <View style={styles.section}>
+                                <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
+                                {incomingRequests.map((f: any) => (
+                                    <FriendItem
+                                        key={f.id}
+                                        friendship={f}
+                                        currentUserId={user?.id}
+                                        colors={colors}
+                                        onAccept={() => handleAccept(f.id)}
+                                        onDecline={() => handleDecline(f.id)}
+                                        onBlock={handleBlockUser}
+                                        onReport={handleReportUser}
+                                    />
+                                ))}
+                            </View>
+                        )}
+
+                        <View style={styles.section}>
+                            <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
+                            {sortedNetwork.length > 0 ? (
+                                sortedNetwork.map((f: any) => {
+                                    const friendId = f.user_id === user?.id ? f.friend_id : f.user_id;
+                                    return (
+                                        <FriendItem
+                                            key={f.id}
+                                            friendship={f}
+                                            currentUserId={user?.id}
+                                            colors={colors}
+                                            onBlock={handleBlockUser}
+                                            onReport={handleReportUser}
+                                            onPress={() => setSelectedFriendId(friendId)}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                incomingRequests.length === 0 && (
+                                    <EmptyState
+                                        icon={<Users size={40} color={colors.stone} />}
+                                        title="Build your network"
+                                        subtitle="Search for friends to start sharing your best finds directly with them."
+                                    />
+                                )
+                            )}
+                        </View>
+
+                        {outgoingRequests.length > 0 && (
+                            <View style={[styles.section]}>
+                                <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
+                                {outgoingRequests.map((f: any) => (
+                                    <FriendItem
+                                        key={f.id}
+                                        friendship={f}
+                                        currentUserId={user?.id}
+                                        colors={colors}
+                                        onDecline={() => handleDecline(f.id)}
+                                        onBlock={handleBlockUser}
+                                        onReport={handleReportUser}
+                                    />
+                                ))}
                             </View>
                         )}
                     </View>
-                </TouchableOpacity>
-            </View>
+                </ScrollView>
+            </Animated.View>
 
-            <GestureDetector gesture={panGesture}>
-                <Animated.View style={animatedStyle}>
-                    <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
-                        {activeTab === 'shared' ? (
-                            <View style={styles.feed}>
-                                {sharedSifts.length === 0 ? (
-                                    <EmptyState icon={<ShareNetwork size={40} color={colors.stone} />} title="Inbox empty" subtitle="Individual Sifts sent to you by friends will land here." />
-                                ) : (
-                                    sharedSifts.map((share: any) => <SharedSiftCard key={share.id} share={share} user={user} colors={colors} queryClient={queryClient} router={useRouter()} />)
-                                )}
+            {/* CHAT INTERFACE */}
+            {selectedFriendId && (
+                <GestureDetector gesture={chatPanGesture}>
+                    <Animated.View style={detailStyle}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                            style={{ flex: 1 }}
+                            keyboardVerticalOffset={0}
+                        >
+                            {/* Chat Header */}
+                            <View style={[chatStyles.chatHeader, { borderBottomColor: colors.separator }]}>
+                                <TouchableOpacity
+                                    onPress={() => { setSelectedFriendId(null); setShowEmojiGrid(false); setShowSiftPicker(false); }}
+                                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                                    hitSlop={16}
+                                >
+                                    <ArrowLeft size={20} color={colors.ink} weight="bold" />
+                                </TouchableOpacity>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 16 }}>
+                                    {selectedFriend?.avatar_url ? (
+                                        <Image source={selectedFriend.avatar_url} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                                    ) : (
+                                        <View style={[{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <User size={18} color={colors.stone} weight="thin" />
+                                        </View>
+                                    )}
+                                    <View style={{ marginLeft: 12 }}>
+                                        <Typography variant="h3" numberOfLines={1}>{selectedFriend?.display_name}</Typography>
+                                        <Typography variant="caption" color="stone">@{selectedFriend?.username}</Typography>
+                                    </View>
+                                </View>
                             </View>
-                        ) : (
-                            <View style={styles.friendsList}>
-                                {incomingRequests.length > 0 && (
-                                    <View style={styles.section}>
-                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
-                                        {incomingRequests.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onAccept={() => handleAccept(f.id)} onDecline={() => handleDecline(f.id)} onBlock={handleBlockUser} onReport={handleReportUser} />
-                                        ))}
-                                    </View>
-                                )}
 
-                                {myNetwork.length > 0 ? (
-                                    <View style={styles.section}>
-                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
-                                        {myNetwork.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onBlock={handleBlockUser} onReport={handleReportUser} />
-                                        ))}
+                            {/* Messages List */}
+                            <FlatList
+                                style={{ flex: 1 }}
+                                data={conversationTimeline}
+                                keyExtractor={(item) => item.id}
+                                inverted={false}
+                                contentContainerStyle={chatStyles.messagesList}
+                                showsVerticalScrollIndicator={false}
+                                ref={(ref) => {
+                                    // Auto-scroll to bottom
+                                    if (ref && conversationTimeline.length > 0) {
+                                        setTimeout(() => ref.scrollToEnd?.({ animated: false }), 100);
+                                    }
+                                }}
+                                ListEmptyComponent={
+                                    <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
+                                        <ChatCircleText size={48} color={colors.stone} weight="thin" />
+                                        <Typography variant="h3" style={{ marginTop: 16, textAlign: 'center' }}>Start a conversation</Typography>
+                                        <Typography variant="body" color="stone" style={{ marginTop: 8, textAlign: 'center' }}>Send a message, share a sift, or react with an emoji</Typography>
                                     </View>
-                                ) : (
-                                    incomingRequests.length === 0 && (
-                                        <EmptyState icon={<Users size={40} color={colors.stone} />} title="Lonely in here?" subtitle="Search for friends to start sharing sifts." />
-                                    )
-                                )}
+                                }
+                                renderItem={({ item }) => {
+                                    const isMine = item.sender_id === user?.id;
 
-                                {outgoingRequests.length > 0 && (
-                                    <View style={[styles.section, { opacity: 0.6 }]}>
-                                        <Typography variant="label" color="stone" style={styles.sectionTitle}>SENT REQUESTS</Typography>
-                                        {outgoingRequests.map((f: any) => (
-                                            <FriendItem key={f.id} friendship={f} currentUserId={user?.id} colors={colors} onDecline={() => handleDecline(f.id)} onBlock={handleBlockUser} onReport={handleReportUser} />
-                                        ))}
+                                    if (item.type === 'emoji') {
+                                        return (
+                                            <View style={[chatStyles.emojiMessage, isMine ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+                                                <Typography style={{ fontSize: 48, lineHeight: 52 }}>{item.content}</Typography>
+                                                <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>
+                                                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </Typography>
+                                            </View>
+                                        );
+                                    }
+
+                                    if (item.type === 'sift' && item.sift) {
+                                        return (
+                                            <TouchableOpacity
+                                                style={[chatStyles.siftBubble, {
+                                                    backgroundColor: isMine ? colors.ink : colors.paper,
+                                                    alignSelf: isMine ? 'flex-end' : 'flex-start',
+                                                    borderColor: isMine ? 'transparent' : colors.separator,
+                                                }]}
+                                                onPress={() => router.push(`/page/${item.sift.id}`)}
+                                                activeOpacity={0.7}
+                                            >
+                                                {item.content && (
+                                                    <Typography variant="body" style={{ color: isMine ? colors.paper : colors.ink, marginBottom: 8 }}>
+                                                        {item.content}
+                                                    </Typography>
+                                                )}
+                                                <View style={{ borderRadius: RADIUS.s, backgroundColor: isMine ? (colors.paper === '#FDFCF8' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)') : colors.subtle, overflow: 'hidden' }}>
+                                                    {item.sift.metadata?.image_url && (
+                                                        <Image
+                                                            source={item.sift.metadata.image_url}
+                                                            style={{ width: '100%', height: 140, backgroundColor: isMine ? (colors.paper === '#FDFCF8' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : colors.separator }}
+                                                            contentFit="cover"
+                                                        />
+                                                    )}
+                                                    <View style={{ padding: 12 }}>
+                                                        <Typography variant="h3" numberOfLines={2} style={{ color: isMine ? colors.paper : colors.ink }}>
+                                                            {item.sift.title}
+                                                        </Typography>
+                                                        {item.sift.summary && (
+                                                            <Typography variant="body" numberOfLines={5} style={{ color: isMine ? colors.paper : colors.stone, opacity: isMine ? 0.8 : 1, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
+                                                                {item.sift.summary}
+                                                            </Typography>
+                                                        )}
+                                                    </View>
+                                                </View>
+                                                <Typography variant="caption" style={{ color: isMine ? colors.paper : colors.stone, opacity: isMine ? 0.6 : 1, marginTop: 6, alignSelf: 'flex-end' }}>
+                                                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </Typography>
+                                            </TouchableOpacity>
+                                        );
+                                    }
+
+                                    // Text message bubble
+                                    return (
+                                        <View style={[chatStyles.bubble, {
+                                            backgroundColor: isMine ? colors.ink : colors.paper,
+                                            alignSelf: isMine ? 'flex-end' : 'flex-start',
+                                            borderColor: isMine ? 'transparent' : colors.separator,
+                                            borderBottomRightRadius: isMine ? 4 : RADIUS.m,
+                                            borderBottomLeftRadius: isMine ? RADIUS.m : 4,
+                                        }]}>
+                                            <Typography variant="body" style={{ color: isMine ? colors.paper : colors.ink }}>
+                                                {item.content}
+                                            </Typography>
+                                            <Typography variant="caption" style={{ color: isMine ? colors.paper : colors.stone, opacity: isMine ? 0.6 : 1, marginTop: 4, alignSelf: 'flex-end' }}>
+                                                {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </Typography>
+                                        </View>
+                                    );
+                                }}
+                            />
+
+                            {/* Emoji Quick-React Grid */}
+                            {showEmojiGrid && (
+                                <View style={[chatStyles.emojiGrid, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                                    {['👍', '❤️', '😂', '🔥', '👀', '🎉', '😍', '💯'].map((emoji) => (
+                                        <TouchableOpacity
+                                            key={emoji}
+                                            style={chatStyles.emojiButton}
+                                            onPress={() => sendMessage(emoji, 'emoji')}
+                                        >
+                                            <Typography style={{ fontSize: 28, lineHeight: 34 }}>{emoji}</Typography>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+
+                            {/* Sift Picker */}
+                            {showSiftPicker && (
+                                <View style={[chatStyles.siftPickerContainer, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                        <Typography variant="label" color="stone">SHARE A SIFT</Typography>
+                                        <TouchableOpacity onPress={() => setShowSiftPicker(false)} hitSlop={12}>
+                                            <X size={18} color={colors.stone} />
+                                        </TouchableOpacity>
                                     </View>
-                                )}
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 240 }} contentContainerStyle={{ gap: 12, paddingBottom: 8 }}>
+                                        {mySifts.length > 0 ? mySifts.map((sift: any) => (
+                                            <TouchableOpacity
+                                                key={sift.id}
+                                                style={{
+                                                    width: 160,
+                                                    backgroundColor: colors.subtle,
+                                                    borderRadius: RADIUS.s,
+                                                    overflow: 'hidden',
+                                                    borderWidth: StyleSheet.hairlineWidth,
+                                                    borderColor: colors.separator,
+                                                }}
+                                                onPress={() => {
+                                                    sendMessage('', 'sift', sift.id);
+                                                    setShowSiftPicker(false);
+                                                }}
+                                            >
+                                                {sift.metadata?.image_url ? (
+                                                    <Image source={sift.metadata.image_url} style={{ width: '100%', height: 110, backgroundColor: 'rgba(0,0,0,0.05)' }} contentFit="cover" />
+                                                ) : (
+                                                    <View style={{ width: '100%', height: 80, backgroundColor: 'rgba(0,0,0,0.02)', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <LinkSimple size={24} color={colors.stone} />
+                                                    </View>
+                                                )}
+                                                <View style={{ padding: 10 }}>
+                                                    <Typography variant="label" numberOfLines={2}>{sift.title}</Typography>
+                                                    <Typography variant="caption" color="stone" numberOfLines={3} style={{ marginTop: 4, lineHeight: 14 }}>{sift.summary}</Typography>
+                                                </View>
+                                            </TouchableOpacity>
+                                        )) : (
+                                            <Typography variant="body" color="stone" style={{ textAlign: 'center', paddingVertical: 20, width: Dimensions.get('window').width - 64 }}>No sifts in your library</Typography>
+                                        )}
+                                    </ScrollView>
+                                </View>
+                            )}
+
+                            {/* Input Bar */}
+                            <View style={[
+                                chatStyles.inputBar,
+                                {
+                                    backgroundColor: colors.canvas,
+                                    borderTopColor: colors.separator,
+                                    paddingBottom: Math.max(8, insets.bottom),
+                                }
+                            ]}>
+                                <TouchableOpacity
+                                    onPress={() => { setShowEmojiGrid(!showEmojiGrid); setShowSiftPicker(false); }}
+                                    hitSlop={8}
+                                    style={{ padding: 8 }}
+                                >
+                                    <Smiley size={24} color={showEmojiGrid ? colors.ink : colors.stone} weight={showEmojiGrid ? 'fill' : 'regular'} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => { setShowSiftPicker(!showSiftPicker); setShowEmojiGrid(false); }}
+                                    hitSlop={8}
+                                    style={{ padding: 8 }}
+                                >
+                                    <LinkSimple size={24} color={showSiftPicker ? colors.ink : colors.stone} weight={showSiftPicker ? 'bold' : 'regular'} />
+                                </TouchableOpacity>
+                                <TextInput
+                                    style={[chatStyles.messageInput, { backgroundColor: colors.paper, color: colors.ink, borderColor: colors.separator }]}
+                                    placeholder="Message..."
+                                    placeholderTextColor={colors.stone}
+                                    value={messageText}
+                                    onChangeText={setMessageText}
+                                    multiline
+                                    maxLength={2000}
+                                    onFocus={() => { setShowEmojiGrid(false); setShowSiftPicker(false); }}
+                                />
+                                <TouchableOpacity
+                                    onPress={() => sendMessage(messageText)}
+                                    hitSlop={8}
+                                    style={[chatStyles.sendButton, { backgroundColor: messageText.trim() ? colors.ink : colors.subtle }]}
+                                    disabled={!messageText.trim()}
+                                >
+                                    <PaperPlaneTilt size={18} color={messageText.trim() ? colors.paper : colors.stone} weight="fill" />
+                                </TouchableOpacity>
                             </View>
-                        )}
-                    </ScrollView>
-                </Animated.View>
-            </GestureDetector>
-        </ScreenWrapper>
+                        </KeyboardAvoidingView>
+                    </Animated.View>
+                </GestureDetector>
+            )
+            }
+        </ScreenWrapper >
     );
 }
 
@@ -430,6 +810,11 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
                 )}
                 <Typography variant="caption" color="stone" style={{ marginLeft: 8 }}>{share.sender.display_name} shared a Sift</Typography>
             </View>
+            {share.message && (
+                <View style={{ marginBottom: 16, padding: 12, backgroundColor: colors.subtle, borderRadius: RADIUS.s }}>
+                    <Typography variant="body" style={{ fontStyle: 'italic', color: colors.ink }}>"{share.message}"</Typography>
+                </View>
+            )}
             <View style={styles.cardBody}>
                 <Typography variant="h3" numberOfLines={1}>{share.sift.title}</Typography>
                 <Typography variant="body" color="stone" numberOfLines={2} style={{ marginTop: 4 }}>{share.sift.summary}</Typography>
@@ -444,10 +829,10 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
     );
 }
 
-function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport }: any) {
+function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, onBlock, onReport, onPress }: any) {
     const friend = friendship.user_id === currentUserId ? friendship.receiver : friendship.requester;
     const isPending = friendship.status === 'pending';
-    const amRequester = friendship.user_id === currentUserId;
+    const isOutgoing = isPending && friendship.user_id === currentUserId;
 
     const handleLongPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -465,6 +850,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
     return (
         <TouchableOpacity
             style={[styles.friendItem, { borderBottomColor: colors.separator }]}
+            onPress={onPress}
             onLongPress={handleLongPress}
             delayLongPress={500}
             activeOpacity={0.7}
@@ -477,14 +863,23 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                 </View>
             )}
             <View style={{ flex: 1, marginLeft: 16 }}>
-                <Typography variant="h3">{friend.display_name}</Typography>
-                <Typography variant="caption" color="stone">@{friend.username}</Typography>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h3">{friend.display_name}</Typography>
+                </View>
+                <Typography variant="caption" color="stone" numberOfLines={1}>
+                    {`@${friend.username}`}
+                </Typography>
             </View>
             {isPending ? (
-                amRequester ? (
-                    <View style={[styles.statusBadge, { backgroundColor: colors.subtle }]}>
-                        <Typography variant="caption" color="stone">Pending</Typography>
-                    </View>
+                isOutgoing ? (
+                    <TouchableOpacity
+                        style={[styles.statusBadge, { backgroundColor: colors.subtle, flexDirection: 'row', alignItems: 'center' }]}
+                        onPress={onDecline}
+                        hitSlop={12}
+                    >
+                        <X size={12} color={colors.stone} weight="bold" style={{ marginRight: 4 }} />
+                        <Typography variant="caption" color="stone">Cancel</Typography>
+                    </TouchableOpacity>
                 ) : (
                     <View style={styles.actionRow}>
                         <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.success }]} onPress={onAccept} hitSlop={12}>
@@ -495,7 +890,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                         </TouchableOpacity>
                     </View>
                 )
-            ) : <ChatCircleText size={20} color={colors.stone} />}
+            ) : <CaretRight size={16} color={colors.stone} weight="bold" />}
         </TouchableOpacity>
     );
 }
@@ -571,4 +966,96 @@ const styles = StyleSheet.create({
         paddingHorizontal: 4,
     },
     emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }
+});
+
+const chatStyles = StyleSheet.create({
+    chatHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    messagesList: {
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+    },
+    bubble: {
+        maxWidth: '78%',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: RADIUS.m,
+        marginBottom: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    emojiMessage: {
+        alignItems: 'center',
+        paddingVertical: 8,
+        marginBottom: 8,
+    },
+    siftBubble: {
+        maxWidth: '82%',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderRadius: RADIUS.m,
+        marginBottom: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    siftCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: RADIUS.s,
+    },
+    emojiGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        padding: 12,
+        marginHorizontal: 16,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        marginBottom: 8,
+    },
+    emojiButton: {
+        width: '25%',
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    siftPickerContainer: {
+        padding: 16,
+        marginHorizontal: 16,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        marginBottom: 8,
+    },
+    siftPickerItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    inputBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    messageInput: {
+        flex: 1,
+        marginHorizontal: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: RADIUS.l,
+        borderWidth: StyleSheet.hairlineWidth,
+        fontSize: 15,
+        maxHeight: 100,
+    },
+    sendButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });

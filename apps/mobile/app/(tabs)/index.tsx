@@ -1,8 +1,17 @@
-import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Keyboard, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Keyboard, StyleSheet, Alert, ActivityIndicator, Platform, Pressable } from "react-native";
 import { useEffect, useCallback, useRef, useMemo, useState } from "react";
 import * as Haptics from 'expo-haptics';
-import { MagnifyingGlass, SquaresFour, Rows, XCircle, X, Archive, Trash, Plus, ImageSquare } from 'phosphor-react-native';
+import * as Clipboard from 'expo-clipboard';
+import Animated, { LinearTransition } from "react-native-reanimated";
+import {
+    MagnifyingGlass, SquaresFour, Rows, XCircle, X, Archive, Trash, Plus, ImageSquare,
+    ClockCounterClockwise, TextAa, Globe, House, User, Books, Fingerprint, FolderOpen
+} from 'phosphor-react-native';
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useQueryClient } from '@tanstack/react-query';
+
 import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../lib/auth";
 import { Typography } from "../../components/design-system/Typography";
 import { COLORS, SPACING, RADIUS, Theme } from "../../lib/theme";
 import { FilterBar } from "../../components/home/FilterBar";
@@ -10,24 +19,26 @@ import SiftFeed from "../../components/SiftFeed";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { QuickTagEditor } from "../../components/QuickTagEditor";
 import { EmptyState } from "../../components/design-system/EmptyState";
-import { useRouter } from "expo-router";
-import { useAuth } from "../../lib/auth";
-import { usePages, Page } from "../../hooks/usePages";
-import { useSiftQueue } from "../../hooks/useSiftQueue";
 import { HomeHeader } from "../../components/home/HomeHeader";
 import { SiftLimitTracker } from "../../components/SiftLimitTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
-import { ActionSheet } from "../../components/modals/ActionSheet";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
 import { FirstUseTour } from "../../components/FirstUseTour";
 import { useToast } from "../../context/ToastContext";
+import { usePages, Page } from "../../hooks/usePages";
+import { useSiftQueue } from "../../hooks/useSiftQueue";
 import { useImageSifter } from "../../hooks/useImageSifter";
-import * as Clipboard from 'expo-clipboard';
+import { safeSift } from "../../lib/sift-api";
+import { stripMarkdown } from "../../lib/utils";
+
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://sift-api.vercel.app';
+import Constants from 'expo-constants';
 
 export default function HomeScreen() {
     const { user, tier, profile, refreshProfile, loading: authLoading } = useAuth();
     const router = useRouter();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const scrollViewRef = useRef<ScrollView>(null);
@@ -59,7 +70,8 @@ export default function HomeScreen() {
         isProcessingQueue,
         limitReachedVisible,
         setLimitReachedVisible,
-        upgradeUrl
+        upgradeUrl,
+        setUpgradeUrl
     } = useSiftQueue();
 
     // Image Sifting
@@ -75,13 +87,19 @@ export default function HomeScreen() {
     const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
     const [siftActionSheetVisible, setSiftActionSheetVisible] = useState(false);
     const [selectedSift, setSelectedSift] = useState<any>(null);
-    const [addMenuVisible, setAddMenuVisible] = useState(false);
 
-    // Sync state
+    // Haptic Helper
+    const triggerHaptic = (type: 'impact' | 'notification' | 'selection', styleOrType?: any) => {
+        if (type === 'impact') Haptics.impactAsync(styleOrType || Haptics.ImpactFeedbackStyle.Light);
+        else if (type === 'notification') Haptics.notificationAsync(styleOrType || Haptics.NotificationFeedbackType.Success);
+        else Haptics.selectionAsync();
+    };
+
+    // Scroll to Top Listener
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('scrollToTopDashboard', () => {
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-            Haptics.selectionAsync();
+            triggerHaptic('selection');
         });
         return () => sub.remove();
     }, []);
@@ -91,7 +109,6 @@ export default function HomeScreen() {
         const checkClipboard = async () => {
             const content = await Clipboard.getStringAsync();
             if (content?.startsWith('http') && content !== manualUrl) {
-                // We'll just set it in the box for the user, not auto-sift
                 setManualUrl(content);
             }
         };
@@ -100,43 +117,124 @@ export default function HomeScreen() {
         });
         checkClipboard();
         return () => sub.remove();
-    }, [manualUrl, setManualUrl]);
+    }, [manualUrl]);
+
+    // Realtime Subscription
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const subscription = supabase
+            .channel('public:pages')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
+                const newRecord = payload.new as any;
+                const oldRecord = payload.old as any;
+
+                if (payload.eventType === 'INSERT') {
+                    if (newRecord.user_id !== user.id) return;
+                    queryClient.invalidateQueries({ queryKey: ['pages'] });
+                    triggerHaptic('notification');
+                    setManualUrl(prev => prev.trim() === newRecord.url?.trim() ? "" : prev);
+                } else if (payload.eventType === 'UPDATE') {
+                    if (newRecord.user_id !== user.id) return;
+
+                    const statusChanged = newRecord.metadata?.status === 'completed' && oldRecord.metadata?.status !== 'completed';
+                    if (statusChanged) {
+                        queryClient.invalidateQueries({ queryKey: ['pages'] });
+                        triggerHaptic('notification');
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    queryClient.invalidateQueries({ queryKey: ['pages'] });
+                }
+            })
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [user?.id]);
 
     // Refresh Handler
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Medium);
         await Promise.all([refetch(), refreshProfile()]);
         setRefreshing(false);
+        triggerHaptic('notification');
     }, [refetch, refreshProfile]);
 
-    // Actions
-    const handlePin = async (id: string) => {
+    const handleRetry = async (id: string, url: string) => {
+        if (!user) return;
+        triggerHaptic('impact');
+        showToast({ message: "Retrying..." });
+
+        await supabase.from('pages').update({ metadata: { status: 'pending' } }).eq('id', id);
+        queryClient.invalidateQueries({ queryKey: ['pages'] });
+
         try {
-            const page = pages.find(p => p.id === id);
-            if (!page) return;
-            const { error } = await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
-            if (error) throw error;
-            refetch();
-        } catch (e) {
-            showToast({ message: "Action failed" });
+            await safeSift(url, user.id, id, tier);
+        } catch (apiError: any) {
+            if (apiError.status === 'limit_reached') {
+                setUpgradeUrl(apiError.upgrade_url);
+                setLimitReachedVisible(true);
+                triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
+            } else {
+                await supabase.from('pages').update({
+                    metadata: { status: 'failed', error: apiError.message }
+                }).eq('id', id);
+                queryClient.invalidateQueries({ queryKey: ['pages'] });
+            }
         }
     };
 
     const handleArchive = async (id: string) => {
-        const { error } = await supabase.from('pages').update({ is_archived: true }).eq('id', id);
-        if (!error) {
-            refetch();
-            showToast("Moved to Archive");
+        if (!user?.id) return;
+        triggerHaptic('impact');
+
+        try {
+            // Optimistic
+            queryClient.setQueryData(['pages'], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    pages: old.pages.map((group: Page[]) => group.filter(p => p.id !== id))
+                };
+            });
+
+            await supabase.from('pages').update({ is_archived: true }).eq('id', id);
+            showToast({ message: "Moved to Archive" });
+            triggerHaptic('notification');
+        } catch (e) {
+            queryClient.invalidateQueries({ queryKey: ['pages'] });
         }
     };
 
     const handleDeleteForever = async (id: string) => {
-        const { error } = await supabase.from('pages').delete().eq('id', id);
-        if (!error) {
-            refetch();
-            showToast("Permanently Deleted");
+        if (!user?.id) return;
+        triggerHaptic('impact');
+
+        try {
+            queryClient.setQueryData(['pages'], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    pages: old.pages.map((group: Page[]) => group.filter(p => p.id !== id))
+                };
+            });
+
+            await supabase.from('pages').delete().eq('id', id);
+            showToast({ message: "Permanently Deleted" });
+            triggerHaptic('notification');
+        } catch (e) {
+            queryClient.invalidateQueries({ queryKey: ['pages'] });
         }
+    };
+
+    const handlePin = async (id: string) => {
+        const page = pages.find(p => p.id === id);
+        if (!page) return;
+        triggerHaptic('selection');
+        await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
+        refetch();
     };
 
     const handleSiftOptions = (item: any) => {
@@ -144,7 +242,14 @@ export default function HomeScreen() {
         setSiftActionSheetVisible(true);
     };
 
-    // Render Helpers
+    // Daily Catch Up Logic (Last 24h completed sifts)
+    const dailySifts = useMemo(() => {
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        return pages
+            .filter(p => p.metadata?.status === 'completed' && new Date(p.created_at) > yesterday)
+            .slice(0, 5);
+    }, [pages]);
+
     const ListHeader = useMemo(() => (
         <View style={styles.headerContainer}>
             <HomeHeader user={user} tier={tier} pagesCount={pages.length} />
@@ -156,7 +261,8 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                     <TextInput
                         style={styles.textInput}
-                        placeholder="paste a link to sift..."
+                        placeholder="sift a link or image here!"
+                        placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}
                         onSubmitEditing={handleSubmitUrl}
@@ -171,16 +277,47 @@ export default function HomeScreen() {
                 </View>
 
                 <TouchableOpacity
-                    onPress={() => setViewMode(v => v === 'grid' ? 'list' : 'grid')}
+                    onPress={() => {
+                        triggerHaptic('selection');
+                        setViewMode(v => v === 'grid' ? 'list' : 'grid');
+                    }}
                     style={styles.viewToggle}
                 >
                     {viewMode === 'grid' ? <Rows size={20} color={COLORS.ink} /> : <SquaresFour size={20} color={COLORS.ink} />}
                 </TouchableOpacity>
             </View>
 
+            {/* Daily Catch Up */}
+            {activeFilter === 'All' && searchQuery === '' && dailySifts.length > 0 && (
+                <View style={styles.catchUpContainer}>
+                    <Typography variant="label" color="stone" style={styles.sectionLabel}>DAILY CATCH UP</Typography>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catchUpList}>
+                        {dailySifts.map((sift) => (
+                            <TouchableOpacity
+                                key={sift.id}
+                                onPress={() => router.push(`/page/${sift.id}?contextType=feed`)}
+                                style={styles.catchUpCard}
+                            >
+                                <Typography variant="body" style={styles.catchUpTitle} numberOfLines={2}>
+                                    {sift.title}
+                                </Typography>
+                                <Typography variant="caption" color="stone" numberOfLines={2} style={styles.catchUpSummary}>
+                                    {stripMarkdown(sift.summary) || "No summary available."}
+                                </Typography>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+
+            {activeFilter === 'All' && searchQuery === '' && (
+                <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.m }]}>RECENTLY SIFTED</Typography>
+            )}
+
+            {/* Search Bar */}
             <View style={styles.searchContainer}>
                 <View style={styles.searchBar}>
-                    <MagnifyingGlass size={18} color={COLORS.stone} />
+                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Search your library..."
@@ -201,23 +338,37 @@ export default function HomeScreen() {
                 onSelect={setActiveFilter}
             />
 
+            {/* Sort Toggle */}
             <View style={styles.sortRow}>
                 <TouchableOpacity
                     onPress={() => {
+                        triggerHaptic('impact');
                         const modes: ('date' | 'title' | 'domain')[] = ['date', 'title', 'domain'];
                         updateSortBy(modes[(modes.indexOf(sortBy) + 1) % modes.length]);
                     }}
-                    style={styles.sortBadge}
+                    activeOpacity={0.7}
                 >
-                    <Typography variant="caption" color="stone" style={styles.sortText}>
-                        {sortBy === 'date' ? '↓ NEWEST' : sortBy === 'title' ? 'A→Z' : '🌐 DOMAIN'}
-                    </Typography>
+                    <Animated.View
+                        layout={LinearTransition.springify().damping(18).stiffness(150)}
+                        style={styles.sortBadge}
+                    >
+                        {sortBy === 'date' ? (
+                            <ClockCounterClockwise size={14} color={COLORS.stone} weight="bold" />
+                        ) : sortBy === 'title' ? (
+                            <TextAa size={14} color={COLORS.stone} weight="bold" />
+                        ) : (
+                            <Globe size={14} color={COLORS.stone} weight="bold" />
+                        )}
+                        <Typography variant="caption" color="stone" style={styles.sortText}>
+                            {sortBy === 'date' ? 'NEWEST' : sortBy === 'title' ? 'A→Z' : 'DOMAIN'}
+                        </Typography>
+                    </Animated.View>
                 </TouchableOpacity>
             </View>
 
             <SiftLimitTracker />
         </View>
-    ), [user, tier, pages.length, manualUrl, searchQuery, activeFilter, sortBy, dynamicTags, viewMode, isProcessingQueue, isSiftingImage]);
+    ), [pages, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts, sortBy, viewMode, isProcessingQueue]);
 
     return (
         <ScreenWrapper edges={['top']}>
@@ -232,14 +383,17 @@ export default function HomeScreen() {
                     setQuickTagModalVisible(true);
                 }}
                 onOptions={handleSiftOptions}
+                onRetry={handleRetry}
                 loading={isLoading}
                 ListHeaderComponent={ListHeader}
                 ListEmptyComponent={
-                    <EmptyState
-                        type={searchQuery ? 'no-results' : 'no-sifts'}
-                        title={searchQuery ? "No sifts found" : "Your library is empty"}
-                        description={searchQuery ? `We couldn't find "${searchQuery}"` : "Paste a link or scan a photo to start sifting."}
-                    />
+                    <View style={{ paddingTop: 40 }}>
+                        <EmptyState
+                            type={searchQuery ? 'no-results' : 'no-sifts'}
+                            title={searchQuery ? "No sifts found" : "Your library is empty"}
+                            description={searchQuery ? `We couldn't find "${searchQuery}"` : "Paste a link or scan a photo to start sifting."}
+                        />
+                    </View>
                 }
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 viewMode={viewMode}
@@ -254,7 +408,10 @@ export default function HomeScreen() {
                         return next;
                     });
                 }}
-                onEnterSelectMode={(id) => setSelectedIds(new Set([id]))}
+                onEnterSelectMode={(id) => {
+                    triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Heavy);
+                    setSelectedIds(new Set([id]));
+                }}
             />
 
             {/* Batch Toolbar */}
@@ -285,6 +442,7 @@ export default function HomeScreen() {
                         await supabase.from('pages').update({ tags }).eq('id', selectedSiftId);
                         refetch();
                         setQuickTagModalVisible(false);
+                        triggerHaptic('notification');
                     }
                 }}
                 initialTags={selectedSiftTags}
@@ -314,6 +472,7 @@ const styles = StyleSheet.create({
     headerContainer: {
         paddingHorizontal: SPACING.m,
         gap: SPACING.m,
+        paddingBottom: SPACING.s,
     },
     actionRow: {
         flexDirection: 'row',
@@ -347,9 +506,40 @@ const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: RADIUS.m,
-        backgroundColor: COLORS.subtle,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    sectionLabel: {
+        letterSpacing: 1.5,
+        fontSize: 10,
+        fontWeight: '700',
+        marginBottom: SPACING.xs,
+    },
+    catchUpContainer: {
+        marginTop: SPACING.s,
+    },
+    catchUpList: {
+        gap: 12,
+        paddingRight: 20,
+    },
+    catchUpCard: {
+        width: 240,
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.l,
+        padding: SPACING.m,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        ...Theme.shadows.soft
+    },
+    catchUpTitle: {
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    catchUpSummary: {
+        lineHeight: 16,
     },
     searchContainer: {
         marginTop: SPACING.xs,
@@ -357,10 +547,12 @@ const styles = StyleSheet.create({
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF',
+        backgroundColor: COLORS.paper,
         borderRadius: RADIUS.l,
         paddingHorizontal: SPACING.m,
         height: 52,
+        borderWidth: 1,
+        borderColor: COLORS.separator,
         ...Theme.shadows.soft,
     },
     searchInput: {
@@ -372,17 +564,24 @@ const styles = StyleSheet.create({
     sortRow: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginTop: -SPACING.s,
+        marginTop: -SPACING.xs,
     },
     sortBadge: {
-        backgroundColor: COLORS.subtle,
-        paddingHorizontal: SPACING.s,
-        paddingVertical: 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: COLORS.paper,
         borderRadius: RADIUS.pill,
+        borderWidth: 1,
+        borderColor: COLORS.separator,
+        ...Theme.shadows.soft,
     },
     sortText: {
-        fontSize: 10,
-        fontWeight: '700',
+        fontSize: 11,
+        fontWeight: '600',
+        letterSpacing: 0.5,
     },
     batchToolbar: {
         position: 'absolute',

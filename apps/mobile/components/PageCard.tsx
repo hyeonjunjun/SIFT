@@ -9,7 +9,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { COLORS, RADIUS, Theme, LIGHT_COLORS, DARK_COLORS, TRANSITIONS } from '../lib/theme';
-import { getDomain } from '../lib/utils';
+import { getDomain, stripMarkdown } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { ActionSheet } from './modals/ActionSheet';
 import ShareSiftModal from './modals/ShareSiftModal';
@@ -167,7 +167,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                                 numberOfLines={2}
                                 style={{ opacity: 0.8, lineHeight: 20 }}
                             >
-                                {gist}
+                                {stripMarkdown(gist)}
                             </Typography>
                         )}
                     </View>

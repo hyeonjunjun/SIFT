@@ -197,7 +197,8 @@ create table if not exists public.folders (
   color text, -- hex color for folder icon
   icon text, -- phosphor icon name
   sort_order int default 0,
-  is_pinned boolean default false
+  is_pinned boolean default false,
+  image_url text
 );
 
 -- Enable RLS for folders
@@ -219,6 +220,10 @@ do $$
 begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'folders' and column_name = 'page_order') then
     alter table public.folders add column page_order uuid[] default '{}'::uuid[];
+  end if;
+
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'folders' and column_name = 'image_url') then
+    alter table public.folders add column image_url text;
   end if;
 end $$;
 
@@ -307,8 +312,10 @@ create table if not exists public.categories (
   user_id uuid references auth.users(id) not null,
   name text not null,
   icon text, -- phosphor icon name
-  tags text[], -- Array of tags this category watches
-  sort_order int default 0
+  tags text[] default '{}'::text[], -- Array of tags this category watches
+  sort_order int default 0,
+  color text,
+  image_url text
 );
 
 -- Enable RLS for categories
@@ -334,20 +341,54 @@ create index if not exists idx_pages_user_feed on public.pages(user_id, is_pinne
 create table if not exists public.friendships (
   id uuid default gen_random_uuid() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  user_id uuid references auth.users(id) not null,
-  friend_id uuid references auth.users(id) not null,
+  user_id uuid references public.profiles(id) not null,
+  friend_id uuid references public.profiles(id) not null,
   status text default 'pending' check (status in ('pending', 'accepted', 'blocked')),
   unique(user_id, friend_id)
 );
+
+-- Ensure friendships foreign keys point to profiles (for PostgREST joins to work)
+do $$
+begin
+  -- Drop existing constraints if they point to auth.users
+  begin
+    alter table public.friendships drop constraint if exists friendships_user_id_fkey;
+    alter table public.friendships drop constraint if exists friendships_friend_id_fkey;
+  exception when others then null;
+  end;
+  
+  -- Add correct constraints to profiles
+  begin
+    alter table public.friendships add constraint friendships_user_id_fkey foreign key (user_id) references public.profiles(id) on delete cascade;
+    alter table public.friendships add constraint friendships_friend_id_fkey foreign key (friend_id) references public.profiles(id) on delete cascade;
+  exception when others then null;
+  end;
+end $$;
 
 -- Sift Shares table
 create table if not exists public.sift_shares (
   id uuid default gen_random_uuid() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  sender_id uuid references auth.users(id) not null,
-  receiver_id uuid references auth.users(id) not null,
+  sender_id uuid references public.profiles(id) not null,
+  receiver_id uuid references public.profiles(id) not null,
   sift_id uuid references public.pages(id) on delete cascade not null
 );
+
+-- Ensure sift_shares foreign keys point to profiles (for PostgREST joins to work)
+do $$
+begin
+  begin
+    alter table public.sift_shares drop constraint if exists sift_shares_sender_id_fkey;
+    alter table public.sift_shares drop constraint if exists sift_shares_receiver_id_fkey;
+  exception when others then null;
+  end;
+  
+  begin
+    alter table public.sift_shares add constraint sift_shares_sender_id_fkey foreign key (sender_id) references public.profiles(id) on delete cascade;
+    alter table public.sift_shares add constraint sift_shares_receiver_id_fkey foreign key (receiver_id) references public.profiles(id) on delete cascade;
+  exception when others then null;
+  end;
+end $$;
 
 -- Enable RLS
 alter table public.friendships enable row level security;
@@ -356,11 +397,13 @@ alter table public.sift_shares enable row level security;
 -- RLS Policies for Friendships
 do $$
 begin
-  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own friendships' and tablename = 'friendships') then
-    create policy "Users can manage their own friendships" on public.friendships
-      for all to authenticated
-      using (auth.uid() = user_id or auth.uid() = friend_id);
+  if exists (select 1 from pg_policies where policyname = 'Users can manage their own friendships' and tablename = 'friendships') then
+    drop policy "Users can manage their own friendships" on public.friendships;
   end if;
+
+  create policy "Users can manage their own friendships" on public.friendships
+    for all to authenticated
+    using (auth.uid() = user_id or auth.uid() = friend_id);
 end $$;
 
 -- RLS Policies for Sift Shares
@@ -508,3 +551,84 @@ alter table public.profiles add column if not exists push_token_updated_at times
 
 -- 14. Message column for shared sifts (Added 2026-02-25)
 alter table public.sift_shares add column if not exists message text;
+
+-- 15. Direct Messages table (Added 2026-03-02)
+create table if not exists public.direct_messages (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  sender_id uuid references public.profiles(id) on delete cascade not null,
+  receiver_id uuid references public.profiles(id) on delete cascade not null,
+  content text,
+  message_type text default 'text' check (message_type in ('text', 'sift', 'emoji')),
+  sift_id uuid references public.pages(id) on delete set null,
+  is_read boolean default false
+);
+
+-- Enable RLS for direct_messages
+alter table public.direct_messages enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can read their own messages' and tablename = 'direct_messages') then
+    create policy "Users can read their own messages" on public.direct_messages
+      for select to authenticated
+      using (auth.uid() = sender_id or auth.uid() = receiver_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can send messages' and tablename = 'direct_messages') then
+    create policy "Users can send messages" on public.direct_messages
+      for insert to authenticated
+      with check (auth.uid() = sender_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where policyname = 'Users can update their own messages' and tablename = 'direct_messages') then
+    create policy "Users can update their own messages" on public.direct_messages
+      for update to authenticated
+      using (auth.uid() = sender_id or auth.uid() = receiver_id);
+  end if;
+end $$;
+
+-- Indexes for fast conversation queries
+create index if not exists idx_dm_conversation on public.direct_messages(sender_id, receiver_id, created_at desc);
+create index if not exists idx_dm_receiver on public.direct_messages(receiver_id, created_at desc);
+
+-- Enable Supabase Realtime on direct_messages
+alter publication supabase_realtime add table public.direct_messages;
+
+-- 16. Account Deletion RPC (Added 2026-02-28 for App Store Compliance)
+-- This function deletes all user data and then the auth user itself.
+create or replace function public.delete_user_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_user_id uuid;
+begin
+  target_user_id := auth.uid();
+  
+  if target_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  -- 1. Delete associated data (cascade deletes should handle most, but being explicit is safer)
+  delete from public.pages where user_id = target_user_id;
+  delete from public.categories where user_id = target_user_id;
+  delete from public.folder_members where user_id = target_user_id;
+  delete from public.direct_messages where sender_id = target_user_id or receiver_id = target_user_id;
+  delete from public.notifications where user_id = target_user_id or actor_id = target_user_id;
+  delete from public.friendships where user_id = target_user_id or friend_id = target_user_id;
+  delete from public.profiles where id = target_user_id;
+
+  -- 2. Delete the user from auth.users (Requires service role or security definer with bypass)
+  -- Note: In Supabase, deleting from auth.users via RPC usually requires a trigger or a specific policy.
+  -- The most reliable way for a self-service delete is to delete from public.profiles and have a trigger
+  -- OR call a management API. For simplicity and reliability in RLS, we delete the profile 
+  -- and provide a fallback info if the auth user deletion fails (it often needs service_role).
+  
+  -- However, we can use the 'auth.users' delete directly if the RPC has enough permissions.
+  delete from auth.users where id = target_user_id;
+end;
+$$;
+

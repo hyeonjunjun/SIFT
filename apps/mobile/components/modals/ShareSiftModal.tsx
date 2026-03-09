@@ -53,12 +53,13 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
 
         try {
             const { error } = await supabase
-                .from('sift_shares')
+                .from('direct_messages')
                 .insert([{
                     sender_id: user.id,
                     receiver_id: friendId,
                     sift_id: siftId,
-                    message: message.trim() || null,
+                    content: message.trim() || "Shared a Sift",
+                    message_type: 'sift'
                 }]);
 
             if (error) throw error;

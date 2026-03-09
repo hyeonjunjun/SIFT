@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
-import { X, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket, Check, Trash, PushPin } from 'phosphor-react-native';
+import { X, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket, Check, Trash, PushPin, ImageSquare, UploadSimple } from 'phosphor-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../lib/auth';
 
 // Folder colors palette
 const COLLECTION_COLORS = [
@@ -52,6 +58,7 @@ export interface CollectionData {
     color: string;
     icon: string;
     is_pinned?: boolean;
+    image_url?: string;
     sort_order?: number;
     created_at?: string;
     page_order?: string[];
@@ -67,14 +74,72 @@ interface CollectionModalProps {
 }
 
 export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, existingCollection: existingFolder }: CollectionModalProps) => {
+    const { user } = useAuth();
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
     const [selectedIcon, setSelectedIcon] = useState('Folder');
     const [isPinned, setIsPinned] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     const isEditMode = !!existingFolder?.id;
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 1,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            uploadCoverImage(result.assets[0].uri);
+        }
+    };
+
+    const uploadCoverImage = async (uri: string) => {
+        if (!user?.id) return;
+        setUploading(true);
+        try {
+            const manipulated = await ImageManipulator.manipulateAsync(
+                uri,
+                [{ resize: { width: 800 } }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const fileExt = 'jpg';
+            const fileName = `${user.id}/cover_${Date.now()}.${fileExt}`;
+
+            const formData = new FormData();
+            formData.append('file', {
+                uri: manipulated.uri,
+                name: fileName,
+                type: 'image/jpeg',
+            } as any);
+
+            const { data, error } = await supabase.storage
+                .from('covers')
+                .upload(fileName, formData, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('covers')
+                .getPublicUrl(fileName);
+
+            setImageUrl(publicUrl);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error: any) {
+            Alert.alert('Upload Failed', error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
 
     // Reset form when modal opens
     useEffect(() => {
@@ -84,11 +149,13 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                 setSelectedColor(existingFolder.color || COLLECTION_COLORS[0]);
                 setSelectedIcon(existingFolder.icon || 'Folder');
                 setIsPinned(!!existingFolder.is_pinned);
+                setImageUrl(existingFolder.image_url || '');
             } else {
                 setName('');
                 setSelectedColor(COLLECTION_COLORS[0]);
                 setSelectedIcon('Folder');
                 setIsPinned(false);
+                setImageUrl('');
             }
         }
     }, [visible, existingFolder]);
@@ -106,7 +173,8 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                 name: name.trim(),
                 color: selectedColor,
                 icon: selectedIcon,
-                is_pinned: isPinned
+                is_pinned: isPinned,
+                image_url: imageUrl.trim() || undefined
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onClose();
@@ -114,6 +182,31 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
             Alert.alert('Error', error.message || 'Failed to save collection');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleUseLatestSift = async () => {
+        if (!existingFolder?.id) return;
+
+        try {
+            const { data: pages, error } = await supabase
+                .from('pages')
+                .select('image_url')
+                .eq('folder_id', existingFolder.id)
+                .not('image_url', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) throw error;
+
+            if (pages && pages.length > 0 && pages[0].image_url) {
+                setImageUrl(pages[0].image_url);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+                Alert.alert('No Images', 'No sifts with images found in this collection.');
+            }
+        } catch (error: any) {
+            Alert.alert('Error', 'Failed to fetch latest sift image.');
         }
     };
 
@@ -185,7 +278,22 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                         {/* Preview */}
                         <View style={styles.previewContainer}>
                             <View style={[styles.previewIcon, { backgroundColor: selectedColor }]}>
-                                <SelectedIconComponent size={32} color="#FFFFFF" weight="fill" />
+                                {imageUrl ? (
+                                    <>
+                                        <Image
+                                            source={{ uri: imageUrl }}
+                                            style={StyleSheet.absoluteFill}
+                                            contentFit="cover"
+                                        />
+                                        <LinearGradient
+                                            colors={['transparent', 'rgba(0,0,0,0.5)']}
+                                            style={StyleSheet.absoluteFill}
+                                        />
+                                        <SelectedIconComponent size={24} color="#FFFFFF" weight="fill" />
+                                    </>
+                                ) : (
+                                    <SelectedIconComponent size={32} color="#FFFFFF" weight="fill" />
+                                )}
                             </View>
                             <Typography variant="h2" style={{ marginTop: 12, fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 20 }}>
                                 {name || 'Collection Name'}
@@ -208,6 +316,45 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                             autoFocus={!isEditMode}
                             maxLength={30}
                         />
+
+                        {/* Cover Image Upload */}
+                        <Typography variant="label" color="stone" style={styles.sectionLabel}>
+                            COVER IMAGE
+                        </Typography>
+                        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: SPACING.l }}>
+                            <TouchableOpacity
+                                style={[styles.uploadButton, { backgroundColor: colors.subtle, borderColor: colors.separator }]}
+                                onPress={pickImage}
+                                disabled={uploading}
+                            >
+                                {uploading ? (
+                                    <ActivityIndicator size="small" color={colors.ink} />
+                                ) : (
+                                    <>
+                                        <UploadSimple size={20} color={colors.ink} weight="bold" />
+                                        <Typography variant="body" style={{ marginLeft: 8 }}>{imageUrl ? 'Change Cover' : 'Upload Cover'}</Typography>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+
+                            {isEditMode && (
+                                <TouchableOpacity
+                                    style={[styles.smallActionButton, { backgroundColor: colors.subtle, borderColor: colors.separator }]}
+                                    onPress={handleUseLatestSift}
+                                >
+                                    <ImageSquare size={20} color={colors.ink} />
+                                </TouchableOpacity>
+                            )}
+
+                            {imageUrl !== '' && (
+                                <TouchableOpacity
+                                    style={[styles.smallActionButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'transparent' }]}
+                                    onPress={() => setImageUrl('')}
+                                >
+                                    <X size={20} color="#EF4444" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
 
                         {/* Color Picker */}
                         <Typography variant="label" color="stone" style={styles.sectionLabel}>
@@ -343,9 +490,9 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     colorOption: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -360,9 +507,9 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.l,
     },
     iconOption: {
-        width: 44, // Match colorOption width
-        height: 44, // Match colorOption height
-        borderRadius: 22, // Circular to match colorOption
+        width: 40, // Match colorOption width
+        height: 40, // Match colorOption height
+        borderRadius: 20, // Circular to match colorOption
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -383,5 +530,22 @@ const styles = StyleSheet.create({
     saveButton: {
         flex: 1,
         borderRadius: RADIUS.m,
+    },
+    smallActionButton: {
+        width: 52,
+        height: 52,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    uploadButton: {
+        flex: 1,
+        height: 52,
+        borderRadius: RADIUS.m,
+        borderWidth: StyleSheet.hairlineWidth,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

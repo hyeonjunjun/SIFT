@@ -1,6 +1,8 @@
 
 import * as React from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, ActivityIndicator } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { Stack, useRouter } from 'expo-router';
 import { CaretLeft, ShieldCheck, FileText, Trash, DownloadSimple } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
@@ -32,10 +34,6 @@ export default function PrivacyScreen() {
             };
 
             const json = JSON.stringify(exportData, null, 2);
-
-            // Use file system + sharing
-            const FileSystem = require('expo-file-system');
-            const Sharing = require('expo-sharing');
             const fileUri = `${FileSystem.documentDirectory}sift-export-${Date.now()}.json`;
             await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
 
@@ -64,15 +62,15 @@ export default function PrivacyScreen() {
                         try {
                             const { error } = await supabase.rpc('delete_user_account');
                             if (error) {
-                                // Fallback info if RPC fails or requires manual steps
+                                console.error('Delete Account RPC error:', error);
                                 Alert.alert('Request Failed', 'We couldn\'t process your request automatically. Please contact support@sift.app to finalize your account deletion.');
                             } else {
                                 await signOut();
-                                router.replace('/auth/login');
+                                // router.replace('/auth/login') is often handled by auth listener
                                 Alert.alert('Account Deleted', 'Your account and data have been permanently removed.');
                             }
-                        } catch (e) {
-                            Alert.alert('Error', 'An unexpected error occurred. Please try again or contact support.');
+                        } catch (e: any) {
+                            Alert.alert('Error', e.message || 'An unexpected error occurred.');
                         }
                     }
                 }

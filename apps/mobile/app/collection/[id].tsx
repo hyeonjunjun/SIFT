@@ -33,6 +33,7 @@ export default function CollectionScreen() {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [actionSheetVisible, setActionSheetVisible] = useState(false);
     const [inviteModalVisible, setInviteModalVisible] = useState(false);
+    const [editingCollection, setEditingCollection] = useState<CollectionData | null>(null);
 
     // Collection Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
@@ -160,12 +161,14 @@ export default function CollectionScreen() {
                 name: folderData.name,
                 color: folderData.color,
                 icon: folderData.icon,
-                is_pinned: folderData.is_pinned
+                is_pinned: folderData.is_pinned,
+                image_url: folderData.image_url || null
             })
             .eq('id', id);
         if (error) throw error;
-        queryClient.resetQueries({ queryKey: ['folder', id] });
-        queryClient.resetQueries({ queryKey: ['folders', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['folder', id] });
+        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        setEditingCollection(null);
     };
 
     const handleAddSifts = async (selectedIds: string[]) => {
@@ -256,8 +259,8 @@ export default function CollectionScreen() {
 
             {/* Header */}
             <View style={[styles.header, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
-                {isEditing || isReordering ? (
-                    <TouchableOpacity onPress={() => { setIsEditing(false); setIsReordering(false); }} style={styles.backButton}>
+                {isReordering ? (
+                    <TouchableOpacity onPress={() => { setIsReordering(false); }} style={styles.backButton}>
                         <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
                     </TouchableOpacity>
                 ) : (
@@ -266,70 +269,69 @@ export default function CollectionScreen() {
                     </TouchableOpacity>
                 )}
 
-                <View style={[styles.headerCenter, isEditing && { alignItems: 'flex-start', marginLeft: 16 }]}>
-                    {!isEditing && (
+                <View style={[styles.headerCenter, { alignItems: 'center', marginLeft: 0 }]}>
+                    {folder.image_url ? (
+                        <Image
+                            source={folder.image_url}
+                            style={{ width: 32, height: 32, borderRadius: RADIUS.s, backgroundColor: colors.subtle }}
+                            contentFit="cover"
+                        />
+                    ) : (
                         <View style={[styles.folderIcon, { backgroundColor: folder.color }]}>
                             {folder.icon ? getIcon(folder.icon, 18, '#FFFFFF') : <Folder size={18} color="#FFFFFF" weight="fill" />}
                         </View>
                     )}
                     <View>
-                        {isEditing && (
-                            <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1.5, fontWeight: '700', marginBottom: 2 }}>
-                                MANAGING
-                            </Typography>
-                        )}
                         <Typography variant="h3" numberOfLines={1} style={styles.headerTitle}>
                             {folder.name}
                         </Typography>
 
                         {/* Member / Sift Info Row */}
-                        {!isEditing && (
-                            <View style={styles.memberInfoRow}>
-                                {members.length > 0 ? (
-                                    <View style={styles.avatarStack}>
-                                        {/* Always show the owner's avatar first if possible */}
-                                        <View style={[styles.stackedAvatarWrap, { zIndex: 4, borderColor: colors.canvas }]}>
-                                            <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
-                                                <User size={12} color={colors.stone} weight="bold" />
-                                            </View>
+                        <View style={styles.memberInfoRow}>
+                            {members.length > 0 ? (
+                                <View style={styles.avatarStack}>
+                                    {/* Always show the owner's avatar first if possible */}
+                                    <View style={[styles.stackedAvatarWrap, { zIndex: 4, borderColor: colors.canvas }]}>
+                                        <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <User size={12} color={colors.stone} weight="bold" />
                                         </View>
-                                        {members.slice(0, 3).map((member: any, index: number) => (
-                                            <View
-                                                key={member.id}
-                                                style={[
-                                                    styles.stackedAvatarWrap,
-                                                    { zIndex: 3 - index, marginLeft: -10, borderColor: colors.canvas }
-                                                ]}
-                                            >
-                                                {member.user?.avatar_url ? (
-                                                    <Image source={member.user.avatar_url} style={styles.stackedAvatar} />
-                                                ) : (
-                                                    <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
-                                                        <Typography variant="caption" style={{ fontSize: 8 }}>{member.user?.display_name?.charAt(0) || 'U'}</Typography>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        ))}
-                                        {members.length > 3 && (
-                                            <View style={[styles.stackedAvatarWrap, { zIndex: 0, marginLeft: -10, borderColor: colors.canvas, backgroundColor: colors.separator, justifyContent: 'center', alignItems: 'center' }]}>
-                                                <Typography variant="caption" style={{ fontSize: 8 }}>+{members.length - 3}</Typography>
-                                            </View>
-                                        )}
-                                        <Typography variant="caption" color="stone" style={{ fontSize: 11, marginLeft: 6 }}>
-                                            • {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
-                                        </Typography>
                                     </View>
-                                ) : (
-                                    <Typography variant="caption" color="stone" style={{ fontSize: 11, letterSpacing: 0.5 }}>
-                                        {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
+                                    {members.slice(0, 3).map((member: any, index: number) => (
+                                        <View
+                                            key={member.id}
+                                            style={[
+                                                styles.stackedAvatarWrap,
+                                                { zIndex: 3 - index, marginLeft: -10, borderColor: colors.canvas }
+                                            ]}
+                                        >
+                                            {member.user?.avatar_url ? (
+                                                <Image source={member.user.avatar_url} style={styles.stackedAvatar} />
+                                            ) : (
+                                                <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
+                                                    <Typography variant="caption" style={{ fontSize: 8 }}>{member.user?.display_name?.charAt(0) || 'U'}</Typography>
+                                                </View>
+                                            )}
+                                        </View>
+                                    ))}
+                                    {members.length > 3 && (
+                                        <View style={[styles.stackedAvatarWrap, { zIndex: 0, marginLeft: -10, borderColor: colors.canvas, backgroundColor: colors.separator, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Typography variant="caption" style={{ fontSize: 8 }}>+{members.length - 3}</Typography>
+                                        </View>
+                                    )}
+                                    <Typography variant="caption" color="stone" style={{ fontSize: 11, marginLeft: 6 }}>
+                                        • {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
                                     </Typography>
-                                )}
-                            </View>
-                        )}
+                                </View>
+                            ) : (
+                                <Typography variant="caption" color="stone" style={{ fontSize: 11, letterSpacing: 0.5 }}>
+                                    {pages.length} {pages.length === 1 ? 'SIFT' : 'SIFTS'}
+                                </Typography>
+                            )}
+                        </View>
                     </View>
                 </View>
 
-                {isEditing || isReordering ? (
+                {isReordering ? (
                     <TouchableOpacity onPress={() => {
                         Haptics.selectionAsync();
                         setPickerVisible(true)
@@ -363,7 +365,7 @@ export default function CollectionScreen() {
             <SiftFeed
                 pages={sortedPages as any}
                 loading={isLoading && fetchStatus === 'fetching'}
-                mode={isEditing ? 'edit' : isReordering ? 'reorder' : 'feed'}
+                mode={isReordering ? 'reorder' : 'feed'}
                 onRemove={handleRemoveSift}
                 onDragEnd={handleReorderSifts}
                 viewMode={isReordering ? 'list' : 'grid'} // Force list view for reordering
@@ -387,10 +389,13 @@ export default function CollectionScreen() {
 
             <CollectionModal
                 visible={editModalVisible}
-                onClose={() => setEditModalVisible(false)}
+                onClose={() => {
+                    setEditModalVisible(false);
+                    setEditingCollection(null);
+                }}
                 onSave={handleUpdateCollection}
                 onDelete={handleDeleteCollection}
-                existingCollection={folder}
+                existingCollection={editingCollection}
             />
 
             <ActionSheet
@@ -407,7 +412,10 @@ export default function CollectionScreen() {
                     ...(canContribute ? [{
                         label: `Manage ${folder.name}`,
                         onPress: () => {
-                            setIsEditing(true);
+                            setTimeout(() => {
+                                setEditingCollection(folder);
+                                setEditModalVisible(true);
+                            }, 200);
                         }
                     }] : []),
                     ...(canContribute && pages.length > 1 ? [{
@@ -419,7 +427,10 @@ export default function CollectionScreen() {
                     ...(isOwner ? [{
                         label: 'Edit Collection Details',
                         onPress: () => {
-                            setTimeout(() => setEditModalVisible(true), 200);
+                            setTimeout(() => {
+                                setEditingCollection(folder);
+                                setEditModalVisible(true);
+                            }, 200);
                         }
                     }] : []),
                     ...(isOwner ? [{
