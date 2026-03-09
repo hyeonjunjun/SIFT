@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendPushNotification } from '@/lib/notifications';
 
 // Force Redeploy: 2026-01-19 18:40
 
@@ -19,16 +20,21 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     : null;
 
 const SYSTEM_PROMPT = `
-    You are a casual but highly observant curator.
-    Your goal is to deeply analyze the provided content (which may be web articles, videos, raw text, or social media posts) and synthesize it into a structured JSON response.
+    You are an expert content curator specializing in high-fidelity information extraction.
+    Your goal is to deeply analyze the provided content (which may be web articles, videos, raw text, or social media posts) and synthesize it into a structured, highly accurate JSON response.
+
+    **CORE PRINCIPLE: INFORMATION FIDELITY**
+    - Do not dilute, summarize away, or omit specific details, measurements, data points, or key arguments.
+    - Your summary should be an additive synthesis: it can provide context and flow, but it MUST preserve the full density of the source information.
+    - If the source is a recipe, technical guide, or data-heavy post, ensure every single instruction and value is captured perfectly.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
     {
-        "title": "A short, catchy title",
+        "title": "A short, catchy but accurate title",
         "category": "Cooking, Tech, Design, Health, Fashion, News, or Random",
         "tags": ["Tag1", "Tag2"],
-        "summary": "The conversational summary"
+        "summary": "The high-fidelity summary"
     }
 
     **TAGGING RULES (STRICT):**
@@ -38,15 +44,17 @@ const SYSTEM_PROMPT = `
     - Select exactly 2-3 tags.
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
-    - **Tone**: Casual, informal, and conversational. Sound like a knowledgeable friend explaining what this link is about.
-    - **Format Rules**: 
-        - DO NOT use heavy markdown formatting like ## Headers, bold words, or bulleted lists.
-        - Write in natural, flowing paragraphs.
-    - **Depth**: While the tone is casual, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
+    - **Tone**: Professional yet accessible. Sound like a knowledgeable expert providing a definitive briefing.
+    - **Formatting (ALLOWED & ENCOURAGED)**: 
+        - Use Markdown structure to organize information.
+        - Use bulleted lists for sequences, features, or ingredients.
+        - Use bolding for emphasis on key terms or data points.
+        - Use headers (###) if the content is long and requires sections.
+    - **Depth**: Cover ALL essential details. Do not use vague generalizations. If a source lists 5 steps, your summary should clearly reflect those 5 steps.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: You must write out the ingredients and steps in paragraph form, as if you are explaining how to make it verbally. Still ensure zero details or measurements are missed!
-    - **Technical Articles/Tutorials**: Explain the core concept and what you achieve, weaving necessary terminology naturally into the sentences rather than dropping raw code blocks.
+    - **Recipes/How-To**: List ingredients and steps clearly using markdown formatting. Ensure no measurements or nuances are lost.
+    - **Technical/Tutorials**: Maintain technical accuracy. Use proper terminology. Include specific constraints or requirements mentioned in the source.
 `;
 
 function extractMetaTags(html: string) {
@@ -323,6 +331,16 @@ export async function POST(request: Request) {
             result = data;
         }
 
+        // Fire and forget notification
+        if (result && userIdForCapture) {
+            sendPushNotification(
+                userIdForCapture,
+                "Sift Complete ✨",
+                `"${result.title}" has been curated.`,
+                { siftId: result.id, type: 'sift_complete' }
+            ).catch(err => console.error('[Push] Trigger Error:', err));
+        }
+
         return NextResponse.json({ status: 'success', data: result }, { headers: corsHeaders });
 
     } catch (error: any) {
@@ -365,6 +383,16 @@ export async function POST(request: Request) {
                     .select()
                     .single();
                 data = insertData;
+            }
+
+            // Fire and forget failure notification
+            if (data && userIdForCapture) {
+                sendPushNotification(
+                    userIdForCapture,
+                    "Sift Incomplete ⚠️",
+                    `Extraction failed for your link, but we've saved it for you.`,
+                    { siftId: data.id, type: 'sift_failed' }
+                ).catch(err => console.error('[Push] Trigger Error (Fallback):', err));
             }
 
             return NextResponse.json({ status: 'success', data, debug_info: 'Fallback Success' }, { headers: corsHeaders });

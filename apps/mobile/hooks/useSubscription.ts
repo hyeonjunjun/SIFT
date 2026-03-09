@@ -30,7 +30,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     plus: {
         maxImagesPerSift: 99,
         maxSiftsTotal: 50,
-        price: '$9.99',
+        price: '$3.99',
         description: 'Pro',
         canUseSmartExtraction: true,
         canUseVideoComprehension: true,
@@ -39,7 +39,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     unlimited: {
         maxImagesPerSift: 999,
         maxSiftsTotal: 999999,
-        price: '$19.99',
+        price: '$6.99',
         description: 'Unlimited',
         canUseSmartExtraction: true,
         canUseVideoComprehension: true,

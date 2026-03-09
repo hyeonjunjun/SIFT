@@ -104,15 +104,13 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
             >
                 <View
                     style={{
-                        backgroundColor: colors.paper,
-                        borderRadius: RADIUS.xl, // Premium larger rounding
+                        backgroundColor: colors.surface,
+                        borderRadius: RADIUS.l,
                         overflow: 'hidden',
-                        marginBottom: 24,
-                        borderWidth: (isDark || highContrast) ? (highContrast ? 2 : 1) : 0,
-                        borderColor: highContrast ? colors.separator : (isDark ? 'rgba(255,255,255,0.05)' : 'transparent'),
-                        ...Theme.shadows.medium, // Softer, more premium shadow
-                        shadowColor: (isDark || highContrast) ? "#000000" : "#5A5A50",
-                        shadowOpacity: (isDark || highContrast) ? 0.6 : 0.08,
+                        marginBottom: 20,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        ...Theme.shadows.soft,
                     }}
                 >
                     <Pressable
@@ -129,15 +127,17 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                             zIndex: 10,
                             backgroundColor: isPinned
                                 ? (isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)')
-                                : 'rgba(255,255,255,0.85)',
+                                : 'rgba(255,255,255,0.8)',
                             padding: 8,
-                            borderRadius: 100,
-                            ...Theme.shadows.soft
+                            borderRadius: RADIUS.pill,
+                            ...Theme.shadows.sharp,
+                            borderWidth: 1,
+                            borderColor: colors.border,
                         }}
                     >
                         <PinIcon
                             size={12}
-                            color={isPinned ? colors.accent : 'rgba(0,0,0,0.5)'}
+                            color={isPinned ? colors.accent : colors.textSecondary}
                             weight={isPinned ? "fill" : "regular"}
                         />
                     </Pressable>
@@ -145,27 +145,27 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                     {imageUrl && (
                         <Image
                             source={imageUrl}
-                            style={{ width: '100%', height: 180, backgroundColor: colors.subtle }}
+                            style={{ width: '100%', height: 180, backgroundColor: colors.surfaceSecondary }}
                             contentFit="cover"
                             transition={500}
                         />
                     )}
 
                     <View style={{ padding: 16, paddingTop: 12 }}>
-                        <Typography variant="label" color="stone" style={{ marginBottom: 4, letterSpacing: 1 }}>
+                        <Typography variant="label" color="textSecondary" style={{ marginBottom: 4, letterSpacing: 1.2, fontWeight: '700' }}>
                             {domain.toUpperCase() || 'SIFT'}
                         </Typography>
 
-                        <Typography variant="h3" color="ink" style={{ marginBottom: 6 }}>
+                        <Typography variant="h3" color="text" style={{ marginBottom: 6, fontSize: 18, lineHeight: 24 }}>
                             {displayTitle}
                         </Typography>
 
                         {showSummary && (
                             <Typography
                                 variant="body"
-                                color="stone"
+                                color="textSecondary"
                                 numberOfLines={2}
-                                style={{ opacity: 0.9 }}
+                                style={{ opacity: 0.8, lineHeight: 20 }}
                             >
                                 {gist}
                             </Typography>

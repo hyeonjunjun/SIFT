@@ -16,6 +16,14 @@ export const LIGHT_COLORS = {
     accent: '#CF957B',    // oklch(0.72 0.08 45)  — Muted Clay
     danger: '#C46761',    // oklch(0.62 0.12 25)  — Warm Coral
     success: '#8AAF9A',   // oklch(0.72 0.05 160) — Gentle Sage
+
+    // Semantic Aliases
+    text: '#443732',      // ink
+    textSecondary: '#7C726D', // stone
+    surface: '#FDFCF8',   // paper
+    surfaceSecondary: '#F4F1EC', // subtle
+    border: '#E7E4DF',    // separator
+    shadow: '#443732',    // ink shadow
 };
 
 export const DARK_COLORS = {
@@ -28,6 +36,14 @@ export const DARK_COLORS = {
     accent: '#DEAA93',    // oklch(0.78 0.07 45)  — Light Clay
     danger: '#DC8C85',    // oklch(0.72 0.10 25)  — Soft Coral
     success: '#A2C0AF',   // oklch(0.78 0.04 160) — Light Sage
+
+    // Semantic Aliases
+    text: '#F1EEE7',      // ink
+    textSecondary: '#ADA29D', // stone
+    surface: '#16100E',   // paper
+    surfaceSecondary: '#1F1917', // subtle
+    border: '#2D2725',    // separator
+    shadow: '#000000',
 };
 
 export const HIGH_CONTRAST_LIGHT_COLORS = {

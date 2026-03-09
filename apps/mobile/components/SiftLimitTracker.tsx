@@ -39,12 +39,12 @@ export const SiftLimitTracker = () => {
 const styles = StyleSheet.create({
     container: {
         padding: 16,
-        backgroundColor: COLORS.paper,
+        backgroundColor: COLORS.surface,
         borderRadius: RADIUS.m,
         marginBottom: SPACING.m,
         ...Theme.shadows.soft,
         borderWidth: StyleSheet.hairlineWidth,
-        borderColor: COLORS.separator,
+        borderColor: COLORS.border,
     },
     content: {
         flexDirection: 'row',
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 8,
-        backgroundColor: COLORS.subtle,
+        backgroundColor: COLORS.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,

@@ -43,8 +43,17 @@ export function usePushNotifications() {
 
         // Listen for notification taps
         responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
-            console.log('[Push] Tapped:', response.notification.request.content.data);
-            // TODO: Navigate to relevant screen based on notification data
+            const data = response.notification.request.content.data;
+            console.log('[Push] Tapped:', data);
+
+            if (data?.siftId) {
+                // Use setTimeout to ensure the app is ready for navigation
+                setTimeout(() => {
+                    import('expo-router').then(({ router }) => {
+                        router.push(`/page/${data.siftId}?contextType=feed`);
+                    });
+                }, 100);
+            }
         });
 
         return () => {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
@@ -13,20 +14,12 @@ interface LimitReachedModalProps {
 }
 
 export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReachedModalProps) => {
+    const router = useRouter();
     const { tier, maxSiftsTotal, description } = useSubscription();
 
     const handleUpgrade = async () => {
-        const url = upgradeUrl || 'https://sift.so/upgrade';
-        try {
-            const canOpen = await Linking.canOpenURL(url);
-            if (canOpen) {
-                await Linking.openURL(url);
-            } else {
-                console.warn(`Cannot open upgrade URL: ${url}`);
-            }
-        } catch (error) {
-            console.error('Error opening upgrade URL:', error);
-        }
+        onClose();
+        router.push('/settings/subscription');
     };
 
     return (

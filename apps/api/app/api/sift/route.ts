@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendPushNotification } from '@/lib/notifications';
 
 // Force Redeploy: 2026-02-04 01:00 (Deep Resilience Upgrade)
 export const maxDuration = 300;
@@ -16,16 +17,21 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     : null;
 
 const SYSTEM_PROMPT = `
-    You are a casual but highly observant curator.
-    Your goal is to deeply analyze the provided content (which may be web articles, images, videos, raw text, or social media posts) and synthesize it into a structured JSON response.
+    You are an expert content curator specializing in high-fidelity information extraction.
+    Your goal is to deeply analyze the provided content (which may be web articles, images, videos, raw text, or social media posts) and synthesize it into a structured, highly accurate JSON response.
+
+    **CORE PRINCIPLE: INFORMATION FIDELITY**
+    - Do not dilute, summarize away, or omit specific details, measurements, data points, or key arguments.
+    - Your summary should be an additive synthesis: it can provide context and flow, but it MUST preserve the full density of the source information.
+    - If the source is a recipe, technical guide, or data-heavy post, ensure every single instruction and value is captured perfectly.
 
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
     {
-        "title": "A short, catchy title",
+        "title": "A short, catchy but accurate title",
         "category": "Cooking, Tech, Design, Health, Fashion, News, or Random",
         "tags": ["Tag1", "Tag2"],
-        "summary": "The conversational summary",
+        "summary": "The high-fidelity summary",
         "smart_data": {
             "ingredients": ["item1"],
             "preparation_time": "e.g. 30 mins",
@@ -40,16 +46,18 @@ const SYSTEM_PROMPT = `
     - If no tag fits, use "Lifestyle".
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
-    - **Tone**: Casual, informal, and conversational. Sound like a knowledgeable friend explaining what this link is about.
-    - **Format Rules**: 
-        - DO NOT use heavy markdown formatting like ## Headers, bold words, or bulleted lists.
-        - Write in natural, flowing paragraphs.
-    - **Depth**: While the tone is casual, MUST cover ALL essential details, arguments, or data from the content. Do not leave out important context.
+    - **Tone**: Professional yet accessible. Sound like a knowledgeable expert providing a definitive briefing.
+    - **Formatting (ALLOWED & ENCOURAGED)**: 
+        - Use Markdown structure to organize information.
+        - Use bulleted lists for sequences, features, or ingredients.
+        - Use bolding for emphasis on key terms or data points.
+        - Use headers (###) if the content is long and requires sections.
+    - **Depth**: Cover ALL essential details. Do not use vague generalizations. If a source lists 5 steps, your summary should clearly reflect those 5 steps.
     
     **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Recipes/How-To**: Explain the ingredients and steps in paragraph form, as if explaining verbally. Still ensure zero details or measurements are missed!
-    - **Technical/Tutorials**: Explain the core concept naturally rather than dropping raw code blocks.
-    - **Images/Videos**: Infer as much context as possible. If it's a TikTok/Reel with no transcript, use the title/caption and visuals to infer the complete high-quality takeaway.
+    - **Recipes/How-To**: List ingredients and steps clearly using markdown formatting. Ensure no measurements or nuances are lost.
+    - **Technical/Tutorials**: Maintain technical accuracy. Use proper terminology. Include specific constraints or requirements mentioned in the source.
+    - **Images/Videos**: Infer maximum context. If it's a video, extract the core "value" or "takeaway" without fluff.
 `;
 
 function extractMetaTags(html: string) {
@@ -178,6 +186,17 @@ export async function POST(request: Request) {
         }
 
         const result = await performFullSift(url, user_id, body.id, userTier, domain, actorId, input, "Sync. ", body.image_base64, body.metadata);
+
+        // Fire and forget notification
+        if (result && user_id) {
+            sendPushNotification(
+                user_id,
+                "Sift Complete ✨",
+                `"${result.title}" has been curated.`,
+                { siftId: result.id, type: 'sift_complete' }
+            ).catch(err => console.error('[Push] Trigger Error:', err));
+        }
+
         return NextResponse.json({ status: 'success', data: result }, { headers: corsHeaders });
 
     } catch (error: any) {
@@ -206,6 +225,16 @@ export async function POST(request: Request) {
                 const { data: insertData } = await supabaseAdmin.from('pages').insert(fallbackData).select().single();
                 data = insertData;
             }
+            // Fire and forget failure notification
+            if (data && userIdForCapture) {
+                sendPushNotification(
+                    userIdForCapture,
+                    "Sift Incomplete ⚠️",
+                    `Extraction failed for your link, but we've saved it for you.`,
+                    { siftId: data.id, type: 'sift_failed' }
+                ).catch(err => console.error('[Push] Trigger Error (Fallback):', err));
+            }
+
             return NextResponse.json({ status: 'success', data, debug_info: 'Fallback Success' }, { headers: corsHeaders });
         } catch (innerError) {
             return NextResponse.json({ status: 'error', message: 'Total Failure' }, { status: 500, headers: corsHeaders });

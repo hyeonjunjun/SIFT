@@ -161,6 +161,14 @@ export default function SubscriptionScreen() {
                     <Typography variant="body" style={styles.heroSubtitle}>
                         Your library, your rules. Enhance your curation with advanced AI and higher limits.
                     </Typography>
+
+                    {!offerings && !loading && (
+                        <View style={styles.errorContainer}>
+                            <Typography variant="caption" style={styles.errorText}>
+                                Membership plans are currently unavailable. Check your internet connection or try again later.
+                            </Typography>
+                        </View>
+                    )}
                 </View>
 
                 {tiers.map((tier, index) => {
@@ -317,6 +325,19 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         color: COLORS.stone,
         fontSize: 16,
+    },
+    errorContainer: {
+        marginTop: 24,
+        padding: 12,
+        backgroundColor: 'rgba(255, 0, 0, 0.05)',
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 0, 0, 0.1)',
+        maxWidth: 300,
+    },
+    errorText: {
+        color: COLORS.danger,
+        textAlign: 'center',
     },
     card: {
         borderRadius: RADIUS.l,

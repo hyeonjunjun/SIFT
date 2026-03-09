@@ -96,7 +96,7 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                 onPressOut={handlePressOut}
                 style={[animatedStyle, { marginBottom: 12 }]}
             >
-                <Card style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+                <Card style={{ padding: 0, overflow: 'hidden', position: 'relative', backgroundColor: colors.surface }}>
                     {/* Pin Indicator */}
                     <Pressable
                         onPress={(e) => {
@@ -112,15 +112,17 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                             zIndex: 10,
                             backgroundColor: isPinned
                                 ? (isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)')
-                                : 'rgba(255,255,255,0.85)',
+                                : 'rgba(255,255,255,0.8)',
                             padding: 6,
                             borderRadius: RADIUS.pill,
-                            ...Theme.shadows.sharp
+                            ...Theme.shadows.sharp,
+                            borderWidth: 1,
+                            borderColor: colors.border,
                         }}
                     >
                         <PinIcon
                             size={12}
-                            color={isPinned ? colors.ink : 'rgba(0,0,0,0.5)'}
+                            color={isPinned ? colors.accent : colors.textSecondary}
                             weight={isPinned ? "fill" : "regular"}
                         />
                     </Pressable>
@@ -133,19 +135,19 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View style={{ width: '100%', height: '100%', backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }}>
-                                <Typography variant="h3" style={{ color: colors.stone, opacity: 0.3 }}>S</Typography>
+                            <View style={{ width: '100%', height: '100%', backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center' }}>
+                                <Typography variant="h3" style={{ color: colors.textSecondary, opacity: 0.3 }}>S</Typography>
                             </View>
                         )}
                     </View>
 
                     <View style={{ padding: 12 }}>
-                        <Typography variant="body" color="ink" style={{ fontWeight: '700', lineHeight: 20, marginBottom: 4, fontSize: 13 }}>
+                        <Typography variant="body" color="text" style={{ fontWeight: '700', lineHeight: 18, marginBottom: 4, fontSize: 13 }}>
                             {title}
                         </Typography>
                         {domain ? (
-                            <Typography variant="caption" color="stone" style={{ fontSize: 10, fontWeight: '500' }}>
-                                {domain}
+                            <Typography variant="caption" color="textSecondary" style={{ fontSize: 10, fontWeight: '600', opacity: 0.8 }}>
+                                {domain.toUpperCase()}
                             </Typography>
                         ) : null}
                     </View>
