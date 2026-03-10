@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { useToast } from '../../context/ToastContext';
 
 interface ShareSiftModalProps {
     visible: boolean;
@@ -18,6 +19,7 @@ interface ShareSiftModalProps {
 
 export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: ShareSiftModalProps) {
     const { user } = useAuth();
+    const { showToast } = useToast();
     const [sending, setSending] = useState<string | null>(null);
     const [message, setMessage] = useState('');
 
@@ -29,7 +31,7 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
             const { data, error } = await supabase
                 .from('friendships')
                 .select(`
-                    id,
+                    *,
                     requester:user_id (id, username, display_name, avatar_url),
                     receiver:friend_id (id, username, display_name, avatar_url)
                 `)
@@ -38,9 +40,11 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
 
             if (error) throw error;
 
-            return data.map((f: any) =>
-                f.requester.id === user.id ? f.receiver : f.requester
-            );
+            return data.map((f: any) => {
+                const req = Array.isArray(f.requester) ? f.requester[0] : f.requester;
+                const rec = Array.isArray(f.receiver) ? f.receiver[0] : f.receiver;
+                return f.user_id === user.id ? rec : req;
+            });
         },
         enabled: visible && !!user?.id,
     });
@@ -73,12 +77,27 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                 metadata: { sift_title: siftTitle, message: message.trim() || undefined },
             }]);
 
+            // Fire Push Notification Webhook (Non-blocking)
+            fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://sift.so'}/api/push`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    receiverId: friendId,
+                    actorName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'A friend',
+                    type: 'sift_shared',
+                    siftTitle: siftTitle,
+                    messageContent: message.trim(),
+                    siftId: siftId
+                })
+            }).catch(err => console.warn('[Push Webhook] Failed:', err));
+
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Sift Sent", `Shared "${siftTitle}" with ${friendName}.`);
+            showToast({ message: `Shared "${siftTitle}" with ${friendName}.`, type: 'success' });
             setMessage('');
             onClose();
         } catch (e: any) {
-            Alert.alert("Recall Error", e.message || "Could not send sift.");
+            showToast({ message: e.message || "Could not send sift.", type: 'error' });
         } finally {
             setSending(null);
         }
@@ -153,8 +172,8 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                                     disabled={!!sending}
                                 >
                                     <View style={styles.friendInfo}>
-                                        {friend.avatar_url ? (
-                                            <Image source={friend.avatar_url} style={styles.avatar} />
+                                        {friend?.avatar_url ? (
+                                            <Image source={{ uri: friend.avatar_url }} style={styles.avatar} />
                                         ) : (
                                             <View style={[styles.avatar, styles.placeholderAvatar]}>
                                                 <User size={16} color={COLORS.stone} />

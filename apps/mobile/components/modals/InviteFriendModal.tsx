@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { useToast } from '../../context/ToastContext';
 
 interface InviteFriendModalProps {
     visible: boolean;
@@ -19,6 +20,7 @@ interface InviteFriendModalProps {
 export function InviteFriendModal({ visible, onClose, folderId, folderName }: InviteFriendModalProps) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const { showToast } = useToast();
     const [sending, setSending] = useState<string | null>(null);
 
     // Fetch accepted friendships, AND who is already in the folder
@@ -55,10 +57,16 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
             const memberIds = new Set(members.map(m => m.user_id));
 
             // 3. Mark friends who are already members
-            return friends.map((f: any) => ({
-                ...f,
-                isMember: memberIds.has(f.id)
-            }));
+            return friends.map((f: any) => {
+                const req = Array.isArray(f.requester) ? f.requester[0] : f.requester;
+                const rec = Array.isArray(f.receiver) ? f.receiver[0] : f.receiver;
+                const actualFriend = f.user_id === user.id ? rec : req;
+                
+                return {
+                    ...actualFriend,
+                    isMember: memberIds.has(actualFriend.id)
+                };
+            });
         },
         enabled: visible && !!user?.id && !!folderId,
     });
@@ -111,14 +119,14 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
             }]);
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Invite Sent", `${friendName} has been added to the collection.`);
+            showToast({ message: `${friendName} added to collection.`, type: 'success' });
 
             // Invalidate queries so the UI updates
             queryClient.invalidateQueries({ queryKey: ['folder-members', folderId] });
             queryClient.invalidateQueries({ queryKey: ['invitable_friends', user?.id, folderId] });
 
         } catch (e: any) {
-            Alert.alert("Invite Error", e.message || "Could not complete the invite.");
+            showToast({ message: e.message || "Could not complete the invite.", type: 'error' });
         } finally {
             setSending(null);
         }
@@ -174,8 +182,8 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
                                     activeOpacity={friend.isMember ? 1 : 0.7}
                                 >
                                     <View style={[styles.friendInfo, friend.isMember && { opacity: 0.5 }]}>
-                                        {friend.avatar_url ? (
-                                            <Image source={friend.avatar_url} style={styles.avatar} />
+                                        {friend?.avatar_url ? (
+                                            <Image source={{ uri: friend.avatar_url }} style={styles.avatar} />
                                         ) : (
                                             <View style={[styles.avatar, styles.placeholderAvatar]}>
                                                 <User size={16} color={COLORS.stone} />

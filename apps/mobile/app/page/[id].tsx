@@ -383,6 +383,21 @@ export default function PageDetail() {
                     message_type: 'sift'
                 }]);
             if (error) throw error;
+
+            // Fire Push Notification Webhook (Non-blocking)
+            fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://sift.so'}/api/push`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    receiverId: friendId,
+                    actorName: user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'A friend',
+                    type: 'direct_message_sift',
+                    siftTitle: page?.title || undefined,
+                    messageContent: 'Shared a Sift',
+                    siftId: id
+                })
+            }).catch(err => console.warn('[Push Webhook] Failed:', err));
+
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setShowDirectShare(false);
             Alert.alert("Sent!", "Sift shared with your friend.");
@@ -705,7 +720,7 @@ export default function PageDetail() {
                                             style={styles.friendSelectItem}
                                             onPress={() => handleDirectShare(item.id)}
                                         >
-                                            <Image source={item.avatar_url} style={styles.miniAvatar} />
+                                            <Image source={{ uri: item.avatar_url }} style={styles.miniAvatar} />
                                             <Typography variant="body" style={{ marginLeft: 12 }}>{item.display_name}</Typography>
                                         </TouchableOpacity>
                                     )}
@@ -788,7 +803,6 @@ const styles = StyleSheet.create({
     progressBar: {
         height: 2,
         borderRadius: 1,
-        transition: 'width 0.1s ease-out',
     },
     headerTitleBox: {
         flex: 1,

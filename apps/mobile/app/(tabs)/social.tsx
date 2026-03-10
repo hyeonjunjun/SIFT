@@ -187,6 +187,19 @@ export default function SocialScreen() {
                 }]);
             if (error) throw error;
 
+            // Fire Push Notification Webhook (Non-blocking)
+            fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://sift.so'}/api/push`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    receiverId: selectedFriendId,
+                    actorName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'A friend',
+                    type: type === 'sift' ? 'direct_message_sift' : 'direct_message_text',
+                    messageContent: type === 'emoji' ? content : content.trim(),
+                    siftId: siftId || null
+                })
+            }).catch(err => console.warn('[Push Webhook] Failed:', err));
+
             setMessageText('');
             setShowEmojiGrid(false);
             Keyboard.dismiss();
@@ -491,7 +504,7 @@ export default function SocialScreen() {
                     <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
                         {searchResults.map(u => (
                             <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
-                                <Image source={u.avatar_url} style={styles.miniAvatar} />
+                                <Image source={{ uri: u.avatar_url }} style={styles.miniAvatar} />
                                 <View style={{ flex: 1, marginLeft: 12 }}>
                                     <Typography variant="label">{u.display_name}</Typography>
                                     <Typography variant="caption" color="stone">@{u.username}</Typography>
@@ -634,7 +647,7 @@ export default function SocialScreen() {
                                 </TouchableOpacity>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 16 }}>
                                     {selectedFriend?.avatar_url ? (
-                                        <Image source={selectedFriend.avatar_url} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                                        <Image source={{ uri: selectedFriend.avatar_url }} style={{ width: 36, height: 36, borderRadius: 18 }} />
                                     ) : (
                                         <View style={[{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
                                             <User size={18} color={colors.stone} weight="thin" />
@@ -884,7 +897,7 @@ function SharedSiftCard({ share, user, colors, queryClient, router }: any) {
         <TouchableOpacity style={[styles.card, { backgroundColor: colors.paper, borderColor: colors.separator }]} onPress={() => router.push(`/page/${share.sift.id}`)}>
             <View style={styles.cardHeader}>
                 {share.sender.avatar_url ? (
-                    <Image source={share.sender.avatar_url} style={styles.tinyAvatar} />
+                    <Image source={{ uri: share.sender.avatar_url }} style={styles.tinyAvatar} />
                 ) : (
                     <View style={[styles.tinyAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
                         <User size={12} color={colors.stone} weight="bold" />
@@ -938,7 +951,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
             activeOpacity={0.7}
         >
             {friend.avatar_url ? (
-                <Image source={friend.avatar_url} style={styles.mediumAvatar} />
+                <Image source={{ uri: friend.avatar_url }} style={styles.mediumAvatar} />
             ) : (
                 <View style={[styles.mediumAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
                     <User size={24} color={colors.stone} weight="thin" />

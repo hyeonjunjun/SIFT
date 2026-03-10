@@ -591,9 +591,8 @@ const styles = StyleSheet.create({
         marginLeft: SPACING.s,
     },
     sortButton: {
-        minWidth: 48,
+        width: 48,
         height: 48,
-        paddingHorizontal: 15,
         borderRadius: RADIUS.m,
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -602,9 +601,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     viewToggle: {
-        minWidth: 48,
+        width: 48,
         height: 48,
-        paddingHorizontal: 15,
         borderRadius: RADIUS.m,
         backgroundColor: COLORS.surface,
         borderWidth: 1,

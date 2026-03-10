@@ -305,7 +305,7 @@ export default function CollectionScreen() {
                                             ]}
                                         >
                                             {member.user?.avatar_url ? (
-                                                <Image source={member.user.avatar_url} style={styles.stackedAvatar} />
+                                                <Image source={{ uri: member.user.avatar_url }} style={styles.stackedAvatar} />
                                             ) : (
                                                 <View style={[styles.stackedAvatar, { backgroundColor: colors.subtle, justifyContent: 'center', alignItems: 'center' }]}>
                                                     <Typography variant="caption" style={{ fontSize: 8 }}>{member.user?.display_name?.charAt(0) || 'U'}</Typography>
