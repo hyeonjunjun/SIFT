@@ -282,7 +282,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Daily Catch Up */}
-            {activeFilter === 'All' && searchQuery === '' && dailySifts.length > 0 && (
+            {searchQuery === '' && dailySifts.length > 0 && (
                 <View style={[styles.catchUpSection, { marginHorizontal: -SPACING.m }]}>
                     <Typography
                         variant="caption"
@@ -332,7 +332,7 @@ export default function HomeScreen() {
                 {/* Search, Sort & View Controls Row */}
                 <View style={styles.searchRow}>
                     <View style={styles.searchBar}>
-                        <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
+                        <MagnifyingGlass size={18} color={COLORS.stone} />
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Search everything..."
@@ -372,7 +372,7 @@ export default function HomeScreen() {
                         }}
                         style={styles.viewToggle}
                     >
-                        {viewMode === 'grid' ? <Rows size={18} color={COLORS.ink} weight="bold" /> : <SquaresFour size={18} color={COLORS.ink} weight="bold" />}
+                        {viewMode === 'grid' ? <Rows size={18} color={COLORS.ink} /> : <SquaresFour size={18} color={COLORS.ink} />}
                     </TouchableOpacity>
                 </View>
 
@@ -487,7 +487,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
     headerContainer: {
-        paddingHorizontal: SPACING.m,
+        // No paddingHorizontal - FlashList contentContainerStyle provides 20pt padding
         paddingBottom: SPACING.xs,
         gap: SPACING.m, // Reduced gap to tighten hierarchy
     },
@@ -591,8 +591,9 @@ const styles = StyleSheet.create({
         marginLeft: SPACING.s,
     },
     sortButton: {
-        width: 48,
+        minWidth: 48,
         height: 48,
+        paddingHorizontal: 15,
         borderRadius: RADIUS.m,
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -601,8 +602,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     viewToggle: {
-        width: 48,
+        minWidth: 48,
         height: 48,
+        paddingHorizontal: 15,
         borderRadius: RADIUS.m,
         backgroundColor: COLORS.surface,
         borderWidth: 1,

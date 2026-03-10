@@ -24,6 +24,8 @@ export function Typography({ variant = 'body', style, children, color, weight, .
     return (
         <Text
             style={[variantStyle, colorStyle, weightStyle, androidStyle, style]}
+            maxFontSizeMultiplier={1.3}
+            allowFontScaling={true}
             {...props}
         >
             {children}

@@ -5,6 +5,7 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
 import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset, ArrowLeft, CaretRight, PaperPlaneTilt, Smiley, LinkSimple } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
+import { EmptyState } from '../../components/design-system/EmptyState';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -16,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FriendCardSkeleton } from '../../components/skeletons/FriendCardSkeleton';
 
 interface Sift {
     id: string;
@@ -34,7 +36,8 @@ interface Share {
 }
 
 export default function SocialScreen() {
-    const { colors } = useTheme();
+    const { colors, theme } = useTheme();
+    const isDark = theme === 'dark';
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -55,8 +58,10 @@ export default function SocialScreen() {
     const translateX = useSharedValue(0);
     const { width } = Dimensions.get('window');
 
+    const [activeView, setActiveView] = useState<'network' | 'activity'>('network');
+
     // 1. Fetch Friends/Relationships
-    const { data: friendships = [] } = useQuery({
+    const { data: friendships = [], isLoading: isLoadingFriends } = useQuery({
         queryKey: ['friendships', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
@@ -64,8 +69,8 @@ export default function SocialScreen() {
                 .from('friendships')
                 .select(`
                     *,
-                    requester:user_id (id, username, display_name, avatar_url),
-                    receiver:friend_id (id, username, display_name, avatar_url)
+                    requester:user_id (id, username, display_name, avatar_url, bio),
+                    receiver:friend_id (id, username, display_name, avatar_url, bio)
                 `)
                 .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
             if (error) throw error;
@@ -119,6 +124,29 @@ export default function SocialScreen() {
         },
         enabled: !!user?.id && showSiftPicker,
         staleTime: 1000 * 60 * 5,
+    });
+
+    // 2d. Fetch global activity (all sifts shared with user)
+    const { data: globalActivity = [], isLoading: isLoadingActivity } = useQuery({
+        queryKey: ['global_activity', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            const { data, error } = await supabase
+                .from('direct_messages')
+                .select(`
+                    id, created_at, message_type, content, sender_id, receiver_id,
+                    sift:sift_id (id, title, summary, url, metadata),
+                    sender:sender_id (id, username, display_name, avatar_url)
+                `)
+                .eq('receiver_id', user.id)
+                .eq('message_type', 'sift')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user?.id,
+        staleTime: 1000 * 60,
     });
 
     // Build unified conversation timeline (messages only now)
@@ -420,29 +448,46 @@ export default function SocialScreen() {
         <ScreenWrapper edges={['top']}>
             <Animated.View style={mainStyle}>
                 <View style={styles.header}>
-                    <Typography variant="label" color="stone" style={styles.smallCapsLabel}>NETWORK • ACTIVITY</Typography>
-                    <Typography variant="h1" style={styles.serifTitle}>Friends</Typography>
-                </View>
-
-                <View style={styles.searchContainer}>
-                    <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                        <MagnifyingGlass size={18} color={colors.stone} weight="bold" style={{ marginRight: 10 }} />
-                        <TextInput
-                            style={[styles.searchInput, { color: colors.ink }]}
-                            placeholder="Find friends by @username or ID..."
-                            placeholderTextColor={colors.stone}
-                            value={searchQuery}
-                            onChangeText={handleSearch}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                        {isSearching && (
-                            <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
-                        )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <Typography variant="h1" style={styles.serifTitle}>Social</Typography>
+                        <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.pill, padding: 2 }}>
+                            <TouchableOpacity
+                                style={[{ paddingHorizontal: SPACING.m, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'network' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                onPress={() => { setActiveView('network'); Haptics.selectionAsync(); }}
+                            >
+                                <Typography variant="caption" style={{ fontSize: 11, color: activeView === 'network' ? colors.ink : colors.stone, fontWeight: '600' }}>Network</Typography>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[{ paddingHorizontal: SPACING.m, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'activity' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                onPress={() => { setActiveView('activity'); Haptics.selectionAsync(); }}
+                            >
+                                <Typography variant="caption" style={{ fontSize: 11, color: activeView === 'activity' ? colors.ink : colors.stone, fontWeight: '600' }}>Activity</Typography>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
 
-                {searchResults.length > 0 ? (
+                {activeView === 'network' && (
+                    <>
+                        <View style={styles.searchContainer}>
+                            <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
+                                <MagnifyingGlass size={18} color={colors.stone} style={{ marginRight: 10 }} />
+                                <TextInput
+                                    style={[styles.searchInput, { color: colors.ink }]}
+                                    placeholder="Find friends by @username or ID..."
+                                    placeholderTextColor={colors.stone}
+                                    value={searchQuery}
+                                    onChangeText={handleSearch}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                {isSearching && (
+                                    <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
+                                )}
+                            </View>
+                        </View>
+
+                        {searchResults.length > 0 ? (
                     <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
                         {searchResults.map(u => (
                             <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
@@ -463,9 +508,12 @@ export default function SocialScreen() {
                         </View>
                     )
                 )}
+                </>
+            )}
 
-                <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
-                    <View style={styles.friendsList}>
+            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
+                    {activeView === 'network' ? (
+                        <View style={styles.friendsList}>
                         {incomingRequests.length > 0 && (
                             <View style={styles.section}>
                                 <Typography variant="label" color="stone" style={styles.sectionTitle}>REQUESTS ({incomingRequests.length})</Typography>
@@ -486,7 +534,13 @@ export default function SocialScreen() {
 
                         <View style={styles.section}>
                             <Typography variant="label" color="stone" style={styles.sectionTitle}>MY NETWORK</Typography>
-                            {sortedNetwork.length > 0 ? (
+                            {isLoadingFriends ? (
+                                <>
+                                    <FriendCardSkeleton />
+                                    <FriendCardSkeleton />
+                                    <FriendCardSkeleton />
+                                </>
+                            ) : sortedNetwork.length > 0 ? (
                                 sortedNetwork.map((f: any) => {
                                     const friendId = f.user_id === user?.id ? f.friend_id : f.user_id;
                                     return (
@@ -506,7 +560,7 @@ export default function SocialScreen() {
                                     <EmptyState
                                         icon={<Users size={40} color={colors.stone} />}
                                         title="Build your network"
-                                        subtitle="Search for friends to start sharing your best finds directly with them."
+                                        description="Search for friends to start sharing your best finds directly with them."
                                     />
                                 )
                             )}
@@ -529,6 +583,34 @@ export default function SocialScreen() {
                             </View>
                         )}
                     </View>
+                    ) : (
+                        <View style={styles.activityList}>
+                            {isLoadingActivity ? (
+                                <>
+                                    <FriendCardSkeleton />
+                                    <FriendCardSkeleton />
+                                    <FriendCardSkeleton />
+                                </>
+                            ) : globalActivity.length > 0 ? (
+                                globalActivity.map((activity: any) => (
+                                    <SharedSiftCard
+                                        key={activity.id}
+                                        share={activity}
+                                        user={user}
+                                        colors={colors}
+                                        queryClient={queryClient}
+                                        router={router}
+                                    />
+                                ))
+                            ) : (
+                                <EmptyState
+                                    icon={<PaperPlaneTilt size={40} color={colors.stone} weight="thin" />}
+                                    title="No activity yet"
+                                    description="When friends share sifts with you, they'll appear here in your activity feed."
+                                />
+                            )}
+                        </View>
+                    )}
                 </ScrollView>
             </Animated.View>
 
@@ -548,7 +630,7 @@ export default function SocialScreen() {
                                     style={{ flexDirection: 'row', alignItems: 'center' }}
                                     hitSlop={16}
                                 >
-                                    <ArrowLeft size={20} color={colors.ink} weight="bold" />
+                                    <ArrowLeft size={20} color={colors.ink} />
                                 </TouchableOpacity>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 16 }}>
                                     {selectedFriend?.avatar_url ? (
@@ -869,6 +951,11 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                 <Typography variant="caption" color="stone" numberOfLines={1}>
                     {`@${friend.username}`}
                 </Typography>
+                {friend.bio && (
+                    <Typography variant="caption" color="stone" numberOfLines={2} style={{ marginTop: 4 }}>
+                        {friend.bio}
+                    </Typography>
+                )}
             </View>
             {isPending ? (
                 isOutgoing ? (
@@ -892,16 +979,6 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
                 )
             ) : <CaretRight size={16} color={colors.stone} weight="bold" />}
         </TouchableOpacity>
-    );
-}
-
-function EmptyState({ icon, title, subtitle }: any) {
-    return (
-        <View style={styles.emptyContainer}>
-            {icon}
-            <Typography variant="h2" style={{ marginTop: 16 }}>{title}</Typography>
-            <Typography variant="body" color="stone" style={{ marginTop: 8, textAlign: 'center' }}>{subtitle}</Typography>
-        </View>
     );
 }
 
@@ -953,6 +1030,7 @@ const styles = StyleSheet.create({
     actionButton: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.pill },
     feed: { gap: 16 },
+    activityList: { gap: 16 },
     friendsList: {},
     section: { marginBottom: 32 },
     sectionTitle: { marginBottom: 12, letterSpacing: 1 },

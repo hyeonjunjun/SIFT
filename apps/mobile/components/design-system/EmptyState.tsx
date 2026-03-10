@@ -5,17 +5,20 @@ import { COLORS, SPACING, RADIUS } from '../../lib/theme';
 import { MagnifyingGlass, PlusCircle, SelectionBackground } from 'phosphor-react-native';
 import Animated, { FadeIn, Easing } from 'react-native-reanimated';
 import { Button } from './Button';
+import { useTheme } from '../../context/ThemeContext';
 
 interface EmptyStateProps {
     title: string;
     description: string;
-    type: 'no-results' | 'no-collections' | 'no-sifts';
+    type?: 'no-results' | 'no-collections' | 'no-sifts';
     onAction?: () => void;
     actionLabel?: string;
+    icon?: React.ReactNode;
 }
 
-export const EmptyState = ({ title, description, type, onAction, actionLabel }: EmptyStateProps) => {
-    const Icon = (type === 'no-collections' || type === 'no-sifts') ? SelectionBackground : MagnifyingGlass;
+export const EmptyState = ({ title, description, type = 'no-results', onAction, actionLabel, icon }: EmptyStateProps) => {
+    const { colors } = useTheme();
+    const DefaultIcon = (type === 'no-collections' || type === 'no-sifts') ? SelectionBackground : MagnifyingGlass;
 
     return (
         <View style={styles.container}>
@@ -23,8 +26,8 @@ export const EmptyState = ({ title, description, type, onAction, actionLabel }: 
                 entering={FadeIn.duration(400).easing(Easing.inOut(Easing.ease)).delay(200)}
                 style={styles.illustrationContainer}
             >
-                <View style={styles.iconCircle}>
-                    <Icon size={48} color={COLORS.stone} weight="thin" />
+                <View style={[styles.iconCircle, { backgroundColor: colors.subtle, borderColor: colors.border }]}>
+                    {icon ? icon : <DefaultIcon size={48} color={colors.stone} weight="thin" />}
                 </View>
                 {/* Subtle back decoration */}
                 <View style={[styles.decoration, { top: -10, right: -10, opacity: 0.1 }]} />
@@ -35,8 +38,8 @@ export const EmptyState = ({ title, description, type, onAction, actionLabel }: 
                 entering={FadeIn.duration(400).easing(Easing.inOut(Easing.ease)).delay(400)}
                 style={styles.textContainer}
             >
-                <Typography variant="h2" style={styles.title}>{title}</Typography>
-                <Typography style={styles.description}>{description}</Typography>
+                <Typography variant="h2" style={[styles.title, { color: colors.ink }]}>{title}</Typography>
+                <Typography style={[styles.description, { color: colors.stone }]}>{description}</Typography>
             </Animated.View>
 
             {onAction && actionLabel && (
@@ -94,7 +97,6 @@ const styles = StyleSheet.create({
     },
     description: {
         textAlign: 'center',
-        color: COLORS.stone,
         paddingHorizontal: 20,
         lineHeight: 20,
     }

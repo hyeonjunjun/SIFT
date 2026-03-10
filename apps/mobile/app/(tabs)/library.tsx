@@ -691,7 +691,7 @@ export default function LibraryScreen() {
                     >
                         <View style={styles.searchContainer}>
                             <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper }]}>
-                                <MagnifyingGlass size={20} color={colors.stone} weight="bold" />
+                                <MagnifyingGlass size={20} color={colors.stone} weight="regular" />
                                 <TextInput
                                     style={[styles.searchInput, { color: colors.ink }]}
                                     placeholder="Search your collections..."
@@ -771,7 +771,7 @@ export default function LibraryScreen() {
                                                                 }}
                                                                 hitSlop={8}
                                                             >
-                                                                <DotsThree size={20} color="#FFFFFF" weight="bold" />
+                                                                <DotsThree size={20} color="#FFFFFF" />
                                                             </TouchableOpacity>
                                                         )}
                                                     </View>
@@ -834,7 +834,7 @@ export default function LibraryScreen() {
                                                                 }}
                                                                 style={{ padding: 8 }}
                                                             >
-                                                                <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                                <DotsThreeVertical size={16} color={colors.stone} />
                                                             </TouchableOpacity>
                                                         )}
                                                     </TouchableOpacity>
@@ -987,7 +987,7 @@ export default function LibraryScreen() {
                                                         }}
                                                         style={{ padding: 8 }}
                                                     >
-                                                        <DotsThreeVertical size={16} color={colors.stone} weight="bold" />
+                                                        <DotsThreeVertical size={16} color={colors.stone} />
                                                     </TouchableOpacity>
                                                 </TouchableOpacity>
                                             </MotiView>

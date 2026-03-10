@@ -172,18 +172,26 @@ export default function ProfileScreen() {
                         )}
                     </View>
                     <View style={styles.profileInfo}>
-                        <View style={[styles.tierBadge, (tier !== 'free') ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}>
+                        <TouchableOpacity 
+                            style={[styles.tierBadge, (tier !== 'free') ? { backgroundColor: colors.ink } : { backgroundColor: colors.subtle, borderWidth: 1, borderColor: colors.separator }]}
+                            onPress={() => {
+                                if (tier === 'admin') Alert.alert('Admin Badge', 'You have full administrative privileges on Sift.');
+                            }}
+                            disabled={tier !== 'admin'}
+                        >
                             <Typography variant="label" style={[styles.tierText, { color: (tier !== 'free') ? colors.paper : colors.stone }]}>
                                 {tier === 'admin' ? 'ADMIN' : `${tierName.toUpperCase()} MEMBER`}
                             </Typography>
-                        </View>
+                        </TouchableOpacity>
                         <Typography variant="label" color="stone" style={styles.smallCapsLabel}>YOUR • IDENTITY</Typography>
                         <Typography variant="h2" style={[styles.serifTitle, { marginBottom: 0 }]}>
                             {profile?.display_name || user?.email?.split('@')[0] || 'User'}
                         </Typography>
-                        <Typography variant="body" color="stone" numberOfLines={2} style={styles.userBio}>
-                            {profile?.bio || 'No bio yet.'}
-                        </Typography>
+                        <TouchableOpacity onPress={() => router.push('/settings/identity')} hitSlop={8}>
+                            <Typography variant="body" color="stone" numberOfLines={2} style={styles.userBio}>
+                                {profile?.bio || 'Add a bio...'}
+                            </Typography>
+                        </TouchableOpacity>
                         {profile?.username && (
                             <Typography variant="label" color="stone" style={styles.handle}>
                                 @{profile.username.toLowerCase()}
@@ -191,6 +199,18 @@ export default function ProfileScreen() {
                         )}
                     </View>
                 </View>
+
+                {/* INVITE FRIENDS PROMINENT CTA */}
+                <TouchableOpacity 
+                    style={[styles.inviteCard, { backgroundColor: colors.ink }]} 
+                    onPress={inviteFriends}
+                >
+                    <View style={{ flex: 1 }}>
+                        <Typography variant="h3" style={{ color: colors.paper, marginBottom: 4 }}>Invite Friends</Typography>
+                        <Typography variant="body" style={{ color: colors.paper, opacity: 0.8 }}>Build your network to share sifts</Typography>
+                    </View>
+                    <ShareNetwork size={24} color={colors.paper} />
+                </TouchableOpacity>
 
                 {/* USAGE TRACKER (Tier-Aware) */}
                 <UsageTracker />
@@ -217,12 +237,6 @@ export default function ProfileScreen() {
                         description="Activity log and recent actions"
                         onPress={() => router.push('/settings/history')}
                         icon={<ClockCounterClockwise size={20} color={colors.ink} />}
-                    />
-                    <SettingsRow
-                        label="Invite Friends"
-                        description={`Sift ID: ${profile?.sift_id || 'Generating...'}`}
-                        onPress={inviteFriends}
-                        icon={<ShareNetwork size={20} color={colors.ink} />}
                     />
                 </View>
 
@@ -444,9 +458,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     avatarContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
@@ -517,6 +531,17 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.m,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    inviteCard: {
+        marginHorizontal: 20,
+        marginTop: 8,
+        marginBottom: 16,
+        padding: 20,
+        borderRadius: RADIUS.l,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        ...Theme.shadows.soft,
     },
     sectionHeader: {
         paddingHorizontal: 20,
