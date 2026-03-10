@@ -70,6 +70,8 @@ export const useSubscription = () => {
 
         const fetchInfo = async () => {
             try {
+                if (!await Purchases.isConfigured()) return;
+
                 if (!getCustomerInfoPromise) {
                     getCustomerInfoPromise = Purchases.getCustomerInfo();
                 }

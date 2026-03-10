@@ -310,7 +310,12 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                                     <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: '#FFF' }} />
                                 )}
                             </View>
-                            <Typography variant="h3" style={styles.overlayTitle} numberOfLines={2}>
+                            <Typography
+                                variant="h3"
+                                style={styles.overlayTitle}
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                            >
                                 {item.title || 'Untitled'}
                             </Typography>
                         </View>
@@ -424,10 +429,22 @@ export default function SiftFeed({
                             )}
 
                             <View style={{ flex: 1, justifyContent: 'center' }}>
-                                <Typography variant="label" color="stone" numberOfLines={1} style={{ fontSize: 10, letterSpacing: 0.5, marginBottom: 4 }}>
+                                <Typography
+                                    variant="label"
+                                    color="stone"
+                                    numberOfLines={1}
+                                    ellipsizeMode="tail"
+                                    style={{ fontSize: 10, letterSpacing: 0.5, marginBottom: 4 }}
+                                >
                                     {getDomain(item.url)?.toUpperCase() || 'SIFT'}
                                 </Typography>
-                                <Typography variant="h3" color="ink" numberOfLines={2} style={{ fontSize: 15, lineHeight: 20 }}>
+                                <Typography
+                                    variant="h3"
+                                    color="ink"
+                                    numberOfLines={2}
+                                    ellipsizeMode="tail"
+                                    style={{ fontSize: 15, lineHeight: 20 }}
+                                >
                                     {item.title || 'Untitled Page'}
                                 </Typography>
                             </View>

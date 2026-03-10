@@ -147,6 +147,7 @@ export function useSiftQueue() {
         limitReachedVisible,
         setLimitReachedVisible,
         upgradeUrl,
+        setUpgradeUrl,
         lastCheckedUrl
     };
 }

@@ -645,43 +645,43 @@ export default function LibraryScreen() {
             <ScreenWrapper edges={['top']}>
                 <View style={{ flex: 1 }}>
                     <View style={styles.header}>
-                        <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 36 }}>Library</Typography>
-                        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.m, flex: 1 }}>
+                            <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 32 }}>Library</Typography>
+                            <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.pill, padding: 2 }}>
+                                <TouchableOpacity
+                                    style={[{ paddingHorizontal: SPACING.m, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'personal' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                    onPress={() => { setActiveView('personal'); Haptics.selectionAsync(); }}
+                                >
+                                    <Typography variant="caption" style={{ fontSize: 11, color: activeView === 'personal' ? colors.ink : colors.stone, fontWeight: '600' }}>Personal</Typography>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[{ paddingHorizontal: SPACING.m, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'shared' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
+                                    onPress={() => { setActiveView('shared'); Haptics.selectionAsync(); }}
+                                >
+                                    <Typography variant="caption" style={{ fontSize: 11, color: activeView === 'shared' ? colors.ink : colors.stone, fontWeight: '600' }}>Shared</Typography>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: SPACING.s, alignItems: 'center' }}>
                             {isReordering ? (
                                 <TouchableOpacity onPress={() => setIsReordering(false)}>
-                                    <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1 }}>DONE</Typography>
+                                    <Typography variant="label" color="ink" style={{ fontWeight: '700', letterSpacing: 1, fontSize: 11 }}>DONE</Typography>
                                 </TouchableOpacity>
                             ) : (
                                 <>
                                     {activeView === 'personal' && (
                                         <TouchableOpacity onPress={() => { setIsReordering(true); setViewMode('list'); }}>
-                                            <ListDashes size={24} color={colors.ink} />
+                                            <ListDashes size={22} color={colors.ink} />
                                         </TouchableOpacity>
                                     )}
                                     <TouchableOpacity onPress={toggleViewMode}>
-                                        {viewMode === 'grid' ? <Rows size={24} color={colors.ink} /> : <SquaresFour size={24} color={colors.ink} />}
+                                        {viewMode === 'grid' ? <Rows size={22} color={colors.ink} /> : <SquaresFour size={22} color={colors.ink} />}
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={() => router.push('/settings')}>
-                                        <Gear size={24} color={colors.ink} />
+                                        <Gear size={22} color={colors.ink} />
                                     </TouchableOpacity>
                                 </>
                             )}
-                        </View>
-                    </View>
-                    <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-                        <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.pill, padding: 4, alignSelf: 'flex-start' }}>
-                            <TouchableOpacity
-                                style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'personal' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
-                                onPress={() => { setActiveView('personal'); Haptics.selectionAsync(); }}
-                            >
-                                <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'personal' ? colors.ink : colors.stone, fontWeight: activeView === 'personal' ? '600' : '400' }}>Personal</Typography>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: RADIUS.pill }, activeView === 'shared' && { backgroundColor: colors.paper, ...Theme.shadows.soft }]}
-                                onPress={() => { setActiveView('shared'); Haptics.selectionAsync(); }}
-                            >
-                                <Typography variant="caption" style={{ fontSize: 13, color: activeView === 'shared' ? colors.ink : colors.stone, fontWeight: activeView === 'shared' ? '600' : '400' }}>Shared</Typography>
-                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -856,10 +856,18 @@ export default function LibraryScreen() {
 
                         {activeView === 'personal' && (
                             <View style={{ marginTop: SPACING.xl, paddingHorizontal: 20 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
-                                    <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
-                                        SMART COLLECTIONS
-                                    </Typography>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.s }}>
+                                    <View style={{ flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginBottom: 2 }}>
+                                            <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
+                                                SMART COLLECTIONS
+                                            </Typography>
+                                            <Sparkle size={10} color={colors.stone} weight="fill" />
+                                        </View>
+                                        <Typography variant="caption" color="stone" style={{ fontSize: 11, opacity: 0.7 }}>
+                                            Auto-organized by topic
+                                        </Typography>
+                                    </View>
                                     <TouchableOpacity onPress={() => { setEditingSmartCollection(null); setSmartCollectionModalVisible(true); }}>
                                         <Plus size={20} color={colors.ink} />
                                     </TouchableOpacity>

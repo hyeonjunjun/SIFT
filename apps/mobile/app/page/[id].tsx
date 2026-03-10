@@ -55,6 +55,7 @@ export default function PageDetail() {
     const [isShared, setIsShared] = useState(false);
     const [showDirectShare, setShowDirectShare] = useState(false);
     const [reSifting, setReSifting] = useState(false);
+    const [scrollProgress, setScrollProgress] = useState(0);
 
 
     // 1. Fetch Neighbor IDs for Navigation
@@ -413,6 +414,18 @@ export default function PageDetail() {
         }
     };
 
+    const handleScroll = (event: any) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+        const scrollPosition = contentOffset.y;
+        const scrollViewHeight = layoutMeasurement.height;
+        const contentHeight = contentSize.height;
+
+        // Calculate progress (0 to 1)
+        const maxScroll = contentHeight - scrollViewHeight;
+        const progress = maxScroll > 0 ? Math.min(scrollPosition / maxScroll, 1) : 0;
+        setScrollProgress(progress);
+    };
+
     return (
         <GestureDetector gesture={composedGesture}>
             <View collapsable={false} style={{ flex: 1 }}>
@@ -424,7 +437,7 @@ export default function PageDetail() {
                         entering={enteringAnimation}
                         exiting={exitingAnimation}
                     >
-                        {/* Standardized Header */}
+                        {/* Simplified Navigation Header */}
                         <View style={styles.navBar}>
                             <TouchableOpacity
                                 onPress={() => {
@@ -436,10 +449,7 @@ export default function PageDetail() {
                             >
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
-                            <View style={styles.headerTitleBox}>
-                                <Typography variant="label" color="stone" style={styles.smallCapsLabel}>SAVED • ARTIFACT</Typography>
-                                <Typography variant="h1" numberOfLines={1} style={styles.serifTitle}>{page?.title || 'Loading...'}</Typography>
-                            </View>
+                            <View style={{ flex: 1 }} />
                             <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton} hitSlop={16}>
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
@@ -449,7 +459,7 @@ export default function PageDetail() {
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                         router.replace('/(tabs)/');
                                     }}
-                                    style={[styles.navButton, { marginLeft: 8 }]}
+                                    style={[styles.navButton, { marginLeft: SPACING.s }]}
                                     hitSlop={16}
                                 >
                                     <House size={28} color={colors.ink} />
@@ -457,18 +467,34 @@ export default function PageDetail() {
                             )}
                         </View>
 
+                        {/* Reading Progress Indicator */}
+                        <View style={styles.progressContainer}>
+                            <View
+                                style={[
+                                    styles.progressBar,
+                                    {
+                                        width: `${scrollProgress * 100}%`,
+                                        backgroundColor: colors.accent
+                                    }
+                                ]}
+                            />
+                        </View>
+
                         <ScrollView
                             contentContainerStyle={styles.scrollContent}
                             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}
+                            onScroll={handleScroll}
+                            scrollEventThrottle={16}
                         >
                             {/* Card 1: Image */}
                             {page?.metadata?.image_url && (
-                                <View style={styles.imageWrapper}>
+                                <View style={[styles.imageWrapper, { backgroundColor: colors.surface, borderRadius: RADIUS.l, overflow: 'hidden', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
                                     <Image
                                         source={{ uri: page.metadata.image_url }}
                                         style={{ width: '100%', height: 240 }}
                                         resizeMode="cover"
                                     />
+                                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: RADIUS.l, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', pointerEvents: 'none' }} />
                                 </View>
                             )}
 
@@ -529,14 +555,19 @@ export default function PageDetail() {
                                 </View>
                             </View>
 
-                            {/* Card 3: Actions */}
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                            {/* Card 3: Actions (Primary + Secondary) */}
+                            <View style={{ flexDirection: 'row', gap: SPACING.s }}>
+                                {/* Primary Action: Original/Save */}
                                 <TouchableOpacity
                                     style={[
                                         styles.bentoCard,
                                         styles.actionCard,
-                                        { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' },
-                                        isEditing && { borderColor: colors.ink, borderWidth: 1 }
+                                        {
+                                            flex: 1.5,
+                                            backgroundColor: isEditing || isShared ? colors.ink : colors.paper,
+                                            borderColor: isEditing || isShared ? colors.ink : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'),
+                                            borderWidth: isEditing || isShared ? 0 : 1,
+                                        }
                                     ]}
                                     onPress={async () => {
                                         if (isEditing) {
@@ -563,29 +594,30 @@ export default function PageDetail() {
                                     }}
                                 >
                                     {isEditing ? (
-                                        <NotePencil size={24} color={colors.ink} weight="fill" style={{ marginBottom: 8 }} />
+                                        <NotePencil size={24} color={colors.paper} weight="fill" style={{ marginBottom: SPACING.s }} />
                                     ) : (
                                         isShared ? (
-                                            <PlusCircle size={24} color={colors.ink} weight="fill" style={{ marginBottom: 8 }} />
+                                            <PlusCircle size={24} color={colors.paper} weight="fill" style={{ marginBottom: SPACING.s }} />
                                         ) : (
-                                            <ArrowSquareOut size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
+                                            <ArrowSquareOut size={24} color={colors.ink} weight="bold" style={{ marginBottom: SPACING.s }} />
                                         )
                                     )}
-                                    <Typography variant="label" color={isEditing || isShared ? "ink" : "stone"} numberOfLines={1} adjustsFontSizeToFit>
+                                    <Typography variant="label" color={isEditing || isShared ? "paper" : "ink"} numberOfLines={1} adjustsFontSizeToFit style={{ fontWeight: '700' }}>
                                         {isEditing ? (saving ? 'Saving...' : 'Save') : (isShared ? (saving ? 'Adding...' : 'Save') : 'Original')}
                                     </Typography>
                                 </TouchableOpacity>
                                 {!isEditing && (
                                     <>
+                                        {/* Secondary Actions */}
                                         <TouchableOpacity
-                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
                                             onPress={() => setShowDirectShare(true)}
                                         >
-                                            <PaperPlaneTilt size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Send</Typography>
+                                            <PaperPlaneTilt size={22} color={colors.textSecondary} weight="regular" style={{ marginBottom: SPACING.s }} />
+                                            <Typography variant="label" color="textSecondary" numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 10 }}>Send</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
                                             onPress={async () => {
                                                 const textToCopy = page?.content || `# ${page?.title}\n\n${page?.summary}`;
                                                 await Clipboard.setStringAsync(textToCopy);
@@ -593,15 +625,15 @@ export default function PageDetail() {
                                                 Alert.alert("Copied", "Sift contents copied to clipboard.");
                                             }}
                                         >
-                                            <Copy size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Copy</Typography>
+                                            <Copy size={22} color={colors.textSecondary} weight="regular" style={{ marginBottom: SPACING.s }} />
+                                            <Typography variant="label" color="textSecondary" numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 10 }}>Copy</Typography>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
+                                            style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
                                             onPress={handleShare}
                                         >
-                                            <Export size={24} color={colors.stone} weight="thin" style={{ marginBottom: 8 }} />
-                                            <Typography variant="label" color="stone" numberOfLines={1} adjustsFontSizeToFit>Share</Typography>
+                                            <Export size={22} color={colors.textSecondary} weight="regular" style={{ marginBottom: SPACING.s }} />
+                                            <Typography variant="label" color="textSecondary" numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 10 }}>Share</Typography>
                                         </TouchableOpacity>
                                     </>
                                 )}
@@ -745,6 +777,18 @@ const styles = StyleSheet.create({
     },
     navButton: {
         marginTop: 4,
+    },
+    progressContainer: {
+        height: 2,
+        backgroundColor: 'transparent',
+        width: '100%',
+        marginHorizontal: 24,
+        marginBottom: 8,
+    },
+    progressBar: {
+        height: 2,
+        borderRadius: 1,
+        transition: 'width 0.1s ease-out',
     },
     headerTitleBox: {
         flex: 1,

@@ -70,10 +70,10 @@ export function HomeHeader({ user, tier, pagesCount }: HomeHeaderProps) {
 
 const styles = StyleSheet.create({
     container: {
-        paddingTop: SPACING.m,
+        // Removed paddingTop to let parent control vertical rhythm
     },
     bentoContainer: {
-        paddingHorizontal: SPACING.m,
+        // Removed paddingHorizontal to prevent double-padding when placed in index.tsx
         marginBottom: SPACING.m,
     },
     bentoHeader: {
@@ -99,6 +99,6 @@ const styles = StyleSheet.create({
     userName: {
         color: COLORS.text,
         fontSize: 32,
-        lineHeight: 38,
+        lineHeight: 34, // Reduced from 38 to fix bottom padding illusion
     }
 });

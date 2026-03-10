@@ -156,7 +156,13 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                             {domain.toUpperCase() || 'SIFT'}
                         </Typography>
 
-                        <Typography variant="h3" color="text" style={{ marginBottom: 6, fontSize: 18, lineHeight: 24 }}>
+                        <Typography
+                            variant="h3"
+                            color="text"
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                            style={{ marginBottom: 6, fontSize: 18, lineHeight: 24 }}
+                        >
                             {displayTitle}
                         </Typography>
 
@@ -165,6 +171,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                                 variant="body"
                                 color="textSecondary"
                                 numberOfLines={2}
+                                ellipsizeMode="tail"
                                 style={{ opacity: 0.8, lineHeight: 20 }}
                             >
                                 {stripMarkdown(gist)}

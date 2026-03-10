@@ -1,13 +1,13 @@
-import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Keyboard, StyleSheet, Alert, ActivityIndicator, Platform, Pressable } from "react-native";
+import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Keyboard, StyleSheet, Alert, ActivityIndicator, Platform } from "react-native";
 import { useEffect, useCallback, useRef, useMemo, useState } from "react";
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import Animated, { LinearTransition } from "react-native-reanimated";
 import {
-    MagnifyingGlass, SquaresFour, Rows, XCircle, X, Archive, Trash, Plus, ImageSquare,
-    ClockCounterClockwise, TextAa, Globe, House, User, Books, Fingerprint, FolderOpen
+    MagnifyingGlass, SquaresFour, Rows, XCircle, X, Archive, Plus, ImageSquare,
+    ClockCounterClockwise, TextAa, Globe
 } from 'phosphor-react-native';
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from "../../lib/supabase";
@@ -30,9 +30,9 @@ import { useSiftQueue } from "../../hooks/useSiftQueue";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import { safeSift } from "../../lib/sift-api";
 import { stripMarkdown } from "../../lib/utils";
+import Constants from 'expo-constants';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://sift-api.vercel.app';
-import Constants from 'expo-constants';
 
 export default function HomeScreen() {
     const { user, tier, profile, refreshProfile, loading: authLoading } = useAuth();
@@ -42,7 +42,6 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const scrollViewRef = useRef<ScrollView>(null);
-    const inputRef = useRef<TextInput>(null);
 
     // Modular Hooks
     const {
@@ -63,7 +62,6 @@ export default function HomeScreen() {
     } = usePages();
 
     const {
-        addToQueue,
         manualUrl,
         setManualUrl,
         handleSubmitUrl,
@@ -254,49 +252,58 @@ export default function HomeScreen() {
         <View style={styles.headerContainer}>
             <HomeHeader user={user} tier={tier} pagesCount={pages.length} />
 
-            <View style={styles.actionRow}>
+            {/* Omni-Action Hero Card */}
+            <View style={styles.omniActionCard}>
                 <View style={styles.inputWrapper}>
                     <TouchableOpacity onPress={pickAndSift} style={styles.iconButton}>
-                        <ImageSquare size={20} color={COLORS.stone} />
+                        <ImageSquare size={22} color={COLORS.stone} />
                     </TouchableOpacity>
                     <TextInput
                         style={styles.textInput}
-                        placeholder="sift a link or image here!"
+                        placeholder="Paste a link to sift..."
                         placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}
                         onSubmitEditing={handleSubmitUrl}
+                        returnKeyType="go"
                     />
-                    <TouchableOpacity onPress={handleSubmitUrl} style={styles.submitButton}>
+                    <TouchableOpacity
+                        onPress={handleSubmitUrl}
+                        style={[styles.submitButton, manualUrl.length > 0 ? styles.submitButtonActive : null]}
+                    >
                         {isProcessingQueue || isSiftingImage ? (
-                            <ActivityIndicator size="small" color={COLORS.ink} />
+                            <ActivityIndicator size="small" color={manualUrl.length > 0 ? '#FFF' : COLORS.ink} />
                         ) : (
-                            <Plus size={20} color={COLORS.ink} weight="bold" />
+                            <Plus size={20} color={manualUrl.length > 0 ? '#FFF' : COLORS.ink} weight="bold" />
                         )}
                     </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                    onPress={() => {
-                        triggerHaptic('selection');
-                        setViewMode(v => v === 'grid' ? 'list' : 'grid');
-                    }}
-                    style={styles.viewToggle}
-                >
-                    {viewMode === 'grid' ? <Rows size={20} color={COLORS.ink} /> : <SquaresFour size={20} color={COLORS.ink} />}
-                </TouchableOpacity>
+                <SiftLimitTracker />
             </View>
 
             {/* Daily Catch Up */}
             {activeFilter === 'All' && searchQuery === '' && dailySifts.length > 0 && (
-                <View style={styles.catchUpContainer}>
-                    <Typography variant="label" color="stone" style={styles.sectionLabel}>DAILY CATCH UP</Typography>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catchUpList}>
+                <View style={[styles.catchUpSection, { marginHorizontal: -SPACING.m }]}>
+                    <Typography
+                        variant="caption"
+                        color="stone"
+                        style={[styles.editorialLabel, { paddingHorizontal: SPACING.m }]}
+                    >
+                        DAILY CATCH UP
+                    </Typography>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={[styles.catchUpList, { paddingHorizontal: SPACING.m }]}
+                        snapToInterval={260 + SPACING.s} // card width + gap
+                        decelerationRate="fast"
+                    >
                         {dailySifts.map((sift) => (
                             <TouchableOpacity
                                 key={sift.id}
                                 onPress={() => router.push(`/page/${sift.id}?contextType=feed`)}
                                 style={styles.catchUpCard}
+                                activeOpacity={0.8}
                             >
                                 <Typography variant="body" style={styles.catchUpTitle} numberOfLines={2}>
                                     {sift.title}
@@ -310,63 +317,73 @@ export default function HomeScreen() {
                 </View>
             )}
 
-            {activeFilter === 'All' && searchQuery === '' && (
-                <Typography variant="label" color="stone" style={[styles.sectionLabel, { marginTop: SPACING.m }]}>RECENTLY SIFTED</Typography>
-            )}
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search your library..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery("")}>
-                            <XCircle size={18} color={COLORS.stone} weight="fill" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </View>
-
-            <FilterBar
-                filters={[{ id: 'All', text: 'All' }, ...dynamicTags.map(t => ({ id: t, text: t }))]}
-                activeFilter={activeFilter}
-                onSelect={setActiveFilter}
-            />
-
-            {/* Sort Toggle */}
-            <View style={styles.sortRow}>
-                <TouchableOpacity
-                    onPress={() => {
-                        triggerHaptic('impact');
-                        const modes: ('date' | 'title' | 'domain')[] = ['date', 'title', 'domain'];
-                        updateSortBy(modes[(modes.indexOf(sortBy) + 1) % modes.length]);
-                    }}
-                    activeOpacity={0.7}
-                >
-                    <Animated.View
-                        layout={LinearTransition.springify().damping(18).stiffness(150)}
-                        style={styles.sortBadge}
+            {/* Unified Control Center */}
+            <View style={styles.controlCenter}>
+                {activeFilter === 'All' && searchQuery === '' && (
+                    <Typography
+                        variant="caption"
+                        color="stone"
+                        style={[styles.editorialLabel, { marginBottom: SPACING.m }]}
                     >
-                        {sortBy === 'date' ? (
-                            <ClockCounterClockwise size={14} color={COLORS.stone} weight="bold" />
-                        ) : sortBy === 'title' ? (
-                            <TextAa size={14} color={COLORS.stone} weight="bold" />
-                        ) : (
-                            <Globe size={14} color={COLORS.stone} weight="bold" />
+                        LIBRARY
+                    </Typography>
+                )}
+
+                {/* Search, Sort & View Controls Row */}
+                <View style={styles.searchRow}>
+                    <View style={styles.searchBar}>
+                        <MagnifyingGlass size={18} color={COLORS.stone} weight="bold" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search everything..."
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholderTextColor={COLORS.stone}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery("")}>
+                                <XCircle size={18} color={COLORS.stone} weight="fill" />
+                            </TouchableOpacity>
                         )}
-                        <Typography variant="caption" color="stone" style={styles.sortText}>
-                            {sortBy === 'date' ? 'NEWEST' : sortBy === 'title' ? 'A→Z' : 'DOMAIN'}
-                        </Typography>
-                    </Animated.View>
-                </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => {
+                            triggerHaptic('impact');
+                            const modes: ('date' | 'title' | 'domain')[] = ['date', 'title', 'domain'];
+                            updateSortBy(modes[(modes.indexOf(sortBy) + 1) % modes.length]);
+                        }}
+                        activeOpacity={0.7}
+                        style={styles.sortButton}
+                    >
+                        <Animated.View layout={LinearTransition.springify().damping(18).stiffness(150)}>
+                            {sortBy === 'date' ? (
+                                <ClockCounterClockwise size={18} color={COLORS.ink} weight="bold" />
+                            ) : sortBy === 'title' ? (
+                                <TextAa size={18} color={COLORS.ink} weight="bold" />
+                            ) : (
+                                <Globe size={18} color={COLORS.ink} weight="bold" />
+                            )}
+                        </Animated.View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => {
+                            triggerHaptic('selection');
+                            setViewMode(v => v === 'grid' ? 'list' : 'grid');
+                        }}
+                        style={styles.viewToggle}
+                    >
+                        {viewMode === 'grid' ? <Rows size={18} color={COLORS.ink} weight="bold" /> : <SquaresFour size={18} color={COLORS.ink} weight="bold" />}
+                    </TouchableOpacity>
+                </View>
+
+                {/* Filters Row */}
+                <FilterBar
+                    filters={[{ id: 'All', text: 'All' }, ...dynamicTags.map(t => ({ id: t, text: t }))]}
+                    activeFilter={activeFilter}
+                    onSelect={setActiveFilter}
+                />
             </View>
 
-            <SiftLimitTracker />
         </View>
     ), [pages, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts, sortBy, viewMode, isProcessingQueue]);
 
@@ -420,7 +437,7 @@ export default function HomeScreen() {
                     <TouchableOpacity onPress={() => setSelectedIds(new Set())}>
                         <X size={20} color="#FFF" weight="bold" />
                     </TouchableOpacity>
-                    <Typography variant="label" style={{ color: '#FFF', marginLeft: 12 }}>
+                    <Typography variant="label" style={{ color: '#FFF', marginLeft: SPACING.s }}>
                         {selectedIds.size} selected
                     </Typography>
                     <View style={{ flex: 1 }} />
@@ -471,40 +488,111 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     headerContainer: {
         paddingHorizontal: SPACING.m,
-        gap: SPACING.m,
-        paddingBottom: SPACING.s,
+        paddingBottom: SPACING.xs,
+        gap: SPACING.m, // Reduced gap to tighten hierarchy
     },
-    actionRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.s,
-    },
-    inputWrapper: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
+    omniActionCard: {
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.m,
-        paddingHorizontal: SPACING.s,
-        height: 52,
+        borderRadius: RADIUS.l,
+        padding: SPACING.xs,
         borderWidth: 1,
         borderColor: COLORS.border,
+        ...Theme.shadows.soft, // Softer shadow to reduce prominence
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 48, // Reduced height to be less prominent
+        paddingHorizontal: SPACING.s,
     },
     iconButton: {
         padding: SPACING.xs,
+        marginRight: 4,
     },
     textInput: {
         flex: 1,
-        fontSize: 16,
+        fontFamily: 'Satoshi-Medium',
+        fontSize: 15, // Matches bodyMedium from typography scale
         color: COLORS.text,
         paddingHorizontal: SPACING.xs,
     },
     submitButton: {
         padding: SPACING.s,
+        borderRadius: RADIUS.m,
+        backgroundColor: COLORS.paper,
+        borderWidth: 1,
+        borderColor: COLORS.separator,
     },
-    viewToggle: {
-        width: 52,
-        height: 52,
+    submitButtonActive: {
+        backgroundColor: COLORS.ink,
+        borderColor: COLORS.ink,
+    },
+    editorialLabel: {
+        fontFamily: 'GeistMono_400Regular',
+        letterSpacing: 2,
+        fontSize: 10, // Intentionally small for editorial caps
+        opacity: 0.6,
+        marginBottom: SPACING.s,
+    },
+    catchUpSection: {
+        // Removed marginTop, leaning on parent gap: SPACING.l
+    },
+    catchUpList: {
+        gap: SPACING.s,
+        paddingBottom: SPACING.s, // Padding for shadow drop
+    },
+    catchUpCard: {
+        width: 260,
+        minHeight: 110, // Let height flow automatically
+        backgroundColor: COLORS.paper,
+        borderRadius: RADIUS.l,
+        padding: SPACING.m,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.06)',
+        justifyContent: 'center',
+        ...Theme.shadows.soft
+    },
+    catchUpTitle: {
+        fontFamily: 'Satoshi-Bold',
+        fontSize: 15, // Matches bodyMedium base size
+        marginBottom: SPACING.xs,
+        color: COLORS.ink,
+    },
+    catchUpSummary: {
+        lineHeight: 18,
+        opacity: 0.8,
+    },
+    controlCenter: {
+        // Removed marginTop, relying on parent padding/gap
+        paddingBottom: SPACING.s,
+    },
+    searchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.s,
+        marginBottom: SPACING.m,
+    },
+    searchBar: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.m,
+        paddingHorizontal: SPACING.m,
+        height: 48,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    searchInput: {
+        flex: 1,
+        fontFamily: 'Satoshi-Medium',
+        fontSize: 15, // Matches bodyMedium
+        color: COLORS.text,
+        marginLeft: SPACING.s,
+    },
+    sortButton: {
+        width: 48,
+        height: 48,
         borderRadius: RADIUS.m,
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -512,76 +600,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    sectionLabel: {
-        letterSpacing: 1.5,
-        fontSize: 10,
-        fontWeight: '700',
-        marginBottom: SPACING.xs,
-    },
-    catchUpContainer: {
-        marginTop: SPACING.s,
-    },
-    catchUpList: {
-        gap: 12,
-        paddingRight: 20,
-    },
-    catchUpCard: {
-        width: 240,
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.l,
-        padding: SPACING.m,
+    viewToggle: {
+        width: 48,
+        height: 48,
+        borderRadius: RADIUS.m,
+        backgroundColor: COLORS.surface,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
-        ...Theme.shadows.soft
-    },
-    catchUpTitle: {
-        fontWeight: '600',
-        marginBottom: 4,
-    },
-    catchUpSummary: {
-        lineHeight: 16,
-    },
-    searchContainer: {
-        marginTop: SPACING.xs,
-    },
-    searchBar: {
-        flexDirection: 'row',
+        borderColor: COLORS.border,
+        justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.l,
-        paddingHorizontal: SPACING.m,
-        height: 52,
-        borderWidth: 1,
-        borderColor: COLORS.separator,
-        ...Theme.shadows.soft,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 15,
-        color: COLORS.text,
-        marginLeft: SPACING.s,
-    },
-    sortRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginTop: -SPACING.xs,
-    },
-    sortBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: COLORS.paper,
-        borderRadius: RADIUS.pill,
-        borderWidth: 1,
-        borderColor: COLORS.separator,
-        ...Theme.shadows.soft,
-    },
-    sortText: {
-        fontSize: 11,
-        fontWeight: '600',
-        letterSpacing: 0.5,
     },
     batchToolbar: {
         position: 'absolute',

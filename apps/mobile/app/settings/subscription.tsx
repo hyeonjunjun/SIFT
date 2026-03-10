@@ -49,7 +49,7 @@ export default function SubscriptionScreen() {
             name: 'Unlimited',
             icon: InfinityIcon,
             sub: 'Sifts without limits',
-            price: offerings?.annual?.product.priceString ? `${offerings.annual.product.priceString} / yr` : null
+            price: offerings?.availablePackages.find(p => p.identifier === 'unlimited')?.product.priceString ? `${offerings.availablePackages.find(p => p.identifier === 'unlimited')?.product.priceString} / mo` : null
         },
     ];
 
@@ -75,7 +75,9 @@ export default function SubscriptionScreen() {
             return;
         }
 
-        const packageToBuy = tierId === 'plus' ? offerings?.monthly : offerings?.annual;
+        const packageToBuy = tierId === 'plus'
+            ? offerings?.monthly
+            : offerings?.availablePackages.find(p => p.identifier === 'unlimited');
 
         if (!packageToBuy) {
             // Silently return, button should be disabled anyway.
@@ -283,7 +285,11 @@ function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
                         variant="label"
                         style={{ color: isCurrent ? (isPremium ? COLORS.paper : COLORS.ink) : !isAvailable ? COLORS.stone : (isPremium ? COLORS.ink : COLORS.paper), fontSize: 12, letterSpacing: 1 }}
                     >
-                        {isCurrent ? `ACTIVE PLAN${tier.price ? ` • ${tier.price.toUpperCase()}` : ''}` : !isAvailable ? "UNAVAILABLE" : "CHANGE PLANS"}
+                        {isCurrent
+                            ? `ACTIVE PLAN${tier.price ? ` • ${tier.price.toUpperCase()}` : ''}`
+                            : !isAvailable
+                                ? "UNAVAILABLE"
+                                : "CHANGE PLANS"}
                     </Typography>
                 </View>
             </TouchableOpacity>

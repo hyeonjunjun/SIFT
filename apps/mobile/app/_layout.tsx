@@ -160,46 +160,6 @@ function RootLayoutNav() {
         }
     }, []);
 
-    // RevenueCat Initialization
-    useEffect(() => {
-        const initPurchases = async () => {
-            if (Platform.OS === 'web') return; // Skip RevenueCat on Web
-
-            if (Platform.OS === 'ios') {
-                if (process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY) {
-                    await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY });
-                }
-            } else if (Platform.OS === 'android') {
-                if (process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY) {
-                    await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY });
-                }
-            }
-        };
-        initPurchases();
-    }, []);
-
-    // RevenueCat User Identification
-    useEffect(() => {
-        const syncUser = async () => {
-            if (Platform.OS === 'web') return; // Skip RevenueCat on Web
-
-            try {
-                if (session?.user?.id) {
-                    await Purchases.logIn(session.user.id);
-                } else {
-                    // Check if we even need to log out (avoids error if already anonymous)
-                    const customerInfo = await Purchases.getCustomerInfo();
-                    if (customerInfo?.originalAppUserId && !customerInfo.originalAppUserId.startsWith("$RCAnonymousID")) {
-                        await Purchases.logOut();
-                    }
-                }
-            } catch (error) {
-                console.warn('[RevenueCat] Sync error:', error);
-            }
-        };
-        syncUser();
-    }, [session?.user?.id]);
-
     const [fontsLoaded] = useFonts({
         PlayfairDisplay_700Bold,
         PlayfairDisplay_600SemiBold,
@@ -215,9 +175,63 @@ function RootLayoutNav() {
     });
 
     const [appReady, setAppReady] = useState(false);
+    const [rcReady, setRcReady] = useState(false);
     const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
     const [splashDismissed, setSplashDismissed] = useState(false);
     const splashHiddenRef = React.useRef(false);
+
+    // RevenueCat Initialization
+    useEffect(() => {
+        const initPurchases = async () => {
+            if (Platform.OS === 'web') {
+                setRcReady(true);
+                return;
+            }
+
+            try {
+                const appleKey = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY;
+                const googleKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY;
+
+                if (Platform.OS === 'ios' && appleKey) {
+                    console.log('[RevenueCat] Configuring for iOS...');
+                    await Purchases.configure({ apiKey: appleKey });
+                } else if (Platform.OS === 'android' && googleKey) {
+                    console.log('[RevenueCat] Configuring for Android...');
+                    await Purchases.configure({ apiKey: googleKey });
+                } else {
+                    console.warn('[RevenueCat] No API key found for platform:', Platform.OS);
+                }
+            } catch (error) {
+                console.error('[RevenueCat] Configuration error:', error);
+            } finally {
+                setRcReady(true);
+            }
+        };
+        initPurchases();
+    }, []);
+
+    // RevenueCat User Identification
+    useEffect(() => {
+        const syncUser = async () => {
+            if (Platform.OS === 'web' || !rcReady) return;
+
+            try {
+                if (session?.user?.id) {
+                    console.log('[RevenueCat] Syncing user:', session.user.id);
+                    await Purchases.logIn(session.user.id);
+                } else {
+                    const customerInfo = await Purchases.getCustomerInfo();
+                    if (customerInfo?.originalAppUserId && !customerInfo.originalAppUserId.startsWith("$RCAnonymousID")) {
+                        console.log('[RevenueCat] Logging out user');
+                        await Purchases.logOut();
+                    }
+                }
+            } catch (error) {
+                console.warn('[RevenueCat] Sync error:', error);
+            }
+        };
+        syncUser();
+    }, [session?.user?.id, rcReady]);
 
     // Initial Preparation
     useEffect(() => {
@@ -230,8 +244,6 @@ function RootLayoutNav() {
         splashHiddenRef.current = true;
 
         try {
-            // Only attempt to hide if we successfully called preventAutoHide
-            // otherwise hideAsync will throw the "No native splash screen registered" error.
             if (isSplashPrevented) {
                 await SplashScreenIs.hideAsync().catch(() => { /* Benign */ });
             }
@@ -242,8 +254,6 @@ function RootLayoutNav() {
 
     // Splash Dismissal Logic
     useEffect(() => {
-        // Safety timeout: Force hide splash after 6 seconds regardless of state
-        // Runs once on mount to ensure we never get stuck
         const safetyTimer = setTimeout(() => {
             console.log("[Splash] Safety timer triggered.");
             setSplashDismissed(true);
@@ -254,11 +264,11 @@ function RootLayoutNav() {
     }, [safeHideSplash]);
 
     useEffect(() => {
-        if (appReady && fontsLoaded && splashAnimationFinished && !authLoading) {
+        if (appReady && fontsLoaded && splashAnimationFinished && !authLoading && rcReady) {
             setSplashDismissed(true);
             safeHideSplash();
         }
-    }, [appReady, fontsLoaded, splashAnimationFinished, authLoading, safeHideSplash]);
+    }, [appReady, fontsLoaded, splashAnimationFinished, authLoading, safeHideSplash, rcReady]);
 
     // Auth Redirection Logic
     useEffect(() => {
