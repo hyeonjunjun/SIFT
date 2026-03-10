@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Linking } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Linking, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { CaretLeft, Check, Crown, Star, ArrowsClockwise as InfinityIcon, ArrowUpRight } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
@@ -8,7 +8,7 @@ import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../context/ThemeContext';
-import { useSubscription, Tier } from '../../hooks/useSubscription';
+import { useSubscription, Tier, TIER_LIMITS } from '../../hooks/useSubscription';
 import { MotiView } from 'moti';
 import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { useEffect, useState } from 'react';
@@ -20,6 +20,8 @@ export default function SubscriptionScreen() {
     const { refreshCount } = useSubscription();
     const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
     const [loading, setLoading] = useState(false);
+    const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+    const [showLegalDetails, setShowLegalDetails] = useState(false);
 
     useEffect(() => {
         const fetchOfferings = async () => {
@@ -35,33 +37,66 @@ export default function SubscriptionScreen() {
         fetchOfferings();
     }, []);
 
-    const tiers: { id: Tier; name: string; icon: any; sub: string; price: string | null }[] = [
-        { id: 'free', name: 'Starter', icon: Star, sub: 'For casual curators', price: 'Free' },
+    // Fallback prices from tier capabilities
+    const getFallbackPrice = (tierId: Tier, period: 'monthly' | 'annual') => {
+        if (tierId === 'free') return 'Free';
+        const monthlyPrice = parseFloat(TIER_LIMITS[tierId].price.replace('$', ''));
+        if (period === 'annual') {
+            const annualPrice = (monthlyPrice * 12 * 0.8).toFixed(2); // 20% discount
+            return `$${annualPrice} / yr`;
+        }
+        return `${TIER_LIMITS[tierId].price} / mo`;
+    };
+
+    const getAnnualSavings = (tierId: Tier) => {
+        const monthlyPrice = parseFloat(TIER_LIMITS[tierId].price.replace('$', ''));
+        const annualTotal = monthlyPrice * 12;
+        const discountedAnnual = annualTotal * 0.8;
+        const savings = annualTotal - discountedAnnual;
+        return `Save $${savings.toFixed(0)}`;
+    };
+
+    const tiers: { id: Tier; name: string; icon: any; sub: string; price: string; savings?: string }[] = [
+        { id: 'free', name: 'Free', icon: Star, sub: 'Start your curation journey', price: 'Free' },
         {
             id: 'plus',
             name: 'Pro',
             icon: Crown,
-            sub: 'Power through noise',
-            price: offerings?.monthly?.product.priceString ? `${offerings.monthly.product.priceString} / mo` : null
+            sub: 'Unlock AI-powered insights',
+            price: billingPeriod === 'monthly'
+                ? (offerings?.monthly?.product.priceString
+                    ? `${offerings.monthly.product.priceString} / mo`
+                    : getFallbackPrice('plus', 'monthly'))
+                : (offerings?.availablePackages.find(p => p.identifier === 'plus_annual')?.product.priceString
+                    ? `${offerings.availablePackages.find(p => p.identifier === 'plus_annual')?.product.priceString} / yr`
+                    : getFallbackPrice('plus', 'annual')),
+            savings: billingPeriod === 'annual' ? getAnnualSavings('plus') : undefined
         },
         {
             id: 'unlimited',
             name: 'Unlimited',
             icon: InfinityIcon,
             sub: 'Sifts without limits',
-            price: offerings?.availablePackages.find(p => p.identifier === 'unlimited')?.product.priceString ? `${offerings.availablePackages.find(p => p.identifier === 'unlimited')?.product.priceString} / mo` : null
+            price: billingPeriod === 'monthly'
+                ? (offerings?.availablePackages.find(p => p.identifier === 'unlimited')?.product.priceString
+                    ? `${offerings.availablePackages.find(p => p.identifier === 'unlimited')?.product.priceString} / mo`
+                    : getFallbackPrice('unlimited', 'monthly'))
+                : (offerings?.availablePackages.find(p => p.identifier === 'unlimited_annual')?.product.priceString
+                    ? `${offerings.availablePackages.find(p => p.identifier === 'unlimited_annual')?.product.priceString} / yr`
+                    : getFallbackPrice('unlimited', 'annual')),
+            savings: billingPeriod === 'annual' ? getAnnualSavings('unlimited') : undefined
         },
     ];
 
     const handleUpgrade = async (tierId: Tier) => {
         if (tierId === 'free') {
             Alert.alert(
-                "Manage Subscription",
-                "To switch to the Starter plan, please cancel your active subscription in your device's settings. You'll keep your premium features until the end of your billing cycle.",
+                "Switch to Free Plan",
+                `To downgrade to the Free plan, you'll need to cancel your subscription through ${Platform.OS === 'ios' ? 'App Store' : 'Google Play'}.\n\nDon't worry - you'll keep all your premium features until your current billing period ends.`,
                 [
-                    { text: "Cancel", style: "cancel" },
+                    { text: "Not Now", style: "cancel" },
                     {
-                        text: "Open Settings",
+                        text: `Open ${Platform.OS === 'ios' ? 'App Store' : 'Google Play'}`,
                         onPress: () => {
                             if (Platform.OS === 'ios') {
                                 Linking.openURL('https://apps.apple.com/account/subscriptions');
@@ -75,12 +110,23 @@ export default function SubscriptionScreen() {
             return;
         }
 
-        const packageToBuy = tierId === 'plus'
-            ? offerings?.monthly
-            : offerings?.availablePackages.find(p => p.identifier === 'unlimited');
+        let packageToBuy;
+        if (tierId === 'plus') {
+            packageToBuy = billingPeriod === 'monthly'
+                ? offerings?.monthly
+                : offerings?.availablePackages.find(p => p.identifier === 'plus_annual');
+        } else {
+            packageToBuy = billingPeriod === 'monthly'
+                ? offerings?.availablePackages.find(p => p.identifier === 'unlimited')
+                : offerings?.availablePackages.find(p => p.identifier === 'unlimited_annual');
+        }
 
         if (!packageToBuy) {
-            // Silently return, button should be disabled anyway.
+            Alert.alert(
+                "Connection Issue",
+                "We're having trouble connecting to the App Store. Please check your internet connection and try again in a moment.",
+                [{ text: "OK" }]
+            );
             return;
         }
 
@@ -165,24 +211,72 @@ export default function SubscriptionScreen() {
                     </Typography>
 
                     {!offerings && !loading && (
-                        <View style={styles.errorContainer}>
-                            <Typography variant="caption" style={styles.errorText}>
-                                Membership plans are currently unavailable. Check your internet connection or try again later.
+                        <View style={styles.infoContainer}>
+                            <Typography variant="caption" style={styles.infoText}>
+                                Showing estimated prices. Actual prices may vary by region.
                             </Typography>
                         </View>
                     )}
                 </View>
 
+                {/* Billing Period Toggle */}
+                <View style={styles.billingToggleContainer}>
+                    <TouchableOpacity
+                        style={[
+                            styles.billingOption,
+                            billingPeriod === 'monthly' && styles.billingOptionActive
+                        ]}
+                        onPress={() => setBillingPeriod('monthly')}
+                        activeOpacity={0.7}
+                    >
+                        <Typography
+                            variant="label"
+                            style={[
+                                styles.billingOptionText,
+                                billingPeriod === 'monthly' && styles.billingOptionTextActive
+                            ]}
+                        >
+                            Monthly
+                        </Typography>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.billingOption,
+                            billingPeriod === 'annual' && styles.billingOptionActive
+                        ]}
+                        onPress={() => setBillingPeriod('annual')}
+                        activeOpacity={0.7}
+                    >
+                        <Typography
+                            variant="label"
+                            style={[
+                                styles.billingOptionText,
+                                billingPeriod === 'annual' && styles.billingOptionTextActive
+                            ]}
+                        >
+                            Annual
+                        </Typography>
+                        <View style={styles.savingsBadge}>
+                            <Typography variant="caption" style={styles.savingsBadgeText}>
+                                Save 20%
+                            </Typography>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+
                 {tiers.map((tier, index) => {
-                    const isAvailable = tier.id === 'free' || tier.price !== null;
+                    // All tiers are available since we have fallback prices
+                    const isAvailable = true;
+                    const isCurrent = currentTier === tier.id || (tier.id === 'unlimited' && currentTier === 'admin');
                     return (
                         <TierCard
                             key={tier.id}
                             tier={tier}
-                            isCurrent={currentTier === tier.id || (tier.id === 'unlimited' && currentTier === 'admin')}
-                            onPress={() => (tier.id !== currentTier && !(tier.id === 'unlimited' && currentTier === 'admin') && isAvailable) && handleUpgrade(tier.id)}
+                            isCurrent={isCurrent}
+                            onPress={() => !isCurrent && isAvailable && handleUpgrade(tier.id)}
                             index={index}
                             isAvailable={isAvailable}
+                            isLoading={loading && !isCurrent}
                         />
                     );
                 })}
@@ -202,34 +296,83 @@ export default function SubscriptionScreen() {
                 </View>
 
                 <View style={styles.legalInfo}>
-                    <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5, marginBottom: 12 }}>
-                        Subscriptions are managed via the Apple App Store or Google Play Store. Cancel anytime in your account settings.
-                    </Typography>
-                    <Typography variant="caption" style={{ textAlign: 'center', opacity: 0.5 }}>
-                        Payments are processed securely. Upgrades are charged immediately at a prorated difference. Downgrades or cancellations will leave your current higher-tier access active until your next billing/termination date.
-                    </Typography>
+                    <View style={styles.legalHighlights}>
+                        <Typography variant="caption" style={styles.legalHighlight}>
+                            ✓ Cancel anytime
+                        </Typography>
+                        <View style={styles.dot} />
+                        <Typography variant="caption" style={styles.legalHighlight}>
+                            ✓ Secure payments
+                        </Typography>
+                        <View style={styles.dot} />
+                        <Typography variant="caption" style={styles.legalHighlight}>
+                            ✓ No hidden fees
+                        </Typography>
+                    </View>
+
+                    <TouchableOpacity
+                        onPress={() => setShowLegalDetails(!showLegalDetails)}
+                        style={styles.legalToggle}
+                    >
+                        <Typography variant="caption" style={styles.legalToggleText}>
+                            {showLegalDetails ? "Hide" : "View"} subscription details
+                        </Typography>
+                    </TouchableOpacity>
+
+                    {showLegalDetails && (
+                        <MotiView
+                            from={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ type: 'timing', duration: 200 }}
+                            style={styles.legalDetails}
+                        >
+                            <Typography variant="caption" style={styles.legalDetailText}>
+                                • Subscriptions managed via {Platform.OS === 'ios' ? 'Apple App Store' : 'Google Play Store'}{'\n'}
+                                • Upgrades charged immediately with prorated pricing{'\n'}
+                                • Premium access continues until end of billing period{'\n'}
+                                • Automatic renewal unless canceled 24 hours before period ends
+                            </Typography>
+                        </MotiView>
+                    )}
                 </View>
             </ScrollView>
         </ScreenWrapper>
     );
 }
 
-function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
+function TierCard({ tier, isCurrent, onPress, index, isAvailable = true, isLoading = false }: {
     tier: any;
     isCurrent: boolean;
     onPress: () => void;
     index: number;
     isAvailable?: boolean;
+    isLoading?: boolean;
 }) {
     const { colors } = useTheme();
     const Icon = tier.icon;
     const isPremium = tier.id !== 'free';
 
     const benefits = tier.id === 'free'
-        ? ["10 Total Sifts", "Basic Link Support", "Social Integration"]
+        ? [
+            "10 sifts to get started",
+            "Single image per sift",
+            "Basic URL & text support",
+            "Core features included"
+        ]
         : tier.id === 'plus'
-            ? ["50 Total Sifts", "Smart Data Extraction", "Priority Processing", "Multiple Image Scan"]
-            : ["Unlimited Sifts", "Advanced Video Analysis", "Infinite History", "Early Beta Access"];
+            ? [
+                "50 sifts per month",
+                "Up to 5 images per sift",
+                "AI-powered data extraction",
+                "Priority support & processing"
+            ]
+            : [
+                "Unlimited sifts forever",
+                "Unlimited images & videos",
+                "Advanced AI video analysis",
+                "Early access to new features"
+            ];
 
     return (
         <MotiView
@@ -260,11 +403,14 @@ function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
                         <Typography variant="caption" style={{ color: isPremium ? 'rgba(253, 252, 248, 0.7)' : COLORS.stone }}>{tier.sub}</Typography>
                     </View>
                     <View style={styles.priceContainer}>
-                        {tier.price ? (
-                            <Typography variant="h3" style={{ color: isPremium ? COLORS.paper : COLORS.ink }}>{tier.price}</Typography>
-                        ) : isCurrent ? (
-                            <Typography variant="label" style={{ color: isPremium ? 'rgba(253, 252, 248, 0.7)' : COLORS.stone, fontSize: 10 }}>INCLUDED</Typography>
-                        ) : null}
+                        <Typography variant="h3" style={{ color: isPremium ? COLORS.paper : COLORS.ink }}>
+                            {tier.price}
+                        </Typography>
+                        {tier.savings && (
+                            <Typography variant="caption" style={{ color: isPremium ? 'rgba(253, 252, 248, 0.7)' : COLORS.success, fontSize: 10, marginTop: 4 }}>
+                                {tier.savings}
+                            </Typography>
+                        )}
                     </View>
                 </View>
 
@@ -279,18 +425,36 @@ function TierCard({ tier, isCurrent, onPress, index, isAvailable = true }: {
 
                 <View style={[
                     styles.cardAction,
-                    { backgroundColor: isCurrent ? (isPremium ? 'rgba(255,255,255,0.1)' : COLORS.subtle) : !isAvailable ? COLORS.separator : (isPremium ? COLORS.paper : COLORS.ink) }
-                ]}>
-                    <Typography
-                        variant="label"
-                        style={{ color: isCurrent ? (isPremium ? COLORS.paper : COLORS.ink) : !isAvailable ? COLORS.stone : (isPremium ? COLORS.ink : COLORS.paper), fontSize: 12, letterSpacing: 1 }}
-                    >
-                        {isCurrent
-                            ? `ACTIVE PLAN${tier.price ? ` • ${tier.price.toUpperCase()}` : ''}`
+                    {
+                        backgroundColor: isCurrent
+                            ? (isPremium ? 'rgba(255,255,255,0.1)' : COLORS.subtle)
                             : !isAvailable
-                                ? "UNAVAILABLE"
-                                : "CHANGE PLANS"}
-                    </Typography>
+                                ? COLORS.separator
+                                : (isPremium ? COLORS.paper : COLORS.ink)
+                    }
+                ]}>
+                    {isLoading ? (
+                        <ActivityIndicator size="small" color={isPremium ? COLORS.ink : COLORS.paper} />
+                    ) : (
+                        <Typography
+                            variant="label"
+                            style={{
+                                color: isCurrent
+                                    ? (isPremium ? COLORS.paper : COLORS.ink)
+                                    : !isAvailable
+                                        ? COLORS.stone
+                                        : (isPremium ? COLORS.ink : COLORS.paper),
+                                fontSize: 12,
+                                letterSpacing: 1
+                            }}
+                        >
+                            {isCurrent
+                                ? `CURRENT PLAN • ${tier.price.toUpperCase()}`
+                                : !isAvailable
+                                    ? "CHECK CONNECTION"
+                                    : "CHANGE PLANS"}
+                        </Typography>
+                    )}
                 </View>
             </TouchableOpacity>
         </MotiView>
@@ -332,18 +496,19 @@ const styles = StyleSheet.create({
         color: COLORS.stone,
         fontSize: 16,
     },
-    errorContainer: {
+    infoContainer: {
         marginTop: 24,
         padding: 12,
-        backgroundColor: 'rgba(255, 0, 0, 0.05)',
+        backgroundColor: 'rgba(59, 130, 246, 0.05)',
         borderRadius: RADIUS.m,
         borderWidth: 1,
-        borderColor: 'rgba(255, 0, 0, 0.1)',
-        maxWidth: 300,
+        borderColor: 'rgba(59, 130, 246, 0.1)',
+        maxWidth: 320,
     },
-    errorText: {
-        color: COLORS.danger,
+    infoText: {
+        color: '#3B82F6',
         textAlign: 'center',
+        fontSize: 12,
     },
     card: {
         borderRadius: RADIUS.l,
@@ -404,6 +569,39 @@ const styles = StyleSheet.create({
         marginTop: 32,
         paddingHorizontal: 30,
     },
+    legalHighlights: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16,
+    },
+    legalHighlight: {
+        color: COLORS.success,
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    legalToggle: {
+        alignSelf: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+    },
+    legalToggleText: {
+        color: COLORS.stone,
+        textDecorationLine: 'underline',
+        fontSize: 12,
+    },
+    legalDetails: {
+        marginTop: 16,
+        padding: 16,
+        backgroundColor: COLORS.subtle,
+        borderRadius: RADIUS.m,
+    },
+    legalDetailText: {
+        color: COLORS.stone,
+        lineHeight: 20,
+        fontSize: 11,
+    },
     simulateButton: {
         marginTop: 40,
         flexDirection: 'row',
@@ -413,5 +611,48 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderRadius: RADIUS.m,
         borderStyle: 'dashed',
-    }
+    },
+    billingToggleContainer: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.subtle,
+        borderRadius: RADIUS.m,
+        padding: 4,
+        marginBottom: 24,
+        gap: 4,
+    },
+    billingOption: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: RADIUS.s,
+        alignItems: 'center',
+        position: 'relative',
+    },
+    billingOptionActive: {
+        backgroundColor: COLORS.paper,
+        ...Theme.shadows.soft,
+    },
+    billingOptionText: {
+        fontSize: 14,
+        color: COLORS.stone,
+    },
+    billingOptionTextActive: {
+        color: COLORS.ink,
+        fontWeight: '600',
+    },
+    savingsBadge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        backgroundColor: COLORS.success,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: RADIUS.xs,
+    },
+    savingsBadgeText: {
+        color: COLORS.paper,
+        fontSize: 9,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
 });

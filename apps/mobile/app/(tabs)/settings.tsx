@@ -15,6 +15,7 @@ import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UsageTracker } from "../../components/UsageTracker";
+import { UsageAnalytics } from "../../components/UsageAnalytics";
 import { useSubscription } from "../../hooks/useSubscription";
 import { useTheme } from "../../context/ThemeContext";
 import { ActionSheet } from '../../components/modals/ActionSheet';
@@ -214,6 +215,9 @@ export default function ProfileScreen() {
 
                 {/* USAGE TRACKER (Tier-Aware) */}
                 <UsageTracker />
+
+                {/* USAGE ANALYTICS */}
+                <UsageAnalytics />
 
                 {/* 2. ACCOUNT SECTION */}
                 <View style={styles.sectionHeader}>

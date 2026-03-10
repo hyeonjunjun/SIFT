@@ -17,23 +17,23 @@ export interface TierCapabilities {
     hasPriorityProcessing: boolean;
 }
 
-const TIER_LIMITS: Record<Tier, TierCapabilities> = {
+export const TIER_LIMITS: Record<Tier, TierCapabilities> = {
     free: {
-        maxImagesPerSift: 99,
+        maxImagesPerSift: 1,
         maxSiftsTotal: 10,
         price: '$0',
         description: 'Free',
-        canUseSmartExtraction: true,
-        canUseVideoComprehension: true,
-        hasPriorityProcessing: true,
+        canUseSmartExtraction: false,
+        canUseVideoComprehension: false,
+        hasPriorityProcessing: false,
     },
     plus: {
-        maxImagesPerSift: 99,
+        maxImagesPerSift: 5,
         maxSiftsTotal: 50,
         price: '$3.99',
         description: 'Pro',
         canUseSmartExtraction: true,
-        canUseVideoComprehension: true,
+        canUseVideoComprehension: false,
         hasPriorityProcessing: true,
     },
     unlimited: {
@@ -49,7 +49,7 @@ const TIER_LIMITS: Record<Tier, TierCapabilities> = {
         maxImagesPerSift: 999,
         maxSiftsTotal: 999999,
         price: '$0',
-        description: 'System Administrator',
+        description: 'Admin',
         canUseSmartExtraction: true,
         canUseVideoComprehension: true,
         hasPriorityProcessing: true,

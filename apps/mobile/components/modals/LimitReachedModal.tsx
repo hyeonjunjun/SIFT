@@ -43,15 +43,15 @@ export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReached
                         )}
                     </View>
                     <Typography variant="h3" style={styles.title}>
-                        Sift Limit Reached
+                        You're on a roll!
                     </Typography>
 
                     <Typography variant="body" color="secondary" style={styles.description}>
-                        You've used all {maxSiftsTotal} sifts included in your {description} plan. Upgrade for more storage and advanced AI.
+                        You've created {maxSiftsTotal} sifts on your {description} plan. {tier === 'free' ? 'Upgrade to Pro to unlock 40 more sifts plus smart data extraction.' : 'Upgrade to Unlimited to continue sifting without limits.'}
                     </Typography>
 
                     <Button
-                        label="Upgrade to Pro"
+                        label={tier === 'free' ? "Upgrade to Pro" : "Upgrade to Unlimited"}
                         onPress={handleUpgrade}
                         variant="primary"
                         style={styles.upgradeButton}

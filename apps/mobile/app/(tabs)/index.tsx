@@ -20,7 +20,7 @@ import ScreenWrapper from "../../components/ScreenWrapper";
 import { QuickTagEditor } from "../../components/QuickTagEditor";
 import { EmptyState } from "../../components/design-system/EmptyState";
 import { HomeHeader } from "../../components/home/HomeHeader";
-import { SiftLimitTracker } from "../../components/SiftLimitTracker";
+import { UsageTracker } from "../../components/UsageTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
 import { FirstUseTour } from "../../components/FirstUseTour";
@@ -278,7 +278,7 @@ export default function HomeScreen() {
                         )}
                     </TouchableOpacity>
                 </View>
-                <SiftLimitTracker />
+                <UsageTracker variant="compact" showUpgradeButton={false} />
             </View>
 
             {/* Daily Catch Up */}
