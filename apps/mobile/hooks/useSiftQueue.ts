@@ -3,7 +3,7 @@ import { Keyboard } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { safeSift } from '../lib/sift-api';
-import { getDomain } from '../lib/utils';
+import { getDomain, getSmartTag } from '../lib/utils';
 import { useAuth } from '../lib/auth';
 import { useSubscription } from './useSubscription';
 import { useToast } from '../context/ToastContext';
@@ -62,6 +62,7 @@ export function useSiftQueue() {
 
             try {
                 const domain = getDomain(url);
+                const smartTag = getSmartTag(url);
                 const { data: pendingData, error } = await supabase
                     .from('pages')
                     .insert({
@@ -69,7 +70,7 @@ export function useSiftQueue() {
                         url,
                         title: "Sifting Sift...",
                         summary: "Synthesizing content...",
-                        tags: ["Lifestyle"],
+                        tags: [smartTag],
                         metadata: { status: 'pending', source: domain }
                     })
                     .select()

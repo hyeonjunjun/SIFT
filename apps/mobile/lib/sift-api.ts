@@ -21,7 +21,6 @@ export const safeSift = async <T = any>(
     const startTime = Date.now();
     try {
         const apiUrl = `${API_URL}/api/sift`;
-        console.log(`[SafeSift] Attempt ${retryCount + 1}/${MAX_RETRIES} for: ${originalUrl}`);
 
         const body = {
             url: originalUrl,
@@ -44,7 +43,6 @@ export const safeSift = async <T = any>(
         clearTimeout(timeoutId);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`[SafeSift] Request resolved in ${duration}s with status ${res.status}`);
 
         let json: SiftResponse<T>;
         try {
@@ -72,7 +70,6 @@ export const safeSift = async <T = any>(
     } catch (error: any) {
         const isTimeout = error.name === 'AbortError' || error.message.includes('timed out');
         if (retryCount < MAX_RETRIES - 1 && isTimeout) {
-            console.warn(`[SafeSift] Timeout, retrying...`);
             await new Promise(r => setTimeout(r, INITIAL_BACKOFF));
             return safeSift(originalUrl, userId, pendingId, userTier, retryCount + 1);
         }

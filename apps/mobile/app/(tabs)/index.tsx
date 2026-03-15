@@ -2,7 +2,7 @@ import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState
 import { useEffect, useCallback, useRef, useMemo, useState } from "react";
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import Animated, { LinearTransition } from "react-native-reanimated";
+import Animated, { LinearTransition, FadeIn, FadeOut } from "react-native-reanimated";
 import {
     MagnifyingGlass, SquaresFour, Rows, XCircle, X, Archive, Plus, ImageSquare,
     ClockCounterClockwise, TextAa, Globe
@@ -23,6 +23,7 @@ import { HomeHeader } from "../../components/home/HomeHeader";
 import { UsageTracker } from "../../components/UsageTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
+import { ImagePreviewModal } from "../../components/modals/ImagePreviewModal";
 import { FirstUseTour } from "../../components/FirstUseTour";
 import { useToast } from "../../context/ToastContext";
 import { usePages, Page } from "../../hooks/usePages";
@@ -62,6 +63,7 @@ export default function HomeScreen() {
     } = usePages();
 
     const {
+        addToQueue,
         manualUrl,
         setManualUrl,
         handleSubmitUrl,
@@ -73,7 +75,15 @@ export default function HomeScreen() {
     } = useSiftQueue();
 
     // Image Sifting
-    const { pickAndSift, loading: isSiftingImage } = useImageSifter(() => refetch());
+    const {
+        pickImages,
+        selectedImages,
+        previewVisible,
+        removeImage,
+        dismissPreview,
+        confirmAndSift,
+        loading: isSiftingImage
+    } = useImageSifter(() => refetch());
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -102,13 +112,24 @@ export default function HomeScreen() {
         return () => sub.remove();
     }, []);
 
-    // Clipboard Listener
+    // Clipboard Auto-Detect Banner
+    const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
+    const dismissedClipboardUrls = useRef<Set<string>>(new Set());
+
     useEffect(() => {
         const checkClipboard = async () => {
-            const content = await Clipboard.getStringAsync();
-            if (content?.startsWith('http') && content !== manualUrl) {
-                setManualUrl(content);
-            }
+            try {
+                const content = await Clipboard.getStringAsync();
+                if (
+                    content?.startsWith('http') &&
+                    content !== manualUrl &&
+                    !dismissedClipboardUrls.current.has(content)
+                ) {
+                    setClipboardUrl(content);
+                } else {
+                    setClipboardUrl(null);
+                }
+            } catch {}
         };
         const sub = AppState.addEventListener('change', (state) => {
             if (state === 'active') checkClipboard();
@@ -255,7 +276,7 @@ export default function HomeScreen() {
             {/* Omni-Action Hero Card */}
             <View style={styles.omniActionCard}>
                 <View style={styles.inputWrapper}>
-                    <TouchableOpacity onPress={pickAndSift} style={styles.iconButton}>
+                    <TouchableOpacity onPress={pickImages} style={styles.iconButton}>
                         <ImageSquare size={22} color={COLORS.stone} />
                     </TouchableOpacity>
                     <TextInput
@@ -280,6 +301,44 @@ export default function HomeScreen() {
                 </View>
                 <UsageTracker variant="compact" showUpgradeButton={false} />
             </View>
+
+            {/* Clipboard Auto-Detect Banner */}
+            {clipboardUrl && (
+                <Animated.View
+                    entering={FadeIn.duration(300)}
+                    exiting={FadeOut.duration(200)}
+                    style={styles.clipboardBanner}
+                >
+                    <View style={styles.clipboardContent}>
+                        <Globe size={16} color={COLORS.accent} />
+                        <Typography variant="caption" color="stone" numberOfLines={1} style={styles.clipboardUrl}>
+                            {clipboardUrl.replace(/^https?:\/\/(www\.)?/, '')}
+                        </Typography>
+                    </View>
+                    <View style={styles.clipboardActions}>
+                        <TouchableOpacity
+                            onPress={() => {
+                                dismissedClipboardUrls.current.add(clipboardUrl);
+                                setClipboardUrl(null);
+                            }}
+                            hitSlop={8}
+                        >
+                            <X size={16} color={COLORS.stone} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                triggerHaptic('impact');
+                                addToQueue(clipboardUrl);
+                                dismissedClipboardUrls.current.add(clipboardUrl);
+                                setClipboardUrl(null);
+                            }}
+                            style={styles.clipboardSiftButton}
+                        >
+                            <Typography variant="label" style={{ color: '#FFF', fontSize: 12 }}>Sift</Typography>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
+            )}
 
             {/* Daily Catch Up */}
             {searchQuery === '' && dailySifts.length > 0 && (
@@ -385,7 +444,7 @@ export default function HomeScreen() {
             </View>
 
         </View>
-    ), [pages, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts, sortBy, viewMode, isProcessingQueue]);
+    ), [pages, user, tier, manualUrl, searchQuery, activeFilter, isSiftingImage, dailySifts, sortBy, viewMode, isProcessingQueue, clipboardUrl]);
 
     return (
         <ScreenWrapper edges={['top']}>
@@ -478,6 +537,14 @@ export default function HomeScreen() {
                 visible={limitReachedVisible}
                 onClose={() => setLimitReachedVisible(false)}
                 upgradeUrl={upgradeUrl}
+            />
+
+            <ImagePreviewModal
+                visible={previewVisible}
+                images={selectedImages}
+                onRemove={removeImage}
+                onDismiss={dismissPreview}
+                onConfirm={confirmAndSift}
             />
 
             <FirstUseTour />
@@ -623,5 +690,40 @@ const styles = StyleSheet.create({
     },
     batchAction: {
         padding: SPACING.s,
-    }
+    },
+    clipboardBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.m,
+        paddingVertical: SPACING.s,
+        paddingHorizontal: SPACING.m,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...Theme.shadows.soft,
+    },
+    clipboardContent: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.s,
+        marginRight: SPACING.s,
+    },
+    clipboardUrl: {
+        flex: 1,
+        fontFamily: 'Satoshi-Medium',
+        fontSize: 13,
+    },
+    clipboardActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.m,
+    },
+    clipboardSiftButton: {
+        backgroundColor: COLORS.ink,
+        paddingHorizontal: SPACING.m,
+        paddingVertical: 6,
+        borderRadius: RADIUS.pill,
+    },
 });

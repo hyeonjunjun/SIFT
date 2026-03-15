@@ -51,6 +51,83 @@ export const getDomain = (url: string | null | undefined): string => {
     }
 };
 
+// Maps a URL domain to a smart default tag for initial categorization.
+const DOMAIN_TAG_MAP: Record<string, string> = {
+    // Video
+    'youtube.com': 'Video',
+    'youtu.be': 'Video',
+    'vimeo.com': 'Video',
+    'tiktok.com': 'Video',
+    'twitch.tv': 'Video',
+    // Social
+    'twitter.com': 'Social',
+    'x.com': 'Social',
+    'instagram.com': 'Social',
+    'facebook.com': 'Social',
+    'threads.net': 'Social',
+    'reddit.com': 'Social',
+    'linkedin.com': 'Social',
+    'bsky.app': 'Social',
+    // News
+    'nytimes.com': 'News',
+    'washingtonpost.com': 'News',
+    'theguardian.com': 'News',
+    'bbc.com': 'News',
+    'bbc.co.uk': 'News',
+    'cnn.com': 'News',
+    'reuters.com': 'News',
+    'apnews.com': 'News',
+    'bloomberg.com': 'News',
+    // Tech
+    'techcrunch.com': 'Tech',
+    'theverge.com': 'Tech',
+    'arstechnica.com': 'Tech',
+    'wired.com': 'Tech',
+    'hackernews.com': 'Tech',
+    'news.ycombinator.com': 'Tech',
+    // Research
+    'arxiv.org': 'Research',
+    'scholar.google.com': 'Research',
+    'nature.com': 'Research',
+    'science.org': 'Research',
+    'pubmed.ncbi.nlm.nih.gov': 'Research',
+    // Dev
+    'github.com': 'Dev',
+    'stackoverflow.com': 'Dev',
+    'dev.to': 'Dev',
+    'medium.com': 'Article',
+    'substack.com': 'Article',
+    // Shopping
+    'amazon.com': 'Shopping',
+    'ebay.com': 'Shopping',
+    'etsy.com': 'Shopping',
+    // Food
+    'allrecipes.com': 'Recipe',
+    'seriouseats.com': 'Recipe',
+    'bonappetit.com': 'Recipe',
+    // Music
+    'spotify.com': 'Music',
+    'open.spotify.com': 'Music',
+    'soundcloud.com': 'Music',
+    'music.apple.com': 'Music',
+    // Travel
+    'tripadvisor.com': 'Travel',
+    'airbnb.com': 'Travel',
+    'booking.com': 'Travel',
+};
+
+export const getSmartTag = (url: string | null | undefined): string => {
+    if (!url) return 'Saved';
+    const domain = getDomain(url);
+    // Check exact match first, then try parent domain
+    if (DOMAIN_TAG_MAP[domain]) return DOMAIN_TAG_MAP[domain];
+    // Check if any key is a suffix of the domain (e.g., m.youtube.com → youtube.com)
+    for (const [key, tag] of Object.entries(DOMAIN_TAG_MAP)) {
+        if (domain.endsWith(key)) return tag;
+    }
+    return 'Saved';
+};
+
 // Strips markdown formatting to produce clean plain-text for compact preview cards.
 // Handles: headers (##), bold (**), italic (*/_), bullets (- / *), numbered lists.
 export const stripMarkdown = (text: string | null | undefined): string => {
