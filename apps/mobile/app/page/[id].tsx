@@ -63,8 +63,6 @@ export default function PageDetail() {
         queryKey: ['neighbors', contextType, user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            console.log(`[Nav] Fetching neighbors for context: ${contextType}`);
-
             let query = supabase
                 .from('pages')
                 .select('id')
@@ -181,7 +179,6 @@ export default function PageDetail() {
         queryKey: ['page', id],
         queryFn: async () => {
             if (!id) return null;
-            console.log(`[Fetch] Fetching page detail for: ${id}`);
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
@@ -198,7 +195,6 @@ export default function PageDetail() {
                 const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
                 const cached = await AsyncStorage.getItem(`@page_${id}`);
                 if (cached) {
-                    console.log(`[Fetch] Loading page ${id} from offline cache`);
                     return JSON.parse(cached);
                 }
                 console.error('Error fetching page:', error);
@@ -235,7 +231,6 @@ export default function PageDetail() {
                     filter: `id=eq.${id}`,
                 },
                 (payload) => {
-                    console.log('[Realtime] Page updated:', payload.new.id);
                     queryClient.resetQueries({ queryKey: ['page', id] });
                 }
             )
@@ -396,7 +391,7 @@ export default function PageDetail() {
                     messageContent: 'Shared a Sift',
                     siftId: id
                 })
-            }).catch(err => console.warn('[Push Webhook] Failed:', err));
+            }).catch(() => {});
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setShowDirectShare(false);

@@ -81,7 +81,6 @@ export default function LoginScreen() {
         try {
             if (Platform.OS === 'web') {
                 const redirectTo = window.location.origin + '/';
-                console.log(`[Google Auth] Web Redirect URL: ${redirectTo}`);
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {

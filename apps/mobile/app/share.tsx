@@ -12,10 +12,6 @@ export default function ShareScreen() {
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
 
     useEffect(() => {
-        // Log for debugging (remove in prod if desired, but helpful for now)
-        console.log("Share Screen Params:", params);
-        console.log("Share Intent Hook:", shareIntent);
-
         const handleShare = async () => {
             // 1. Check if we have a URL from the deep link query params
             // format: sift://share?url=...
@@ -56,7 +52,6 @@ export default function ShareScreen() {
                 }, 100);
             } else {
                 // No URL found? Just go home.
-                console.warn("Share screen opened but no URL found.");
                 router.replace('/');
             }
         };

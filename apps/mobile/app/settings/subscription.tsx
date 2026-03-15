@@ -147,8 +147,6 @@ export default function SubscriptionScreen() {
         } catch (e: any) {
             // Error handling
             if (!e.userCancelled) {
-                console.warn('[Subscription] Purchase Failed:', e.code, e.message);
-
                 let errorTitle = "Purchase Failed";
                 let errorMessage = e.message || "We couldn't process your transaction. Please try again.";
 
@@ -184,7 +182,6 @@ export default function SubscriptionScreen() {
             await refreshProfile();
             await refreshCount();
         } catch (e: any) {
-            console.warn('[Subscription] Restore Failed:', e);
             Alert.alert("Restore Failed", e.message || "Something went wrong while restoring your purchases.");
         } finally {
             setLoading(false);

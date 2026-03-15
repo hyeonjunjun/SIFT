@@ -120,7 +120,6 @@ export const useSubscription = () => {
     useEffect(() => {
         if (Platform.OS === 'web') return; // Skip syncing mock tier on web
         if (user && profile && tier !== profile.tier && profile.tier !== 'admin') {
-            console.log(`[useSubscription] Syncing tier change: ${profile.tier} -> ${tier}`);
             updateProfileInDB({ tier });
         }
     }, [tier, user, profile?.tier]);

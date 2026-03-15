@@ -12,7 +12,6 @@ export default function NotFoundScreen() {
     useEffect(() => {
         // Intercept Share Extension "handshake" path
         if (pathname?.includes("dataUrl=siftShareKey")) {
-            console.log("🔄 Redirecting Share Extension handshake to Dashboard");
             router.replace("/(tabs)/");
             return;
         }

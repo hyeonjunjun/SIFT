@@ -198,7 +198,7 @@ export default function SocialScreen() {
                     messageContent: type === 'emoji' ? content : content.trim(),
                     siftId: siftId || null
                 })
-            }).catch(err => console.warn('[Push Webhook] Failed:', err));
+            }).catch(() => {});
 
             setMessageText('');
             setShowEmojiGrid(false);

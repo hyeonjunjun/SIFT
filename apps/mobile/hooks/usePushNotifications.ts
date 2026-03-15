@@ -37,14 +37,11 @@ export function usePushNotifications() {
         });
 
         // Listen for incoming notifications while app is foregrounded
-        notificationListenerRef.current = Notifications.addNotificationReceivedListener(notification => {
-            console.log('[Push] Received:', notification.request.content.title);
-        });
+        notificationListenerRef.current = Notifications.addNotificationReceivedListener(() => {});
 
         // Listen for notification taps
         responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
-            console.log('[Push] Tapped:', data);
 
             if (data?.siftId) {
                 // Use setTimeout to ensure the app is ready for navigation
@@ -68,7 +65,6 @@ export function usePushNotifications() {
 async function registerForPushNotifications(): Promise<string | null> {
     if (Platform.OS === 'web') return null;
     if (!Device.isDevice) {
-        console.log('[Push] Must use physical device for Push Notifications');
         return null;
     }
 
@@ -82,13 +78,11 @@ async function registerForPushNotifications(): Promise<string | null> {
         }
 
         if (finalStatus !== 'granted') {
-            console.log('[Push] Permission not granted');
             return null;
         }
 
         // Get the Expo push token
         const tokenData = await Notifications.getExpoPushTokenAsync();
-        console.log('[Push] Token:', tokenData.data);
 
         // Configure Android notification channel
         if (Platform.OS === 'android') {

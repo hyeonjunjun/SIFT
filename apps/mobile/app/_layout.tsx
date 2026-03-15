@@ -193,13 +193,9 @@ function RootLayoutNav() {
                 const googleKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY;
 
                 if (Platform.OS === 'ios' && appleKey) {
-                    console.log('[RevenueCat] Configuring for iOS...');
                     await Purchases.configure({ apiKey: appleKey });
                 } else if (Platform.OS === 'android' && googleKey) {
-                    console.log('[RevenueCat] Configuring for Android...');
                     await Purchases.configure({ apiKey: googleKey });
-                } else {
-                    console.warn('[RevenueCat] No API key found for platform:', Platform.OS);
                 }
             } catch (error) {
                 console.error('[RevenueCat] Configuration error:', error);
@@ -217,17 +213,15 @@ function RootLayoutNav() {
 
             try {
                 if (session?.user?.id) {
-                    console.log('[RevenueCat] Syncing user:', session.user.id);
                     await Purchases.logIn(session.user.id);
                 } else {
                     const customerInfo = await Purchases.getCustomerInfo();
                     if (customerInfo?.originalAppUserId && !customerInfo.originalAppUserId.startsWith("$RCAnonymousID")) {
-                        console.log('[RevenueCat] Logging out user');
                         await Purchases.logOut();
                     }
                 }
             } catch (error) {
-                console.warn('[RevenueCat] Sync error:', error);
+                console.error('[RevenueCat] Sync error:', error);
             }
         };
         syncUser();
@@ -255,7 +249,6 @@ function RootLayoutNav() {
     // Splash Dismissal Logic
     useEffect(() => {
         const safetyTimer = setTimeout(() => {
-            console.log("[Splash] Safety timer triggered.");
             setSplashDismissed(true);
             setSplashAnimationFinished(true);
             safeHideSplash();
@@ -288,7 +281,6 @@ function RootLayoutNav() {
     // Share Intent Logic
     useEffect(() => {
         if (hasShareIntent && shareIntent.type === "weburl" && shareIntent.webUrl) {
-            console.log("🚀 Sifting URL from Share Sheet:", shareIntent.webUrl);
             const url = shareIntent.webUrl;
             resetShareIntent();
             router.replace(`/(tabs)/?siftUrl=${encodeURIComponent(url.trim())}`);
