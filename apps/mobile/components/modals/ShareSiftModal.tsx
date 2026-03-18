@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '../../context/ToastContext';
+import { sendPush } from '../../lib/pushHelper';
 
 interface ShareSiftModalProps {
     visible: boolean;
@@ -77,19 +78,15 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
                 metadata: { sift_title: siftTitle, message: message.trim() || undefined },
             }]);
 
-            // Fire Push Notification Webhook (Non-blocking)
-            fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://sift.so'}/api/push`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    receiverId: friendId,
-                    actorName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'A friend',
-                    type: 'sift_shared',
-                    siftTitle: siftTitle,
-                    messageContent: message.trim(),
-                    siftId: siftId
-                })
-            }).catch(err => console.warn('[Push Webhook] Failed:', err));
+            // Push notification (preference-aware)
+            sendPush({
+                receiverId: friendId,
+                actorName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'A friend',
+                type: 'sift_shared',
+                siftTitle: siftTitle,
+                siftId: siftId,
+                messageContent: message.trim(),
+            });
 
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

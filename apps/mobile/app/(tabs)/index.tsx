@@ -24,6 +24,7 @@ import { UsageTracker } from "../../components/UsageTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
 import { ImagePreviewModal } from "../../components/modals/ImagePreviewModal";
+import { sendPush } from "../../lib/pushHelper";
 import { FolderPickerModal } from "../../components/modals/FolderPickerModal";
 import { FirstUseTour } from "../../components/FirstUseTour";
 import { useToast } from "../../context/ToastContext";
@@ -86,6 +87,9 @@ export default function HomeScreen() {
         loading: isSiftingImage
     } = useImageSifter(() => refetch());
 
+    // Input ref for focusing from empty state
+    const urlInputRef = useRef<TextInput>(null);
+
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const isSelectMode = selectedIds.size > 0;
@@ -135,7 +139,11 @@ export default function HomeScreen() {
             } catch {}
         };
         const sub = AppState.addEventListener('change', (state) => {
-            if (state === 'active') checkClipboard();
+            if (state === 'active') {
+                // Reset dismissals when returning to app — clipboard may have new content
+                dismissedClipboardUrls.current.clear();
+                checkClipboard();
+            }
         });
         checkClipboard();
         return () => sub.remove();
@@ -262,11 +270,47 @@ export default function HomeScreen() {
     const handleMoveToCollection = async (folderId: string) => {
         if (!moveToCollectionSiftId) return;
         try {
+            const sift = pages.find(p => p.id === moveToCollectionSiftId);
             await supabase.from('pages').update({ folder_id: folderId }).eq('id', moveToCollectionSiftId);
             showToast({ message: "Moved to collection" });
             triggerHaptic('notification');
             refetch();
             queryClient.invalidateQueries({ queryKey: ['folder-pages', folderId] });
+
+            // Notify other collection members
+            const { data: members } = await supabase
+                .from('folder_members')
+                .select('user_id')
+                .eq('folder_id', folderId)
+                .neq('user_id', user?.id);
+
+            const { data: folder } = await supabase
+                .from('folders')
+                .select('name')
+                .eq('id', folderId)
+                .single();
+
+            if (members && members.length > 0) {
+                const actorName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Someone';
+                for (const member of members) {
+                    await supabase.from('notifications').insert([{
+                        user_id: member.user_id,
+                        actor_id: user?.id,
+                        type: 'collection_sift_added',
+                        reference_id: folderId,
+                        metadata: { collection_name: folder?.name, sift_title: sift?.title },
+                    }]);
+
+                    sendPush({
+                        receiverId: member.user_id,
+                        actorName,
+                        type: 'collection_sift_added',
+                        collectionName: folder?.name,
+                        siftTitle: sift?.title,
+                        siftId: moveToCollectionSiftId,
+                    });
+                }
+            }
         } catch {
             showToast({ message: "Failed to move sift", type: 'error' });
         }
@@ -297,6 +341,7 @@ export default function HomeScreen() {
                         <ImageSquare size={22} color={COLORS.stone} />
                     </TouchableOpacity>
                     <TextInput
+                        ref={urlInputRef}
                         style={styles.textInput}
                         placeholder="Paste a link to sift..."
                         placeholderTextColor={COLORS.stone}
@@ -484,7 +529,9 @@ export default function HomeScreen() {
                         <EmptyState
                             type={searchQuery ? 'no-results' : 'no-sifts'}
                             title={searchQuery ? "No sifts found" : "Your library is empty"}
-                            description={searchQuery ? `We couldn't find "${searchQuery}"` : "Paste a link or scan a photo to start sifting."}
+                            description={searchQuery ? `We couldn't find "${searchQuery}"` : "Paste a link above or scan a photo to create your first sift."}
+                            onAction={searchQuery ? undefined : () => urlInputRef.current?.focus()}
+                            actionLabel={searchQuery ? undefined : "Paste a link"}
                         />
                     </View>
                 }

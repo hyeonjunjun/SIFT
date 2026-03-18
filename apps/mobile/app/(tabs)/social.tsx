@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FriendCardSkeleton } from '../../components/skeletons/FriendCardSkeleton';
+import { sendPush } from '../../lib/pushHelper';
 
 interface Sift {
     id: string;
@@ -296,6 +297,14 @@ export default function SocialScreen() {
                     type: 'friend_request',
                     reference_id: friendData?.id,
                 }]);
+
+                // Push notification
+                sendPush({
+                    receiverId: targetUserId,
+                    actorName: user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Someone',
+                    type: 'friend_request',
+                });
+
                 showToast("Friend request sent!");
                 queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
                 setSearchQuery('');
@@ -324,6 +333,12 @@ export default function SocialScreen() {
                     type: 'friend_accepted',
                     reference_id: id,
                 }]);
+
+                sendPush({
+                    receiverId: friendship.user_id,
+                    actorName: user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Someone',
+                    type: 'friend_accepted',
+                });
             }
 
             queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });

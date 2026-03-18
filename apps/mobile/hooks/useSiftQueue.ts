@@ -35,12 +35,20 @@ export function useSiftQueue() {
 
         const lines = urlOrText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
 
+        let duplicateCount = 0;
         for (const url of lines) {
-            if (processingUrls.current.has(url)) continue;
+            if (processingUrls.current.has(url)) {
+                duplicateCount++;
+                continue;
+            }
             setQueue(prev => [...prev, url]);
             lastCheckedUrl.current = url;
         }
-    }, []);
+
+        if (duplicateCount > 0 && duplicateCount === lines.length) {
+            showToast({ message: 'Already sifting this link', duration: 2000, type: 'error' });
+        }
+    }, [showToast]);
 
     const processQueue = useCallback(async () => {
         if (queue.length === 0 || isProcessingQueue) return;
@@ -86,7 +94,7 @@ export function useSiftQueue() {
 
         const validTasks = tasks.filter((t): t is { url: string; id: string } => t !== null);
 
-        await Promise.allSettled(validTasks.map(async (task) => {
+        const results = await Promise.allSettled(validTasks.map(async (task) => {
             try {
                 await safeSift(task.url, user!.id, task.id, tier);
             } catch (apiError: any) {
@@ -95,26 +103,32 @@ export function useSiftQueue() {
                     setLimitReachedVisible(true);
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
                 } else {
+                    const retryCount = (apiError.retryCount || 0) + 1;
                     await supabase.from('pages').update({
-                        metadata: { status: 'failed', error: apiError.message }
+                        metadata: { status: 'failed', error: apiError.message, retry_count: retryCount }
                     }).eq('id', task.id);
 
-                    const isTimeout = apiError.message.toLowerCase().includes('time') || apiError.message.toLowerCase().includes('deadline');
+                    const isTimeout = apiError.message?.toLowerCase().includes('time') || apiError.message?.toLowerCase().includes('deadline');
                     showToast({
-                        message: isTimeout ? "Collection taking longer than expected" : (apiError.message || "Sift failed"),
+                        message: isTimeout ? "Sift timed out" : (apiError.message || "Sift failed"),
                         duration: 5000,
                         type: 'error',
-                        action: { label: 'Retry', onPress: () => addToQueue(task.url) }
+                        action: retryCount < 3 ? { label: 'Retry', onPress: () => addToQueue(task.url) } : undefined
                     });
                     triggerHaptic('notification', Haptics.NotificationFeedbackType.Error);
                 }
+                throw apiError;
             } finally {
                 processingUrls.current.delete(task.url);
             }
         }));
 
         queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
-        triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
+
+        const hasSuccess = results.some(r => r.status === 'fulfilled');
+        if (hasSuccess) {
+            triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
+        }
         setIsProcessingQueue(false);
     }, [queue, isProcessingQueue, user, tier, showToast, queryClient, triggerHaptic, addToQueue]);
 

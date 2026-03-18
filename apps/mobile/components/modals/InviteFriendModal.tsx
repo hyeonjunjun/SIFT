@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '../../context/ToastContext';
+import { sendPush } from '../../lib/pushHelper';
 
 interface InviteFriendModalProps {
     visible: boolean;
@@ -117,6 +118,13 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
                 reference_id: folderId,
                 metadata: { collection_name: folderName },
             }]);
+
+            sendPush({
+                receiverId: friendId,
+                actorName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Someone',
+                type: 'collection_invite',
+                collectionName: folderName,
+            });
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast({ message: `${friendName} added to collection.`, type: 'success' });

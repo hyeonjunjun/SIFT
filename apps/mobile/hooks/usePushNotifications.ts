@@ -43,14 +43,19 @@ export function usePushNotifications() {
         responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
 
-            if (data?.siftId) {
-                // Use setTimeout to ensure the app is ready for navigation
-                setTimeout(() => {
-                    import('expo-router').then(({ router }) => {
+            setTimeout(() => {
+                import('expo-router').then(({ router }) => {
+                    if (data?.siftId) {
                         router.push(`/page/${data.siftId}?contextType=feed`);
-                    });
-                }, 100);
-            }
+                    } else if (data?.type === 'friend_request' || data?.type === 'friend_accepted') {
+                        router.push('/(tabs)/social');
+                    } else if (data?.type === 'collection_invite' || data?.type === 'collection_sift_added') {
+                        router.push('/(tabs)/notifications');
+                    } else {
+                        router.push('/(tabs)/notifications');
+                    }
+                });
+            }, 100);
         });
 
         return () => {

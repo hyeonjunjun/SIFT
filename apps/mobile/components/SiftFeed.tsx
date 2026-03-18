@@ -31,6 +31,9 @@ interface Page {
         blurhash?: string;
         status?: string;
         debug_info?: string;
+        source?: string;
+        error?: string;
+        retry_count?: number;
     };
     is_pinned?: boolean;
 }
@@ -113,7 +116,8 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
             summary: page.summary,
             rawTags: page.tags || [],
             status: page.metadata?.status || 'completed',
-            debug_info: page.metadata?.debug_info
+            debug_info: page.metadata?.debug_info,
+            metadata: page.metadata,
         };
     }, [page]);
 
@@ -136,8 +140,8 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                 previewTitle: item.title || '',
                 previewSummary: item.summary || '',
                 previewImage: item.metadata?.image_url || '',
-                previewTags: (item.tags || []).join(','),
-                previewSource: item.metadata?.source || '',
+                previewTags: item.rawTags.join(','),
+                previewSource: item.source || '',
             }
         });
     };
@@ -237,15 +241,26 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
-                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold', marginBottom: 8 }}>
+                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold', marginBottom: 4 }}>
                                 {isStale ? "TIMED OUT" : "FAILED"}
                             </Typography>
-                            <Pressable
-                                onPress={(e) => { e.stopPropagation(); onRetry?.(item.id, page.url); }}
-                                style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
-                            >
-                                <Typography variant="label" style={{ color: 'white' }}>Retry</Typography>
-                            </Pressable>
+                            {item.metadata?.error && (
+                                <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 6, paddingHorizontal: 12 }} numberOfLines={2}>
+                                    {item.metadata.error}
+                                </Typography>
+                            )}
+                            {(!item.metadata?.retry_count || item.metadata.retry_count < 3) ? (
+                                <Pressable
+                                    onPress={(e) => { e.stopPropagation(); onRetry?.(item.id, page.url); }}
+                                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                                >
+                                    <Typography variant="label" style={{ color: 'white' }}>Retry</Typography>
+                                </Pressable>
+                            ) : (
+                                <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                    Max retries reached
+                                </Typography>
+                            )}
                         </View>
                     ) : isFallback ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.paper }]}>
