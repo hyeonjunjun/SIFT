@@ -106,6 +106,8 @@ export default function NotificationsScreen() {
             return (data || []) as Notification[];
         },
         enabled: !!user?.id,
+        staleTime: 1000 * 60 * 2, // 2 minutes
+        placeholderData: (prev: any) => prev,
     });
 
     // Mark all as read when screen is focused

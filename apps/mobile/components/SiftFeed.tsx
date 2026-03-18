@@ -133,6 +133,11 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
             pathname: `/page/${item.id}`,
             params: {
                 contextType: mode === 'feed' ? 'feed' : 'archive',
+                previewTitle: item.title || '',
+                previewSummary: item.summary || '',
+                previewImage: item.metadata?.image_url || '',
+                previewTags: (item.tags || []).join(','),
+                previewSource: item.metadata?.source || '',
             }
         });
     };

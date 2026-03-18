@@ -86,7 +86,7 @@ export function useSiftQueue() {
 
         const validTasks = tasks.filter((t): t is { url: string; id: string } => t !== null);
 
-        await Promise.all(validTasks.map(async (task) => {
+        await Promise.allSettled(validTasks.map(async (task) => {
             try {
                 await safeSift(task.url, user!.id, task.id, tier);
             } catch (apiError: any) {

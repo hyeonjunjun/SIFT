@@ -14,7 +14,8 @@ import {
     Linking,
     ActionSheetIOS,
     Platform,
-    Share
+    Share,
+    ActivityIndicator
 } from 'react-native';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import * as Haptics from 'expo-haptics';
@@ -42,7 +43,7 @@ const SUGGESTED_TAGS = ["Cooking", "Tech", "Health", "Lifestyle", "Professional"
 export default function PageDetail() {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
-    const { id, contextType } = useLocalSearchParams();
+    const { id, contextType, previewTitle, previewSummary, previewImage, previewTags, previewSource } = useLocalSearchParams();
     const { user, tier } = useAuth();
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -106,12 +107,14 @@ export default function PageDetail() {
         };
     }, [id, neighborIds]);
 
-    // Animation Logic
+    // Animation Logic — swipe between sifts uses reanimated, initial push uses native stack
     const direction = useLocalSearchParams().direction as string;
+    const isSwipeNav = direction === 'next' || direction === 'prev';
     const [exitDirection, setExitDirection] = useState<'next' | 'prev' | null>(null);
 
     const transition = (anim: any) => anim.duration(300).easing(Easing.inOut(Easing.quad));
 
+    // Only apply reanimated enter/exit for swipe navigation between sifts
     const enteringAnimation = useMemo(() => {
         if (direction === 'next') return transition(SlideInRight);
         if (direction === 'prev') return transition(SlideInLeft);
@@ -121,7 +124,7 @@ export default function PageDetail() {
     const exitingAnimation = useMemo(() => {
         if (exitDirection === 'next') return transition(SlideOutLeft);
         if (exitDirection === 'prev') return transition(SlideOutRight);
-        return FadeOut;
+        return undefined;
     }, [exitDirection]);
 
     const handleNavigate = (targetId: string, dir: 'next' | 'prev') => {
@@ -175,7 +178,24 @@ export default function PageDetail() {
         retry: 2,
     });
 
-    const { data: page, isLoading: loading, isError, error, refetch } = useQuery({
+    // Build placeholder from navigation params for instant rendering
+    const previewPlaceholder = useMemo(() => {
+        if (!previewTitle) return undefined;
+        return {
+            id,
+            title: previewTitle as string,
+            summary: previewSummary as string || '',
+            tags: previewTags ? (previewTags as string).split(',').filter(Boolean) : [],
+            metadata: {
+                image_url: previewImage as string || undefined,
+                source: previewSource as string || undefined,
+                status: 'completed',
+            },
+            content: null, // Will be filled by real query
+        };
+    }, [id, previewTitle, previewSummary, previewImage, previewTags, previewSource]);
+
+    const { data: page, isLoading: loading, isError, error, refetch, isPlaceholderData } = useQuery({
         queryKey: ['page', id],
         queryFn: async () => {
             if (!id) return null;
@@ -204,8 +224,9 @@ export default function PageDetail() {
             return data;
         },
         enabled: !!id,
-        staleTime: 1000 * 60 * 5, // 5 minutes - prevent unnecessary refetches
-        retry: 2, // Retry failed requests
+        staleTime: 1000 * 60 * 5,
+        retry: 2,
+        placeholderData: previewPlaceholder,
     });
 
     useEffect(() => {
@@ -276,8 +297,17 @@ export default function PageDetail() {
         );
     };
 
-    if (loading && !refreshing) {
-        return <SiftDetailSkeleton />;
+    if (loading && !refreshing && !page) {
+        return (
+            <ScreenWrapper edges={['top']} style={{ backgroundColor: colors.canvas }}>
+                <Stack.Screen options={{
+                    headerShown: false,
+                    animation: isSwipeNav ? 'none' : 'ios_from_right',
+                    contentStyle: { backgroundColor: colors.canvas },
+                }} />
+                <SiftDetailSkeleton />
+            </ScreenWrapper>
+        );
     }
 
     if (isError || (!loading && !page)) {
@@ -439,12 +469,16 @@ export default function PageDetail() {
     return (
         <GestureDetector gesture={composedGesture}>
             <View collapsable={false} style={{ flex: 1 }}>
-                <ScreenWrapper edges={['top', 'bottom']}>
-                    <Stack.Screen options={{ headerShown: false, animation: 'none' }} />
+                <ScreenWrapper edges={['top', 'bottom']} style={{ backgroundColor: colors.canvas }}>
+                    <Stack.Screen options={{
+                        headerShown: false,
+                        animation: isSwipeNav ? 'none' : 'ios_from_right',
+                        contentStyle: { backgroundColor: colors.canvas },
+                    }} />
 
                     <Animated.View
                         style={{ flex: 1 }}
-                        entering={enteringAnimation}
+                        entering={isSwipeNav ? enteringAnimation : undefined}
                         exiting={exitingAnimation}
                     >
                         {/* Simplified Navigation Header */}
@@ -668,7 +702,14 @@ export default function PageDetail() {
                                 paddingHorizontal: 4,
                                 paddingTop: 16,
                             }}>
-                                {!isEditing ? (
+                                {isPlaceholderData ? (
+                                    <View style={{ gap: 12, paddingTop: 8 }}>
+                                        <Typography variant="body" color="stone" style={{ lineHeight: 24 }}>
+                                            {page?.summary || ''}
+                                        </Typography>
+                                        <ActivityIndicator size="small" color={colors.stone} style={{ marginTop: 16 }} />
+                                    </View>
+                                ) : !isEditing ? (
                                     <SafeContentRenderer content={content} />
                                 ) : (
                                     <TextInput

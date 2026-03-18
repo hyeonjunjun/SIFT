@@ -24,6 +24,7 @@ import { UsageTracker } from "../../components/UsageTracker";
 import { LimitReachedModal } from "../../components/modals/LimitReachedModal";
 import { SiftActionSheet } from "../../components/modals/SiftActionSheet";
 import { ImagePreviewModal } from "../../components/modals/ImagePreviewModal";
+import { FolderPickerModal } from "../../components/modals/FolderPickerModal";
 import { FirstUseTour } from "../../components/FirstUseTour";
 import { useToast } from "../../context/ToastContext";
 import { usePages, Page } from "../../hooks/usePages";
@@ -95,6 +96,8 @@ export default function HomeScreen() {
     const [selectedSiftTags, setSelectedSiftTags] = useState<string[]>([]);
     const [siftActionSheetVisible, setSiftActionSheetVisible] = useState(false);
     const [selectedSift, setSelectedSift] = useState<any>(null);
+    const [folderPickerVisible, setFolderPickerVisible] = useState(false);
+    const [moveToCollectionSiftId, setMoveToCollectionSiftId] = useState<string | null>(null);
 
     // Haptic Helper
     const triggerHaptic = (type: 'impact' | 'notification' | 'selection', styleOrType?: any) => {
@@ -254,6 +257,20 @@ export default function HomeScreen() {
         triggerHaptic('selection');
         await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
         refetch();
+    };
+
+    const handleMoveToCollection = async (folderId: string) => {
+        if (!moveToCollectionSiftId) return;
+        try {
+            await supabase.from('pages').update({ folder_id: folderId }).eq('id', moveToCollectionSiftId);
+            showToast({ message: "Moved to collection" });
+            triggerHaptic('notification');
+            refetch();
+            queryClient.invalidateQueries({ queryKey: ['folder-pages', folderId] });
+        } catch {
+            showToast({ message: "Failed to move sift", type: 'error' });
+        }
+        setMoveToCollectionSiftId(null);
     };
 
     const handleSiftOptions = (item: any) => {
@@ -531,6 +548,25 @@ export default function HomeScreen() {
                 onPin={handlePin}
                 onArchive={handleArchive}
                 onDeleteForever={handleDeleteForever}
+                onEditTags={(id, tags) => {
+                    setSelectedSiftId(id);
+                    setSelectedSiftTags(tags);
+                    setQuickTagModalVisible(true);
+                }}
+                onMoveToCollection={(id) => {
+                    setMoveToCollectionSiftId(id);
+                    setFolderPickerVisible(true);
+                }}
+                onSelectMultiple={(id) => {
+                    triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Heavy);
+                    setSelectedIds(new Set([id]));
+                }}
+            />
+
+            <FolderPickerModal
+                visible={folderPickerVisible}
+                onClose={() => setFolderPickerVisible(false)}
+                onSelect={handleMoveToCollection}
             />
 
             <LimitReachedModal

@@ -113,7 +113,14 @@ export const useImageSifter = (onSuccess?: () => void) => {
                 }
             };
 
-            await Promise.all(selectedImages.map(img => processImage(img)));
+            const results = await Promise.allSettled(selectedImages.map(img => processImage(img)));
+
+            const failures = results.filter(r => r.status === 'rejected');
+            if (failures.length > 0 && failures.length < selectedImages.length) {
+                Alert.alert('Partial Success', `${selectedImages.length - failures.length} of ${selectedImages.length} images sifted. ${failures.length} failed.`);
+            } else if (failures.length === selectedImages.length) {
+                throw new Error('All images failed to process.');
+            }
 
             if (onSuccess) onSuccess();
         } catch (error: any) {
