@@ -1,35 +1,33 @@
 import React from 'react';
-import { Pressable, Text, PressableProps } from 'react-native';
+import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
-import { Theme, TRANSITIONS } from '../../lib/theme';
-import { cn } from '../../lib/utils'; // Assuming utils exists, if not I will inline or create it. I should check.
-
-// Basic cn utility replacement if not exists
-function classNames(...classes: (string | undefined | null | false)[]) {
-    return classes.filter(Boolean).join(' ');
-}
+import { Typography } from './Typography';
+import { COLORS, SPACING, RADIUS, TRANSITIONS, OVERLAYS } from '../../lib/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 type ButtonVariant = 'primary' | 'ghost' | 'outline';
 
-interface ButtonProps extends PressableProps {
+interface ButtonProps {
     variant?: ButtonVariant;
     label: string;
     icon?: React.ReactNode;
+    disabled?: boolean;
+    style?: ViewStyle | ViewStyle[];
+    onPress?: () => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function Button({ variant = 'primary', label, icon, className, ...props }: ButtonProps) {
+export function Button({ variant = 'primary', label, icon, disabled, style, onPress, ...props }: ButtonProps) {
+    const { colors, isDark } = useTheme();
     const scale = useSharedValue(1);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ scale: scale.value }],
-        };
-    });
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
 
     const handlePressIn = () => {
-        scale.value = withTiming(0.98, {
+        scale.value = withTiming(0.97, {
             duration: TRANSITIONS.short,
             easing: Easing.inOut(Easing.ease),
         });
@@ -42,41 +40,76 @@ export function Button({ variant = 'primary', label, icon, className, ...props }
         });
     };
 
-    const getVariantStyles = () => {
+    const getVariantStyle = (): ViewStyle => {
         switch (variant) {
             case 'primary':
-                return 'bg-ink text-canvas-card'; // Dark background, white text
+                return {
+                    backgroundColor: disabled ? colors.subtle : colors.ink,
+                };
             case 'ghost':
-                return 'bg-transparent text-ink active:bg-canvas-subtle'; // Transparent, dark text
+                return {
+                    backgroundColor: 'transparent',
+                };
             case 'outline':
-                return 'bg-transparent border border-border text-ink';
+                return {
+                    backgroundColor: 'transparent',
+                    borderWidth: 1,
+                    borderColor: colors.separator,
+                };
             default:
-                return 'bg-ink text-canvas-card';
+                return { backgroundColor: colors.ink };
         }
     };
 
-    const getTextVariantStyles = () => {
+    const getTextColor = () => {
+        if (disabled) return colors.stone;
         switch (variant) {
-            case 'primary': return 'text-white';
-            default: return 'text-ink';
+            case 'primary': return colors.paper;
+            default: return colors.ink;
         }
-    }
+    };
 
     return (
         <AnimatedPressable
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
-            className={classNames(
-                'flex-row items-center justify-center px-6 py-4 rounded-full',
-                getVariantStyles(),
-                className
-            )}
+            onPress={onPress}
+            disabled={disabled}
+            style={[
+                styles.base,
+                getVariantStyle(),
+                animatedStyle,
+                style,
+            ]}
             {...props}
         >
-            {icon && <React.Fragment>{icon}<Text className="w-2" /></React.Fragment>}
-            <Text className={classNames("font-semibold text-[17px] tracking-tight", getTextVariantStyles())}>
+            {icon && <>{icon}</>}
+            <Typography
+                variant="body"
+                weight="600"
+                style={[
+                    styles.label,
+                    { color: getTextColor() },
+                    icon ? { marginLeft: SPACING.s } : undefined,
+                ]}
+            >
                 {label}
-            </Text>
+            </Typography>
         </AnimatedPressable>
     );
 }
+
+const styles = StyleSheet.create({
+    base: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: SPACING.l,
+        paddingVertical: SPACING.m,
+        borderRadius: RADIUS.pill,
+    },
+    label: {
+        fontSize: 17,
+        letterSpacing: -0.2,
+    },
+});

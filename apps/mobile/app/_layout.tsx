@@ -89,7 +89,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                                 }}>
                                     <Text style={{
                                         fontSize: 12,
-                                        color: '#C47F65',
+                                        color: '#CF957B', // COLORS.accent
                                         fontFamily: 'GeistMono_400Regular',
                                         textAlign: 'left'
                                     }}>
@@ -145,7 +145,7 @@ function RootLayoutNav() {
     const segments = useSegments();
     const router = useRouter();
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
 
     // Push Notifications Registration
     usePushNotifications();
@@ -300,7 +300,7 @@ function RootLayoutNav() {
     return (
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.canvas }}>
             <StatusBar
-                style={colors.canvas === '#0D0D0C' ? 'light' : 'dark'}
+                style={isDark ? 'light' : 'dark'}
                 translucent
                 backgroundColor="transparent"
             />
@@ -308,7 +308,7 @@ function RootLayoutNav() {
             <ImageBackground
                 source={require("../assets/noise.png")}
                 style={StyleSheet.absoluteFill}
-                imageStyle={{ opacity: colors.canvas === '#0D0D0C' ? 0.08 : 0.04 }}
+                imageStyle={{ opacity: isDark ? 0.08 : 0.04 }}
                 resizeMode="repeat"
             >
                 <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>

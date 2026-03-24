@@ -89,6 +89,8 @@ export default function HomeScreen() {
 
     // Input ref for focusing from empty state
     const urlInputRef = useRef<TextInput>(null);
+    const [urlFocused, setUrlFocused] = useState(false);
+    const [searchFocused, setSearchFocused] = useState(false);
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -221,7 +223,7 @@ export default function HomeScreen() {
         triggerHaptic('impact');
 
         try {
-            // Optimistic
+            // Optimistic remove from feed
             queryClient.setQueryData(['pages'], (old: any) => {
                 if (!old) return old;
                 return {
@@ -231,7 +233,17 @@ export default function HomeScreen() {
             });
 
             await supabase.from('pages').update({ is_archived: true }).eq('id', id);
-            showToast({ message: "Moved to Archive" });
+            showToast({
+                message: "Moved to Archive",
+                duration: 5000,
+                action: {
+                    label: 'Undo',
+                    onPress: async () => {
+                        await supabase.from('pages').update({ is_archived: false }).eq('id', id);
+                        queryClient.invalidateQueries({ queryKey: ['pages'] });
+                    }
+                }
+            });
             triggerHaptic('notification');
         } catch (e) {
             queryClient.invalidateQueries({ queryKey: ['pages'] });
@@ -336,7 +348,7 @@ export default function HomeScreen() {
 
             {/* Omni-Action Hero Card */}
             <View style={styles.omniActionCard}>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, urlFocused && { borderColor: COLORS.accent, borderWidth: 1 }]}>
                     <TouchableOpacity onPress={pickImages} style={styles.iconButton}>
                         <ImageSquare size={22} color={COLORS.stone} />
                     </TouchableOpacity>
@@ -348,16 +360,21 @@ export default function HomeScreen() {
                         value={manualUrl}
                         onChangeText={setManualUrl}
                         onSubmitEditing={handleSubmitUrl}
+                        onFocus={() => setUrlFocused(true)}
+                        onBlur={() => setUrlFocused(false)}
                         returnKeyType="go"
+                        accessibilityLabel="Paste a link to sift"
                     />
                     <TouchableOpacity
                         onPress={handleSubmitUrl}
                         style={[styles.submitButton, manualUrl.length > 0 ? styles.submitButtonActive : null]}
+                        accessibilityLabel="Submit link"
+                        accessibilityRole="button"
                     >
                         {isProcessingQueue || isSiftingImage ? (
-                            <ActivityIndicator size="small" color={manualUrl.length > 0 ? '#FFF' : COLORS.ink} />
+                            <ActivityIndicator size="small" color={manualUrl.length > 0 ? COLORS.paper : COLORS.ink} />
                         ) : (
-                            <Plus size={20} color={manualUrl.length > 0 ? '#FFF' : COLORS.ink} weight="bold" />
+                            <Plus size={20} color={manualUrl.length > 0 ? COLORS.paper : COLORS.ink} weight="bold" />
                         )}
                     </TouchableOpacity>
                 </View>
@@ -452,14 +469,17 @@ export default function HomeScreen() {
 
                 {/* Search, Sort & View Controls Row */}
                 <View style={styles.searchRow}>
-                    <View style={styles.searchBar}>
-                        <MagnifyingGlass size={18} color={COLORS.stone} />
+                    <View style={[styles.searchBar, searchFocused && { borderColor: COLORS.accent, borderWidth: 1 }]}>
+                        <MagnifyingGlass size={18} color={searchFocused ? COLORS.accent : COLORS.stone} />
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Search everything..."
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             placeholderTextColor={COLORS.stone}
+                            onFocus={() => setSearchFocused(true)}
+                            onBlur={() => setSearchFocused(false)}
+                            accessibilityLabel="Search sifts"
                         />
                         {searchQuery.length > 0 && (
                             <TouchableOpacity onPress={() => setSearchQuery("")}>
@@ -652,12 +672,15 @@ const styles = StyleSheet.create({
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        height: 48, // Reduced height to be less prominent
+        minHeight: 48,
         paddingHorizontal: SPACING.s,
+        borderRadius: RADIUS.l - 4,
+        borderWidth: 1,
+        borderColor: 'transparent',
     },
     iconButton: {
         padding: SPACING.xs,
-        marginRight: 4,
+        marginRight: SPACING.xs,
     },
     textInput: {
         flex: 1,
@@ -698,7 +721,7 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.l,
         padding: SPACING.m,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.06)',
+        borderColor: COLORS.border,
         justifyContent: 'center',
         ...Theme.shadows.soft
     },
@@ -729,7 +752,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.surface,
         borderRadius: RADIUS.m,
         paddingHorizontal: SPACING.m,
-        height: 48,
+        minHeight: 48,
         borderWidth: 1,
         borderColor: COLORS.border,
     },

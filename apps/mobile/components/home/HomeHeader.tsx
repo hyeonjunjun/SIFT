@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Typography } from '../design-system/Typography';
-import { COLORS, SPACING, RADIUS } from '../../lib/theme';
+import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { API_URL } from '../../lib/config';
 import Constants from 'expo-constants';
 
@@ -12,6 +13,7 @@ interface HomeHeaderProps {
 }
 
 export function HomeHeader({ user, tier, pagesCount }: HomeHeaderProps) {
+    const { colors } = useTheme();
     const getGreeting = () => {
         const hour = new Date().getHours();
         if (hour < 12) return "good morning";
@@ -49,13 +51,13 @@ export function HomeHeader({ user, tier, pagesCount }: HomeHeaderProps) {
     return (
         <View style={styles.container}>
             <View style={styles.bentoContainer}>
-                <View style={styles.bentoHeader}>
+                <View style={[styles.bentoHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <TouchableOpacity
                         activeOpacity={1}
                         onLongPress={showDiagnostics}
                         style={styles.greetingWrapper}
                     >
-                        <Typography variant="body" style={styles.greetingText}>
+                        <Typography variant="body" color="stone" style={styles.greetingText}>
                             {getGreeting()}
                         </Typography>
                         <Typography variant="h2" style={styles.userName}>
@@ -77,28 +79,19 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.m,
     },
     bentoHeader: {
-        backgroundColor: COLORS.surface,
         borderRadius: RADIUS.l,
         padding: SPACING.l,
         borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: COLORS.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 2,
+        ...Theme.shadows.soft,
     },
     greetingWrapper: {
         gap: SPACING.xs,
     },
     greetingText: {
-        color: COLORS.textSecondary,
         textTransform: 'lowercase',
-        opacity: 0.8,
     },
     userName: {
-        color: COLORS.text,
         fontSize: 32,
-        lineHeight: 34, // Reduced from 38 to fix bottom padding illusion
+        lineHeight: 34,
     }
 });

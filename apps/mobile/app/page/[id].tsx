@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { CaretLeft, DotsThree, Export, NotePencil, Trash, House, Users, PaperPlaneTilt } from 'phosphor-react-native';
@@ -28,7 +30,7 @@ import { Typography } from '../../components/design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
-import { Plus, X, ArrowSquareOut, PlusCircle, Copy } from 'phosphor-react-native';
+import { Plus, X, ArrowSquareOut, PlusCircle, Copy, ImageSquare } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { useAuth } from '../../lib/auth';
@@ -38,7 +40,12 @@ import { SiftDetailSkeleton } from '../../components/SiftDetailSkeleton';
 import { GestureDetector, Gesture, Directions } from 'react-native-gesture-handler';
 import Animated, { SlideInRight, SlideOutLeft, SlideInLeft, SlideOutRight, runOnJS, FadeOut, Easing } from 'react-native-reanimated';
 
-const SUGGESTED_TAGS = ["Cooking", "Tech", "Health", "Lifestyle", "Professional", "Finance", "Travel", "Design", "Science", "News"];
+const SUGGESTED_TAGS = [
+    "Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional",
+    "Finance", "Design", "Travel", "Entertainment", "Science", "Shopping",
+    "Fitness", "Beauty", "Education", "News", "DIY", "Parenting",
+    "Music", "Photography", "Gaming", "Productivity", "Fashion", "Food"
+];
 
 export default function PageDetail() {
     const { colors, isDark } = useTheme();
@@ -57,7 +64,61 @@ export default function PageDetail() {
     const [showDirectShare, setShowDirectShare] = useState(false);
     const [reSifting, setReSifting] = useState(false);
     const [scrollProgress, setScrollProgress] = useState(0);
+    const [uploadingCover, setUploadingCover] = useState(false);
 
+    const changeCoverImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 1,
+        });
+
+        if (result.canceled || !result.assets[0]) return;
+
+        setUploadingCover(true);
+        try {
+            const manipulated = await ImageManipulator.manipulateAsync(
+                result.assets[0].uri,
+                [{ resize: { width: 800 } }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const fileName = `${user?.id}/sift_cover_${id}_${Date.now()}.jpg`;
+            const formData = new FormData();
+            formData.append('file', {
+                uri: manipulated.uri,
+                name: fileName,
+                type: 'image/jpeg',
+            } as any);
+
+            const { error: uploadError } = await supabase.storage
+                .from('covers')
+                .upload(fileName, formData, {
+                    contentType: 'image/jpeg',
+                    upsert: true,
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('covers')
+                .getPublicUrl(fileName);
+
+            await supabase
+                .from('pages')
+                .update({ metadata: { ...page?.metadata, image_url: publicUrl } })
+                .eq('id', id);
+
+            queryClient.invalidateQueries({ queryKey: ['page', id] });
+            queryClient.invalidateQueries({ queryKey: ['sifts'] });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e: any) {
+            Alert.alert('Upload Failed', e.message || 'Could not update cover image.');
+        } finally {
+            setUploadingCover(false);
+        }
+    };
 
     // 1. Fetch Neighbor IDs for Navigation
     const { data: neighborIds } = useQuery({
@@ -315,7 +376,7 @@ export default function PageDetail() {
             <ScreenWrapper edges={['top']} style={{ backgroundColor: colors.canvas }}>
                 <Stack.Screen options={{ headerShown: false }} />
                 <View style={styles.navBar}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.navButton}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.navButton} accessibilityLabel="Go back" accessibilityRole="button">
                         <CaretLeft size={28} color={colors.ink} weight="bold" />
                     </TouchableOpacity>
                 </View>
@@ -490,11 +551,13 @@ export default function PageDetail() {
                                 }}
                                 style={styles.navButton}
                                 hitSlop={16}
+                                accessibilityLabel="Go back"
+                                accessibilityRole="button"
                             >
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
                             <View style={{ flex: 1 }} />
-                            <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton} hitSlop={16}>
+                            <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton} hitSlop={16} accessibilityLabel="More options" accessibilityRole="button">
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
                             {isShared && (
@@ -504,6 +567,8 @@ export default function PageDetail() {
                                         router.replace('/(tabs)/');
                                     }}
                                     style={[styles.navButton, { marginLeft: SPACING.s }]}
+                                    accessibilityLabel="Go to home"
+                                    accessibilityRole="button"
                                     hitSlop={16}
                                 >
                                     <House size={28} color={colors.ink} />
@@ -532,14 +597,25 @@ export default function PageDetail() {
                         >
                             {/* Card 1: Image */}
                             {page?.metadata?.image_url && (
-                                <View style={[styles.imageWrapper, { backgroundColor: colors.surface, borderRadius: RADIUS.l, overflow: 'hidden', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    onPress={changeCoverImage}
+                                    accessibilityLabel="Change cover image"
+                                    accessibilityRole="button"
+                                    style={[styles.imageWrapper, { backgroundColor: colors.surface, borderRadius: RADIUS.l, overflow: 'hidden', borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}
+                                >
                                     <Image
                                         source={{ uri: page.metadata.image_url }}
                                         style={{ width: '100%', height: 240 }}
                                         resizeMode="cover"
                                     />
+                                    {uploadingCover && (
+                                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
+                                            <ActivityIndicator size="large" color="#fff" />
+                                        </View>
+                                    )}
                                     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: RADIUS.l, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', pointerEvents: 'none' }} />
-                                </View>
+                                </TouchableOpacity>
                             )}
 
                             {/* Card 2: Header Info */}
@@ -581,7 +657,7 @@ export default function PageDetail() {
                                         </View>
                                     ) : (
                                         <Typography variant="label" color="stone" style={styles.metaLabel}>
-                                            {page?.tags?.join(' • ') || 'SAVED'} • {page?.created_at ? new Date(page.created_at).toLocaleDateString() : 'Recent'}
+                                            {page?.tags?.join(' • ') || 'SAVED'} • {page?.created_at ? new Date(page.created_at).toLocaleDateString() : 'Recent'}{page?.metadata?.reading_time_minutes ? ` • ${page.metadata.reading_time_minutes} min read` : ''}
                                         </Typography>
                                     )}
                                 </View>
@@ -696,6 +772,41 @@ export default function PageDetail() {
                                 )}
                             </View>
 
+                            {/* Smart Data Card (recipes, tutorials, videos) */}
+                            {page?.metadata?.smart_data && Object.keys(page.metadata.smart_data).filter(k => {
+                                const v = page.metadata.smart_data[k];
+                                return v && v !== '' && !(Array.isArray(v) && v.length === 0);
+                            }).length > 0 && (
+                                <View style={[styles.bentoCard, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)', paddingVertical: SPACING.m }]}>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.m }}>
+                                        {page.metadata.smart_data.preparation_time && (
+                                            <View style={{ gap: 2 }}>
+                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>PREP TIME</Typography>
+                                                <Typography variant="bodyMedium">{page.metadata.smart_data.preparation_time}</Typography>
+                                            </View>
+                                        )}
+                                        {page.metadata.smart_data.servings && (
+                                            <View style={{ gap: 2 }}>
+                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>SERVINGS</Typography>
+                                                <Typography variant="bodyMedium">{page.metadata.smart_data.servings}</Typography>
+                                            </View>
+                                        )}
+                                        {page.metadata.smart_data.difficulty && (
+                                            <View style={{ gap: 2 }}>
+                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>DIFFICULTY</Typography>
+                                                <Typography variant="bodyMedium" style={{ textTransform: 'capitalize' }}>{page.metadata.smart_data.difficulty}</Typography>
+                                            </View>
+                                        )}
+                                        {page.metadata.smart_data.video_insights && (
+                                            <View style={{ gap: 2, flex: 1 }}>
+                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>KEY TAKEAWAYS</Typography>
+                                                <Typography variant="body" color="stone" style={{ lineHeight: 20 }}>{page.metadata.smart_data.video_insights}</Typography>
+                                            </View>
+                                        )}
+                                    </View>
+                                </View>
+                            )}
+
                             {/* Card 4: Editorial Content */}
                             <View style={{
                                 minHeight: 400,
@@ -772,6 +883,14 @@ export default function PageDetail() {
                     onClose={() => setActionSheetVisible(false)}
                     title="Manage Sift"
                     options={[
+                        {
+                            label: uploadingCover ? 'Uploading...' : 'Change Cover',
+                            icon: ImageSquare,
+                            onPress: () => {
+                                setActionSheetVisible(false);
+                                setTimeout(() => changeCoverImage(), 300);
+                            }
+                        },
                         {
                             label: 'Edit Sift',
                             icon: require('phosphor-react-native').PencilSimple,

@@ -128,8 +128,8 @@ export default function PrivacyScreen() {
                     <View style={{ height: 12 }} />
 
                     <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
-                        <Trash size={20} color="#EF4444" />
-                        <Typography variant="label" style={{ color: '#EF4444', marginLeft: 8 }}>
+                        <Trash size={20} color={COLORS.danger} />
+                        <Typography variant="label" style={{ color: COLORS.danger, marginLeft: 8 }}>
                             DELETE ACCOUNT
                         </Typography>
                     </TouchableOpacity>
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: RADIUS.m,
         borderWidth: 1,
-        borderColor: '#EF4444',
+        borderColor: COLORS.danger,
     },
     exportButton: {
         flexDirection: 'row',

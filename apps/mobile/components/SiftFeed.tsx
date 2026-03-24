@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, Pressable, Alert, Platform, useWindowDimensions, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { COLORS, RADIUS, TRANSITIONS, Theme } from '../lib/theme';
+import { COLORS, RADIUS, TRANSITIONS, Theme, OVERLAYS, SPACING } from '../lib/theme';
 import { getDomain } from '../lib/utils';
 import { Typography } from './design-system/Typography';
 import { Article, Video } from 'phosphor-react-native';
@@ -66,8 +66,8 @@ interface SiftFeedProps {
     onRetry?: (id: string, url: string) => void;
 }
 
-const GRID_PADDING = 20;
-const GRID_GAP = 15;
+const GRID_PADDING = SPACING.l;
+const GRID_GAP = SPACING.m - 1;
 
 const getLayoutInfo = (screenWidth: number) => {
     const isWeb = Platform.OS === 'web';
@@ -241,23 +241,23 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
                         <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
-                            <Typography variant="label" style={{ color: 'white', fontWeight: 'bold', marginBottom: 4 }}>
+                            <Typography variant="label" style={{ color: colors.paper, fontWeight: 'bold', marginBottom: 4 }}>
                                 {isStale ? "TIMED OUT" : "FAILED"}
                             </Typography>
                             {item.metadata?.error && (
-                                <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 6, paddingHorizontal: 12 }} numberOfLines={2}>
+                                <Typography variant="caption" style={{ color: colors.paper, opacity: 0.7, textAlign: 'center', marginBottom: SPACING.s - 2, paddingHorizontal: SPACING.m - 4 }} numberOfLines={2}>
                                     {item.metadata.error}
                                 </Typography>
                             )}
                             {(!item.metadata?.retry_count || item.metadata.retry_count < 3) ? (
                                 <Pressable
                                     onPress={(e) => { e.stopPropagation(); onRetry?.(item.id, page.url); }}
-                                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                                    style={{ backgroundColor: OVERLAYS.dark.hover, paddingHorizontal: SPACING.m, paddingVertical: SPACING.s, borderRadius: RADIUS.pill }}
                                 >
-                                    <Typography variant="label" style={{ color: 'white' }}>Retry</Typography>
+                                    <Typography variant="label" style={{ color: colors.paper }}>Retry</Typography>
                                 </Pressable>
                             ) : (
-                                <Typography variant="caption" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                <Typography variant="caption" style={{ color: colors.paper, opacity: 0.5 }}>
                                     Max retries reached
                                 </Typography>
                             )}
@@ -292,20 +292,20 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                         hitSlop={12}
                         style={{
                             position: 'absolute',
-                            top: 12,
-                            right: 12,
+                            top: SPACING.m - 4,
+                            right: SPACING.m - 4,
                             zIndex: 10,
                             backgroundColor: item.is_pinned
-                                ? (isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)')
-                                : 'rgba(255,255,255,0.85)',
-                            padding: 6,
-                            borderRadius: 100,
+                                ? (isDark ? OVERLAYS.dark.scrim : OVERLAYS.light.glass)
+                                : OVERLAYS.light.glass,
+                            padding: SPACING.s - 2,
+                            borderRadius: RADIUS.pill,
                             ...Theme.shadows.soft
                         }}
                     >
                         <PinIcon
                             size={10}
-                            color={item.is_pinned ? colors.accent : 'rgba(0,0,0,0.5)'}
+                            color={item.is_pinned ? colors.accent : OVERLAYS.light.scrim}
                             weight={item.is_pinned ? "fill" : "regular"}
                         />
                     </Pressable>
@@ -317,22 +317,22 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                     >
                         {/* @ts-ignore */}
                         <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
+                            colors={['transparent', OVERLAYS.light.imageFade, OVERLAYS.dark.scrim]}
                             locations={[0.4, 0.7, 1]}
                             style={StyleSheet.absoluteFill}
                         />
                         <View style={styles.textOverlay}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                <Typography style={styles.overlayTag}>
-                                    {(item.category || 'General').toUpperCase()}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.s - 2 }}>
+                                <Typography variant="label" style={styles.overlayTag}>
+                                    {item.category || 'General'}
                                 </Typography>
                                 {item.is_pinned && (
-                                    <View style={{ marginLeft: 6, width: 4, height: 4, borderRadius: 2, backgroundColor: '#FFF' }} />
+                                    <View style={{ marginLeft: SPACING.s - 2, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.paper }} />
                                 )}
                             </View>
                             <Typography
-                                variant="h3"
-                                style={styles.overlayTitle}
+                                variant="h2"
+                                style={[styles.overlayTitle, { fontSize: 18, lineHeight: 24 }]}
                                 numberOfLines={2}
                                 ellipsizeMode="tail"
                             >
@@ -345,7 +345,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                     {mode === 'edit' && (
                         <View style={styles.editOverlay}>
                             <View style={styles.removeBadge}>
-                                <Minus size={16} color="white" weight="bold" />
+                                <Minus size={16} color={colors.paper} weight="bold" />
                             </View>
                         </View>
                     )}
@@ -357,7 +357,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                                 styles.selectBadge,
                                 isSelected && styles.selectBadgeActive
                             ]}>
-                                {isSelected && <CheckCircle size={24} color="#FFFFFF" weight="fill" />}
+                                {isSelected && <CheckCircle size={24} color={colors.paper} weight="fill" />}
                             </View>
                         </View>
                     )}
@@ -421,49 +421,48 @@ export default function SiftFeed({
                         disabled={isActive}
                         style={{
                             opacity: isActive ? 0.8 : 1,
-                            marginVertical: 6,
+                            marginVertical: SPACING.s - 2,
                             backgroundColor: colors.paper,
                             borderRadius: RADIUS.m,
                             borderWidth: isDark ? 1 : 0,
-                            borderColor: 'rgba(255,255,255,0.05)',
-                            padding: 12,
+                            borderColor: OVERLAYS.dark.hover,
+                            padding: SPACING.m - 4,
                             ...Theme.shadows.soft,
                             shadowOpacity: isActive ? 0.2 : 0.05,
                         }}
                     >
                         <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                            <TouchableOpacity onPressIn={drag} hitSlop={10} style={{ paddingRight: 12 }}>
+                            <TouchableOpacity onPressIn={drag} hitSlop={10} style={{ paddingRight: SPACING.m - 4 }}>
                                 <ListDashes size={24} color={colors.stone} weight="bold" />
                             </TouchableOpacity>
 
                             {item.metadata?.image_url ? (
                                 <Image
                                     source={item.metadata.image_url}
-                                    style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: 12 }}
+                                    style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: SPACING.m - 4 }}
                                     contentFit="cover"
                                 />
                             ) : (
-                                <View style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+                                <View style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: SPACING.m - 4, justifyContent: 'center', alignItems: 'center' }}>
                                     <Article size={24} color={colors.stone} weight="thin" />
                                 </View>
                             )}
 
                             <View style={{ flex: 1, justifyContent: 'center' }}>
                                 <Typography
-                                    variant="label"
+                                    variant="caption"
                                     color="stone"
                                     numberOfLines={1}
                                     ellipsizeMode="tail"
-                                    style={{ fontSize: 10, letterSpacing: 0.5, marginBottom: 4 }}
+                                    style={{ textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.xs }}
                                 >
-                                    {getDomain(item.url)?.toUpperCase() || 'SIFT'}
+                                    {getDomain(item.url) || 'SIFT'}
                                 </Typography>
                                 <Typography
-                                    variant="h3"
+                                    variant="bodyMedium"
                                     color="ink"
                                     numberOfLines={2}
                                     ellipsizeMode="tail"
-                                    style={{ fontSize: 15, lineHeight: 20 }}
                                 >
                                     {item.title || 'Untitled Page'}
                                 </Typography>
@@ -477,8 +476,8 @@ export default function SiftFeed({
             onScroll={onScroll}
             scrollEventThrottle={16}
             contentContainerStyle={{
-                paddingHorizontal: 20, // Padded Container governs alignment
-                paddingBottom: 40,
+                paddingHorizontal: SPACING.l,
+                paddingBottom: SPACING.xxl - 8,
                 ...contentContainerStyle
             }}
         />
@@ -528,8 +527,8 @@ export default function SiftFeed({
             scrollEventThrottle={16}
             removeClippedSubviews={Platform.OS === 'android'}
             contentContainerStyle={{
-                paddingHorizontal: 20, // Padded Container governs alignment
-                paddingBottom: 40,
+                paddingHorizontal: SPACING.l,
+                paddingBottom: SPACING.xxl - 8,
                 ...contentContainerStyle
             }}
             onEndReached={onEndReached}
@@ -541,13 +540,8 @@ export default function SiftFeed({
 
 const styles = StyleSheet.create({
     cardContainer: {
-        marginBottom: 8,
-        // Soft Lift Shadow for floating effect
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
+        marginBottom: SPACING.s,
+        ...Theme.shadows.soft,
     },
     imageWrapper: {
         // "Delicious Mozzarella" getting lost suggests overlap.
@@ -566,76 +560,55 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    // OFF-IMAGE META (Removed/Commented out if not used anymore)
-    meta: {
-        marginTop: 12,
-        gap: 4,
-    },
-    metadata: {
-        fontSize: 13,
-        fontFamily: 'System',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    // NEW OVERLAY STYLES
     textOverlay: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        padding: 16,
-        paddingBottom: 20,
+        padding: SPACING.m,
+        paddingBottom: SPACING.l - 4,
         justifyContent: 'flex-end',
     },
     overlayTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        textShadowColor: 'rgba(0,0,0,0.3)',
+        color: COLORS.paper,
+        textShadowColor: OVERLAYS.light.imageFade,
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 4,
-        fontFamily: 'PlayfairDisplay_600SemiBold', // Use the new serif
-        lineHeight: 24,
     },
     overlayTag: {
-        color: 'rgba(255,255,255,0.9)',
-        fontSize: 11,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        fontFamily: 'Satoshi-Medium',
+        color: COLORS.paper,
+        opacity: 0.9,
     },
     editOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.1)',
+        backgroundColor: OVERLAYS.light.pressed,
         justifyContent: 'flex-start',
         alignItems: 'flex-end',
-        padding: 10,
+        padding: SPACING.s + 2,
     },
     removeBadge: {
         width: 28,
         height: 28,
-        borderRadius: 14,
+        borderRadius: RADIUS.pill,
         backgroundColor: COLORS.danger,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        ...Theme.shadows.sharp,
         shadowOpacity: 0.2,
-        shadowRadius: 3,
     },
     selectOverlay: {
         position: 'absolute',
-        top: 10,
-        left: 10,
+        top: SPACING.s + 2,
+        left: SPACING.s + 2,
         zIndex: 20,
     },
     selectBadge: {
         width: 26,
         height: 26,
-        borderRadius: 13,
+        borderRadius: RADIUS.pill,
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.8)',
-        backgroundColor: 'rgba(0,0,0,0.2)',
+        borderColor: OVERLAYS.light.glass,
+        backgroundColor: OVERLAYS.light.imageFade,
         justifyContent: 'center',
         alignItems: 'center',
     },

@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, Pressable, Platform } from 'react-native';
 import { Typography } from '../design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
-import { SPACING, RADIUS, Theme } from '../../lib/theme';
+import { SPACING, RADIUS, Theme, OVERLAYS } from '../../lib/theme';
 import { IconProps } from 'phosphor-react-native';
 
 export interface ActionSheetOption {
@@ -21,7 +21,7 @@ interface ActionSheetProps {
 }
 
 export const ActionSheet = ({ visible, onClose, title, options }: ActionSheetProps) => {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
 
     return (
         <Modal
@@ -31,7 +31,7 @@ export const ActionSheet = ({ visible, onClose, title, options }: ActionSheetPro
             onRequestClose={onClose}
         >
             <Pressable
-                style={styles.overlay}
+                style={[styles.overlay, { backgroundColor: isDark ? OVERLAYS.dark.scrim : OVERLAYS.light.scrim }]}
                 onPress={onClose}
             >
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>
@@ -108,37 +108,34 @@ export const ActionSheet = ({ visible, onClose, title, options }: ActionSheetPro
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)', // Darker overlay
         justifyContent: 'flex-end',
     },
     content: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingHorizontal: 24,
-        paddingTop: 24,
-        paddingBottom: Platform.OS === 'ios' ? 48 : 24,
+        borderTopLeftRadius: RADIUS.m,
+        borderTopRightRadius: RADIUS.m,
+        paddingHorizontal: SPACING.l,
+        paddingTop: SPACING.l,
+        paddingBottom: Platform.OS === 'ios' ? SPACING.xxl : SPACING.l,
         ...Theme.shadows.medium,
     },
     title: {
-        marginBottom: 20,
+        marginBottom: SPACING.l,
         textAlign: 'center',
         letterSpacing: 1,
-        fontSize: 11,
-        fontWeight: '700',
     },
     optionRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
+        paddingVertical: SPACING.m,
     },
     iconContainer: {
         width: 32,
-        marginRight: 12,
+        marginRight: SPACING.m - 4,
         alignItems: 'flex-start',
     },
     cancelButton: {
-        marginTop: 16,
-        paddingVertical: 16,
+        marginTop: SPACING.m,
+        paddingVertical: SPACING.m,
         borderRadius: RADIUS.pill,
         alignItems: 'center',
         justifyContent: 'center',

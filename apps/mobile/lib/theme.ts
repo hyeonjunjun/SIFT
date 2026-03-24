@@ -64,6 +64,47 @@ export const HIGH_CONTRAST_DARK_COLORS = {
 
 export const COLORS = LIGHT_COLORS;
 
+// ──────────────────────────────────────────────────────
+// Overlays & Glass — use these instead of inline rgba()
+// ──────────────────────────────────────────────────────
+export const OVERLAYS = {
+    light: {
+        scrim: 'rgba(68, 55, 50, 0.6)',       // Modal backdrop
+        glass: 'rgba(253, 252, 248, 0.85)',     // Frosted surface
+        hover: 'rgba(68, 55, 50, 0.04)',        // Hover state
+        pressed: 'rgba(68, 55, 50, 0.08)',      // Pressed state
+        imageFade: 'rgba(0, 0, 0, 0.45)',       // Image gradient overlay
+        dangerTint: 'rgba(196, 103, 97, 0.1)',  // Danger background tint
+        accentTint: 'rgba(207, 149, 123, 0.12)', // Accent background tint
+    },
+    dark: {
+        scrim: 'rgba(0, 0, 0, 0.7)',
+        glass: 'rgba(22, 16, 14, 0.85)',
+        hover: 'rgba(241, 238, 231, 0.06)',
+        pressed: 'rgba(241, 238, 231, 0.1)',
+        imageFade: 'rgba(0, 0, 0, 0.55)',
+        dangerTint: 'rgba(220, 140, 133, 0.15)',
+        accentTint: 'rgba(222, 170, 147, 0.12)',
+    }
+} as const;
+
+// ──────────────────────────────────────────────────────
+// Collection Palette — warm, brand-aligned alternatives
+// to the cold Tailwind colors
+// ──────────────────────────────────────────────────────
+export const COLLECTION_PALETTE = [
+    '#B07D62', // Warm Clay
+    '#9B7A5C', // Toasted Almond
+    '#8A6B54', // Mocha
+    '#A68B7B', // Driftwood
+    '#C4A882', // Sand
+    '#D4A574', // Honey
+    '#8AAF9A', // Sage (matches success)
+    '#7A9E8E', // Forest Sage
+    '#9B8EA8', // Lavender Mist
+    '#6B7B8D', // Slate
+] as const;
+
 export const SPACING = {
     xs: 4,
     s: 8,

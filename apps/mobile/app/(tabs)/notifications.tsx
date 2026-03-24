@@ -266,15 +266,15 @@ export default function NotificationsScreen() {
         const renderRightActions = () => (
             <TouchableOpacity
                 style={{
-                    backgroundColor: '#FF3B30',
+                    backgroundColor: COLORS.danger,
                     justifyContent: 'center',
                     alignItems: 'center',
                     width: 80,
                 }}
                 onPress={() => handleDeleteNotification(notification.id)}
             >
-                <TrashSimple size={22} color="#FFFFFF" weight="bold" />
-                <Typography variant="caption" style={{ color: '#FFFFFF', marginTop: 4, fontWeight: '600' }}>Delete</Typography>
+                <TrashSimple size={22} color={colors.paper} weight="bold" />
+                <Typography variant="caption" style={{ color: colors.paper, marginTop: 4, fontWeight: '600' }}>Delete</Typography>
             </TouchableOpacity>
         );
 
@@ -316,7 +316,7 @@ export default function NotificationsScreen() {
                                 onPress={() => handleAcceptFriend(notification.reference_id!)}
                                 hitSlop={16}
                             >
-                                <Typography variant="caption" style={{ color: '#FFFFFF', fontWeight: '600' }}>
+                                <Typography variant="caption" style={{ color: colors.paper, fontWeight: '600' }}>
                                     Accept
                                 </Typography>
                             </TouchableOpacity>

@@ -3,7 +3,8 @@ import { Modal, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
-import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
+import { COLORS, SPACING, RADIUS, Theme, OVERLAYS } from '../../lib/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Crown, X, Star } from 'phosphor-react-native';
 import { useSubscription } from '../../hooks/useSubscription';
 
@@ -16,6 +17,7 @@ interface LimitReachedModalProps {
 export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReachedModalProps) => {
     const router = useRouter();
     const { tier, maxSiftsTotal, description } = useSubscription();
+    const { colors, isDark } = useTheme();
 
     const handleUpgrade = async () => {
         onClose();
@@ -29,17 +31,17 @@ export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReached
             animationType="fade"
             onRequestClose={onClose}
         >
-            <View style={styles.overlay}>
-                <View style={styles.content}>
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                        <X size={20} color={COLORS.stone} />
+            <View style={[styles.overlay, { backgroundColor: isDark ? OVERLAYS.dark.scrim : OVERLAYS.light.scrim }]}>
+                <View style={[styles.content, { backgroundColor: colors.paper }]}>
+                    <TouchableOpacity style={styles.closeButton} onPress={onClose} accessibilityLabel="Close" accessibilityRole="button">
+                        <X size={20} color={colors.stone} />
                     </TouchableOpacity>
 
-                    <View style={styles.iconContainer}>
+                    <View style={[styles.iconContainer, { backgroundColor: colors.subtle }]}>
                         {tier === 'free' ? (
-                            <Star size={32} color={COLORS.stone} weight="duotone" />
+                            <Star size={32} color={colors.stone} weight="duotone" />
                         ) : (
-                            <Crown size={32} color={COLORS.ink} weight="duotone" />
+                            <Crown size={32} color={colors.ink} weight="duotone" />
                         )}
                     </View>
                     <Typography variant="h3" style={styles.title}>
@@ -71,13 +73,11 @@ export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReached
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: SPACING.xl,
     },
     content: {
-        backgroundColor: COLORS.paper,
         borderRadius: RADIUS.xl,
         padding: SPACING.xl,
         width: '100%',
@@ -95,7 +95,6 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: RADIUS.l,
-        backgroundColor: COLORS.subtle,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: SPACING.l,

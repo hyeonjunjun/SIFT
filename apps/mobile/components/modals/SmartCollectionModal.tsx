@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
-import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
+import { COLORS, SPACING, RADIUS, Theme, COLLECTION_PALETTE, OVERLAYS } from '../../lib/theme';
 import {
     X, Trash, PushPin, Check, Plus, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle,
     Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase,
@@ -18,18 +18,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const COLLECTION_COLORS = [
-    '#3B82F6', // Blue
-    '#8B5CF6', // Purple
-    '#EC4899', // Pink
-    '#EF4444', // Red
-    '#F97316', // Orange
-    '#EAB308', // Yellow
-    '#22C55E', // Green
-    '#14B8A6', // Teal
-    '#6B7280', // Gray
-    '#1F2937', // Dark
-];
+const COLLECTION_COLORS = [...COLLECTION_PALETTE];
 
 const COLLECTION_ICONS = [
     { name: 'Cooking', icon: CookingPot },
@@ -339,10 +328,10 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
 
                             {imageUrl !== '' && (
                                 <TouchableOpacity
-                                    style={[styles.smallActionButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'transparent' }]}
+                                    style={[styles.smallActionButton, { backgroundColor: OVERLAYS.light.dangerTint, borderColor: 'transparent' }]}
                                     onPress={() => setImageUrl('')}
                                 >
-                                    <X size={20} color="#EF4444" />
+                                    <X size={20} color={colors.danger} />
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -456,7 +445,7 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
                     <View style={styles.actions}>
                         {isEditMode && onDelete && (
                             <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-                                <Trash size={20} color="#EF4444" />
+                                <Trash size={20} color={colors.danger} />
                             </TouchableOpacity>
                         )}
                         <Button
@@ -576,7 +565,7 @@ const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: RADIUS.m,
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        backgroundColor: OVERLAYS.light.dangerTint,
         justifyContent: 'center',
         alignItems: 'center',
     },

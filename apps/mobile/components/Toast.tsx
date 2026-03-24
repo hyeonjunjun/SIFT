@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { Text, View, StyleSheet, Dimensions, Platform } from 'react-native';
-import Animated, { FadeInDown, FadeOutDown, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Check, WarningCircle } from 'phosphor-react-native';
-import { COLORS, BORDER, RADIUS, Theme, SPACING } from '../lib/theme';
+import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, { FadeInUp, FadeOutUp, Easing, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { Check, WarningCircle, Info } from 'phosphor-react-native';
+import { RADIUS, SPACING, Theme } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,7 +11,7 @@ interface ToastProps {
     visible: boolean;
     onHide: () => void;
     duration?: number;
-    type?: 'success' | 'error';
+    type?: 'success' | 'error' | 'info';
     action?: {
         label: string;
         onPress: () => void;
@@ -23,16 +23,14 @@ interface ToastProps {
     bottomOffset?: number;
 }
 
-export function Toast({ message, visible, onHide, duration = 3000, type = 'success', action, secondaryAction, bottomOffset }: ToastProps) {
+export function Toast({ message, visible, onHide, duration = 3000, type = 'success', action, secondaryAction }: ToastProps) {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const progress = useSharedValue(0);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            width: `${progress.value}%`,
-        };
-    });
+    const animatedProgress = useAnimatedStyle(() => ({
+        width: `${progress.value}%`,
+    }));
 
     const onHideRef = React.useRef(onHide);
     React.useEffect(() => {
@@ -42,87 +40,80 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
     useEffect(() => {
         if (visible) {
             progress.value = 0;
-            const time = duration === 0 ? 0 : duration;
-
-            if (time > 0) {
-                progress.value = withTiming(100, { duration: time, easing: Easing.linear });
-                const timer = setTimeout(() => {
-                    onHideRef.current();
-                }, time);
+            if (duration > 0) {
+                progress.value = withTiming(100, { duration, easing: Easing.linear });
+                const timer = setTimeout(() => onHideRef.current(), duration);
                 return () => clearTimeout(timer);
-            } else {
-                progress.value = 0;
             }
         }
     }, [visible, duration, message]);
 
     if (!visible) return null;
 
+    // Inverted colors — dark toast on light bg, light toast on dark bg
+    const bg = isDark ? colors.paper : colors.ink;
+    const fg = isDark ? colors.ink : colors.paper;
+    const fgMuted = isDark ? colors.stone : 'rgba(253, 252, 248, 0.6)';
+    const tintBg = isDark ? colors.subtle : 'rgba(253, 252, 248, 0.12)';
+    const trackBg = isDark ? colors.separator : 'rgba(253, 252, 248, 0.08)';
+    const barBg = isDark ? colors.accent : 'rgba(253, 252, 248, 0.3)';
+
+    const iconColor = type === 'error' ? colors.danger : type === 'info' ? colors.accent : colors.success;
+    const Icon = type === 'error' ? WarningCircle : type === 'info' ? Info : Check;
+
     return (
         <Animated.View
-            entering={FadeInDown.duration(400).easing(Easing.out(Easing.cubic))}
-            exiting={FadeOutDown.duration(300)}
+            entering={FadeInUp.duration(350).easing(Easing.out(Easing.cubic))}
+            exiting={FadeOutUp.duration(250)}
             style={[
                 styles.container,
-                styles.shadow,
                 {
-                    backgroundColor: colors.paper,
-                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : colors.separator,
-                    shadowColor: "#000",
-                    bottom: bottomOffset !== undefined ? bottomOffset : (Platform.OS === 'ios' ? 90 : 70 + insets.bottom) + 24,
+                    backgroundColor: bg,
+                    top: insets.top + SPACING.s,
                 }
             ]}
         >
-            <View style={styles.content}>
-                <View style={styles.iconContainer}>
-                    {type === 'success' ? (
-                        <Check size={16} color={colors.ink} weight="bold" />
-                    ) : (
-                        <WarningCircle size={16} color={colors.danger} weight="bold" />
-                    )}
-                </View>
-                <Text style={[
-                    styles.message,
-                    { color: colors.ink },
-                    type === 'error' && { color: colors.danger }
-                ]}>
-                    {message}
-                </Text>
+            {/* Icon */}
+            <View style={[styles.iconContainer, { backgroundColor: tintBg }]}>
+                <Icon size={16} color={isDark ? iconColor : fg} weight="bold" />
             </View>
 
+            {/* Message */}
+            <Text style={[styles.message, { color: fg }]} numberOfLines={2}>
+                {message}
+            </Text>
+
+            {/* Actions */}
             {(action || secondaryAction) && (
-                <View style={[styles.actions, { borderLeftColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E5E5' }]}>
+                <View style={styles.actions}>
                     {secondaryAction && (
-                        <Text
-                            onPress={() => {
-                                secondaryAction.onPress();
-                                onHide();
-                            }}
-                            style={[styles.secondaryAction, { color: colors.stone }]}
+                        <TouchableOpacity
+                            onPress={() => { secondaryAction.onPress(); onHide(); }}
+                            hitSlop={8}
                         >
-                            {secondaryAction.label}
-                        </Text>
+                            <Text style={[styles.actionText, { color: fgMuted }]}>
+                                {secondaryAction.label}
+                            </Text>
+                        </TouchableOpacity>
                     )}
                     {action && (
-                        <Text
-                            onPress={() => {
-                                action.onPress();
-                                onHide();
-                            }}
-                            style={[styles.primaryAction, { color: colors.ink }]}
+                        <TouchableOpacity
+                            onPress={() => { action.onPress(); onHide(); }}
+                            style={[styles.actionButton, { backgroundColor: tintBg }]}
+                            hitSlop={8}
                         >
-                            {action.label}
-                        </Text>
+                            <Text style={[styles.actionText, { color: fg, fontWeight: '700' }]}>
+                                {action.label}
+                            </Text>
+                        </TouchableOpacity>
                     )}
                 </View>
             )}
 
-            {/* Timer Line - Subtle at bottom */}
+            {/* Progress bar */}
             {duration > 0 && (
-                <View style={styles.progressContainer}>
-                    <Animated.View
-                        style={[styles.progressBar, animatedStyle, { backgroundColor: colors.ink }]}
-                    />
+                <View style={[styles.progressTrack, { backgroundColor: trackBg }]}>
+                    <Animated.View style={[styles.progressBar, animatedProgress, { backgroundColor: barBg }]} />
                 </View>
             )}
         </Animated.View>
@@ -132,77 +123,61 @@ export function Toast({ message, visible, onHide, duration = 3000, type = 'succe
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
+        left: SPACING.m,
+        right: SPACING.m,
         alignSelf: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: RADIUS.pill,
+        maxWidth: 420,
+        borderRadius: RADIUS.s,
+        paddingTop: SPACING.s + 6,
+        paddingBottom: SPACING.s + 6,
+        paddingHorizontal: SPACING.m,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         overflow: 'hidden',
-        borderWidth: StyleSheet.hairlineWidth,
-        marginHorizontal: 20,
-        maxWidth: 400,
-        minWidth: 200,
         zIndex: 99999,
         ...Theme.shadows.medium,
-    },
-    shadow: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 5,
-    },
-    content: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
+        shadowOpacity: 0.15,
+        elevation: 8,
     },
     iconContainer: {
-        marginRight: 10,
+        width: 28,
+        height: 28,
+        borderRadius: RADIUS.pill,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: SPACING.s + 2,
     },
     message: {
-        color: COLORS.ink,
-        fontFamily: 'System',
+        fontFamily: 'Satoshi-Medium',
         fontSize: 14,
-        fontWeight: '500',
+        lineHeight: 19,
         flex: 1,
-        includeFontPadding: false,
-        letterSpacing: 0,
+        letterSpacing: 0.1,
     },
     actions: {
-        marginLeft: 12,
-        paddingLeft: 16,
-        borderLeftWidth: 1,
-        borderLeftColor: 'rgba(0,0,0,0.05)',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: SPACING.s,
+        marginLeft: SPACING.s + 2,
     },
-    secondaryAction: {
-        color: COLORS.stone,
+    actionText: {
+        fontFamily: 'Satoshi-Medium',
+        fontSize: 13,
         fontWeight: '600',
-        fontSize: 13,
-        fontFamily: 'System',
     },
-    primaryAction: {
-        color: COLORS.ink,
-        fontWeight: '700',
-        fontSize: 13,
-        fontFamily: 'System',
+    actionButton: {
+        paddingHorizontal: SPACING.m - 4,
+        paddingVertical: SPACING.s - 2,
+        borderRadius: RADIUS.s,
     },
-    progressContainer: {
+    progressTrack: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         height: 2,
-        backgroundColor: 'rgba(0,0,0,0.05)',
     },
     progressBar: {
         height: '100%',
-        backgroundColor: COLORS.ink, // Dark progress bar
-        opacity: 0.8,
-    }
+    },
 });

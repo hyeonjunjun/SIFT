@@ -1,7 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Typography } from '../design-system/Typography';
+import { useTheme } from '../../context/ThemeContext';
+import { SPACING, RADIUS } from '../../lib/theme';
 
-// Define the shape of a filter item
 interface FilterItem {
     id: string;
     text: string;
@@ -9,12 +12,11 @@ interface FilterItem {
 }
 
 interface Props {
-    filters?: FilterItem[]; // Make it optional to prevent crashes
+    filters?: FilterItem[];
     activeFilter?: string;
     onSelect?: (id: string) => void;
 }
 
-// Default filters in case none are passed
 const DEFAULT_FILTERS: FilterItem[] = [
     { id: 'all', text: 'All', active: true },
     { id: 'cooking', text: 'Cooking' },
@@ -23,12 +25,8 @@ const DEFAULT_FILTERS: FilterItem[] = [
     { id: 'health', text: 'Health' },
 ];
 
-import { useTheme } from '../../context/ThemeContext';
-import { COLORS } from '../../lib/theme';
-
 export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onSelect }: Props) {
     const { colors } = useTheme();
-    // Safety Check: Ensure filters is always an array
     const safeFilters = Array.isArray(filters) ? filters : DEFAULT_FILTERS;
 
     return (
@@ -39,7 +37,6 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
                 contentContainerStyle={styles.scrollContent}
             >
                 {safeFilters.map((item, index) => {
-                    // CRITICAL CRASH FIX: Guard against undefined items or missing text
                     if (!item || !item.text) return null;
 
                     const isActive = item.id === activeFilter;
@@ -47,18 +44,26 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
                     return (
                         <Pressable
                             key={item.id || index}
-                            style={[
+                            style={({ pressed }) => [
                                 styles.chip,
-                                { backgroundColor: isActive ? colors.ink : colors.subtle },
+                                {
+                                    backgroundColor: isActive ? colors.ink : colors.subtle,
+                                    opacity: pressed ? 0.8 : 1,
+                                },
                             ]}
-                            onPress={() => onSelect?.(item.id)}
+                            onPress={() => {
+                                Haptics.selectionAsync();
+                                onSelect?.(item.id);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Filter by ${item.text}`}
                         >
-                            <Text style={[
-                                styles.text,
-                                { color: isActive ? colors.paper : colors.stone },
-                            ]}>
+                            <Typography
+                                variant="bodyMedium"
+                                style={{ color: isActive ? colors.paper : colors.stone }}
+                            >
                                 {item.text || 'Unknown'}
-                            </Text>
+                            </Typography>
                         </Pressable>
                     );
                 })}
@@ -69,27 +74,17 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
 
 const styles = StyleSheet.create({
     container: {
-        height: 50,
-        marginBottom: 8,
+        minHeight: 48,
+        marginBottom: SPACING.s,
     },
     scrollContent: {
-        gap: 8,
+        gap: SPACING.s,
         alignItems: 'center',
     },
     chip: {
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 100, // Pill shape
-        marginRight: 8,
-        // @ts-ignore
-        cornerCurve: 'continuous',
-    },
-    text: {
-        fontSize: 14,
-        fontWeight: '500',
-        fontFamily: 'Satoshi-Medium',
-    },
-    textActive: {
-        color: '#FAF9F6', // Keep this as is for contrast on ink background
+        paddingHorizontal: SPACING.l - 4,
+        paddingVertical: SPACING.m - 4,
+        borderRadius: RADIUS.pill,
+        marginRight: SPACING.s,
     },
 });

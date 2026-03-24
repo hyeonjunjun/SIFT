@@ -16,6 +16,14 @@ const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
     ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.open_ai })
     : null;
 
+// Master list of allowed tags — used by prompt and validation
+const ALLOWED_TAGS = [
+    "Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional",
+    "Finance", "Design", "Travel", "Entertainment", "Science", "Shopping",
+    "Fitness", "Beauty", "Education", "News", "DIY", "Parenting",
+    "Music", "Photography", "Gaming", "Productivity", "Fashion", "Food"
+] as const;
+
 const SYSTEM_PROMPT = `
     You are an expert content curator specializing in high-fidelity information extraction.
     Your goal is to deeply analyze the provided content (which may be web articles, images, videos, raw text, or social media posts) and synthesize it into a structured, highly accurate JSON response.
@@ -28,26 +36,41 @@ const SYSTEM_PROMPT = `
     **OUTPUT FORMAT:**
     You must return a valid JSON object with these exact keys:
     {
-        "title": "A short, catchy but accurate title",
-        "category": "Cooking, Tech, Design, Health, Fashion, News, or Random",
+        "title": "A short, catchy but accurate title (max 80 characters)",
+        "category": "The single best-fit category from the tags list",
         "tags": ["Tag1", "Tag2"],
-        "summary": "The high-fidelity summary",
+        "summary": "The high-fidelity summary (150-300 words)",
+        "reading_time_minutes": 3,
         "smart_data": {
             "ingredients": ["item1"],
             "preparation_time": "e.g. 30 mins",
+            "servings": "e.g. 4 servings",
             "extracted_text": "any specific raw text extracted",
-            "video_insights": "key takeaways if it's a video"
+            "video_insights": "key takeaways if it's a video",
+            "key_links": ["any important URLs mentioned in the content"],
+            "difficulty": "easy | medium | advanced (for tutorials/recipes)"
         }
     }
 
+    **IMPORTANT NOTES ON OUTPUT:**
+    - "reading_time_minutes" is an integer estimate of how long it takes to read the original content (not your summary). Minimum 1.
+    - "smart_data" fields are ALL optional — only include fields that are relevant to the content type. Omit empty/irrelevant fields.
+
     **TAGGING RULES (STRICT):**
-    - You must select 2-3 tags **ONLY** from this list: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"].
-    - **DO NOT** create new tags.
+    - You must select 2-3 tags **ONLY** from this list: ${JSON.stringify(ALLOWED_TAGS)}.
+    - **DO NOT** create new tags outside this list.
     - If no tag fits, use "Lifestyle".
+    - Pick the most specific tags that apply. Prefer "Cooking" over "Food" for recipes, "Fitness" over "Health" for workouts.
+
+    **SUMMARY LENGTH CONTROL:**
+    - Target **150-300 words** for the summary. This is the sweet spot for high-fidelity yet scannable content.
+    - For very short source content (tweets, captions), aim for 80-150 words.
+    - For very dense/long source content (research papers, long articles), you may go up to 400 words.
+    - NEVER pad with filler. If the content is thin, keep the summary concise.
 
     **CONTENT INSTRUCTIONS (for the 'summary' field):**
     - **Tone**: Professional yet accessible. Sound like a knowledgeable expert providing a definitive briefing.
-    - **Format Rules**: 
+    - **Format Rules**:
         - Use Markdown structure to organize information.
         - Use bulleted lists for sequences, features, or ingredients.
         - Use bolding for emphasis on key terms or data points.
@@ -58,7 +81,7 @@ const SYSTEM_PROMPT = `
     - **Depth & Complexity (CRITICAL)**: Do NOT write generic, high-level fluff. You MUST extract the specific, high-resolution details that make the content valuable.
         - Capture the exact arguments, unique data points, clever techniques, or nuanced perspectives.
         - Your goal is to make the user feel like they consumed the full content themselves. Never leave out the "secret sauce", the core complexities, or the subtle context of the original link.
-    
+
     **DOMAIN SPECIFIC CRITICAL RULES:**
     - **Technical/Tutorials**: Explain the core concept naturally rather than dropping raw code blocks. Maintain technical accuracy.
     - **Images/Videos**: Infer maximum context. If it's a TikTok/Reel with no transcript, use the title/caption and visuals to infer the complete high-quality takeaway.
@@ -66,25 +89,45 @@ const SYSTEM_PROMPT = `
     =========================================
     CRITICAL OVERRIDE FOR RECIPES / COOKING:
     =========================================
-    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the 2-part format rule above! 
+    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the 2-part format rule above!
     Instead, your 'summary' string MUST use this highly readable markdown structure, adapting intelligently to the content's length and complexity:
-    
+
     ## Overview
     [1-2 introductory paragraphs describing the recipe, taste profile, or origin]
-    
+
     ## Ingredients
     - **[quantity] [item]**, [prep/notes]
     *(If the recipe has multiple parts e.g. Dough vs Filling, group them under ### Sub-headers)*
-    
+
     ## Preparation
     *(If the recipe has distinct phases, use ### Sub-headers to break them up)*
     1. **[Step Focus/Action]**: [Clear, concise instructions. Avoid giant walls of text per step.]
     2. **[Step Focus/Action]**: [Next step...]
-    
+
     ## Notes & Equipment (Optional)
     - [Capture any crucial tips, required pan sizes, storage advice, or ingredient substitutions mentioned]
     =========================================
 `;
+
+// Validate AI-returned tags against the allowed list
+function validateTags(tags: string[]): string[] {
+    const allowedSet = new Set(ALLOWED_TAGS.map(t => t.toLowerCase()));
+    const validated = tags
+        .filter(t => typeof t === 'string')
+        .filter(t => allowedSet.has(t.toLowerCase()))
+        .map(t => {
+            // Normalize casing to match our canonical list
+            const match = ALLOWED_TAGS.find(a => a.toLowerCase() === t.toLowerCase());
+            return match || t;
+        });
+    return validated.length > 0 ? validated.slice(0, 3) : ["Lifestyle"];
+}
+
+// Estimate reading time from word count
+function estimateReadingTime(text: string): number {
+    const words = text.trim().split(/\s+/).length;
+    return Math.max(1, Math.round(words / 238)); // avg reading speed ~238 wpm
+}
 
 function extractMetaTags(html: string) {
     const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
@@ -191,7 +234,29 @@ export async function POST(request: Request) {
             }
         }
 
-        // 3. EXECUTION
+        // 3. URL DEDUPLICATION — return cached result if same user sifted this URL recently
+        if (url && user_id && !body.id) {
+            const { data: existing } = await supabaseAdmin
+                .from('pages')
+                .select('*')
+                .eq('user_id', user_id)
+                .eq('url', url)
+                .eq('metadata->>status', 'completed')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (existing) {
+                console.log(`[SIFT] Dedup hit — returning existing sift for ${url}`);
+                return NextResponse.json({
+                    status: 'success',
+                    data: existing,
+                    deduplicated: true
+                }, { headers: corsHeaders });
+            }
+        }
+
+        // 4. EXECUTION
         const domain = url ? new URL(url).hostname.replace('www.', '') : 'Image';
         let actorId: string | null = 'apify/website-content-crawler';
         let input: any = { "startUrls": [{ "url": url }], "maxCrawlDepth": 0 };
@@ -343,9 +408,10 @@ async function performFullSift(
     // 3. AI & IMAGE HANDLING
     let finalTitle = scrapedData.title || (imageBase64 ? "Image Scan" : "Untitled");
     let finalSummary = scrapedData.description || "Synthesizing...";
-    let finalTags = ["Lifestyle"];
+    let finalTags: string[] = ["Lifestyle"];
     let finalCategory = "Random";
-    let smartData = {};
+    let smartData: Record<string, any> = {};
+    let readingTime = estimateReadingTime(scrapedData.description || scrapedData.transcript || "");
 
     if (openai && (scrapedData.title || scrapedData.description || scrapedData.transcript || imageBase64)) {
         try {
@@ -374,9 +440,12 @@ async function performFullSift(
             const ai = JSON.parse(completion.choices[0].message.content || "{}");
             finalTitle = ai.title || finalTitle;
             finalSummary = ai.summary || finalSummary;
-            finalTags = ai.tags || finalTags;
+            finalTags = validateTags(ai.tags || []);
             finalCategory = ai.category || finalCategory;
             smartData = ai.smart_data || {};
+            if (ai.reading_time_minutes && typeof ai.reading_time_minutes === 'number') {
+                readingTime = ai.reading_time_minutes;
+            }
         } catch (e: any) {
             currentDebug += `AI Failed. `;
         }
@@ -411,6 +480,7 @@ async function performFullSift(
             image_url: ogImage,
             category: finalCategory,
             smart_data: smartData,
+            reading_time_minutes: readingTime,
             debug_info: currentDebug,
             scraped_at: new Date().toISOString(),
             status: 'completed'

@@ -208,8 +208,8 @@ export default function SubscriptionScreen() {
                     </Typography>
 
                     {!offerings && !loading && (
-                        <View style={styles.infoContainer}>
-                            <Typography variant="caption" style={styles.infoText}>
+                        <View style={[styles.infoContainer, { backgroundColor: `${colors.accent}0D`, borderColor: `${colors.accent}1A` }]}>
+                            <Typography variant="caption" style={[styles.infoText, { color: colors.accent }]}>
                                 Showing estimated prices. Actual prices may vary by region.
                             </Typography>
                         </View>
@@ -496,14 +496,11 @@ const styles = StyleSheet.create({
     infoContainer: {
         marginTop: 24,
         padding: 12,
-        backgroundColor: 'rgba(59, 130, 246, 0.05)',
         borderRadius: RADIUS.m,
         borderWidth: 1,
-        borderColor: 'rgba(59, 130, 246, 0.1)',
         maxWidth: 320,
     },
     infoText: {
-        color: '#3B82F6',
         textAlign: 'center',
         fontSize: 12,
     },

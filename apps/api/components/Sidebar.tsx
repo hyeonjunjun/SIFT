@@ -59,7 +59,7 @@ export default function Sidebar() {
 
             if (!user) throw new Error('Not authenticated');
 
-            const res = await fetch('/api/sift_v2', {
+            const res = await fetch('/api/sift', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState, useCallback } from "react";
 import { Share, View, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, Pressable, Dimensions, Image, Alert } from "react-native";
 import { Typography } from "../../components/design-system/Typography";
-import { COLORS, SPACING, BORDER, RADIUS, Theme } from "../../lib/theme";
+import { COLORS, SPACING, BORDER, RADIUS, Theme, OVERLAYS } from "../../lib/theme";
 import { Shield, Bell, User as UserIcon, SignOut, ClockCounterClockwise, ClipboardText, Vibrate, Trash, FileText, CaretRight, Crown, ShareNetwork, Eye, FilmSlate, PushPin, Heart, Star, Bookmark, Lightning } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { supabase } from "../../lib/supabase";
@@ -338,19 +338,19 @@ export default function ProfileScreen() {
                 </View>
                 <View style={[styles.settingsBox, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
                     <TouchableOpacity
-                        style={[styles.appearanceOption, theme === 'light' && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }, { borderColor: colors.separator }]}
+                        style={[styles.appearanceOption, theme === 'light' && { backgroundColor: isDark ? OVERLAYS.dark.hover : OVERLAYS.light.hover }, { borderColor: colors.separator }]}
                         onPress={() => setTheme('light')}
                     >
                         <Typography variant="body" color={theme === 'light' ? "accent" : "ink"}>Light Mode</Typography>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.appearanceOption, theme === 'dark' && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }, { borderColor: colors.separator }]}
+                        style={[styles.appearanceOption, theme === 'dark' && { backgroundColor: isDark ? OVERLAYS.dark.hover : OVERLAYS.light.hover }, { borderColor: colors.separator }]}
                         onPress={() => setTheme('dark')}
                     >
                         <Typography variant="body" color={theme === 'dark' ? "accent" : "ink"}>Midnight Mode</Typography>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.appearanceOption, theme === 'system' && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }, { borderBottomWidth: 0, borderColor: colors.separator }]}
+                        style={[styles.appearanceOption, theme === 'system' && { backgroundColor: isDark ? OVERLAYS.dark.hover : OVERLAYS.light.hover }, { borderBottomWidth: 0, borderColor: colors.separator }]}
                         onPress={() => setTheme('system')}
                     >
                         <Typography variant="body" color={theme === 'system' ? "accent" : "ink"}>System Mode</Typography>
@@ -374,8 +374,8 @@ export default function ProfileScreen() {
                     />
                     <SettingsRow
                         label="Delete Account"
-                        onPress={() => router.push('/settings/privacy')}
-                        icon={<Trash size={20} color="#EF4444" />}
+                        onPress={() => router.push('/settings/delete-account')}
+                        icon={<Trash size={20} color={colors.danger} />}
                         description="Permanently remove your account and data"
                     />
                 </View>
@@ -440,8 +440,8 @@ export default function ProfileScreen() {
                 </View>
 
                 <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.paper, borderColor: colors.separator }]} onPress={signOut}>
-                    <SignOut size={18} color="#C67D63" style={{ marginRight: 8 }} />
-                    <Typography variant="label" style={{ color: '#C67D63' }}>Sign Out</Typography>
+                    <SignOut size={18} color={colors.accent} style={{ marginRight: 8 }} />
+                    <Typography variant="label" style={{ color: colors.accent }}>Sign Out</Typography>
                 </TouchableOpacity>
 
             </ScrollView>
@@ -456,15 +456,15 @@ const styles = StyleSheet.create({
     },
     profileHeader: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
+        paddingHorizontal: SPACING.l,
         marginTop: SPACING.m,
-        marginBottom: 24,
+        marginBottom: SPACING.l,
         alignItems: 'center',
     },
     avatarContainer: {
         width: 100,
         height: 100,
-        borderRadius: 50,
+        borderRadius: RADIUS.pill,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
@@ -477,70 +477,60 @@ const styles = StyleSheet.create({
     },
     profileInfo: {
         flex: 1,
-        marginLeft: 16,
+        marginLeft: SPACING.m,
     },
     smallCapsLabel: {
         marginBottom: 2,
     },
     serifTitle: {
         fontSize: 32,
-        fontFamily: 'PlayfairDisplay_700Bold',
-        color: COLORS.ink,
-        marginBottom: 4,
+        marginBottom: SPACING.xs,
     },
     userBio: {
-        fontSize: 14,
         marginTop: 2,
     },
     tierBadge: {
         alignSelf: 'flex-start',
-        paddingHorizontal: 8,
+        paddingHorizontal: SPACING.s,
         paddingVertical: 2,
-        borderRadius: 4,
-        marginBottom: 4,
+        borderRadius: RADIUS.xs,
+        marginBottom: SPACING.xs,
     },
     tierText: {
-        fontSize: 10,
-        fontWeight: '700',
     },
     handle: {
         marginTop: 4,
         letterSpacing: 0.5,
     },
     gridContainer: {
-        paddingHorizontal: 20,
+        paddingHorizontal: SPACING.l,
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
         marginBottom: SPACING.xl,
     },
     tile: {
-        aspectRatio: 1, // FORCE SQUARE
+        aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: RADIUS.l, // Pebble Shape (24)
-        padding: 16,
-        // Soft Shadow (Ambient)
+        borderRadius: RADIUS.l,
+        padding: SPACING.m,
         ...Theme.shadows.soft,
-        // No Border for Cozy look (or extremely subtle if needed)
     },
     tileLabel: {
-        marginTop: 12,
-        fontSize: 13,
-        fontWeight: '500', // Reduced weight
-        fontFamily: 'System', // Keep clean sans
+        marginTop: SPACING.m - 4,
     },
     settingsBox: {
-        marginHorizontal: 20,
+        marginHorizontal: SPACING.l,
         borderRadius: RADIUS.m,
         overflow: 'hidden',
         borderWidth: StyleSheet.hairlineWidth,
     },
     inviteCard: {
-        marginHorizontal: 20,
-        marginTop: 8,
-        marginBottom: 16,
-        padding: 20,
+        marginHorizontal: SPACING.l,
+        marginTop: SPACING.s,
+        marginBottom: SPACING.m,
+        padding: SPACING.l,
         borderRadius: RADIUS.l,
         flexDirection: 'row',
         alignItems: 'center',
@@ -548,7 +538,7 @@ const styles = StyleSheet.create({
         ...Theme.shadows.soft,
     },
     sectionHeader: {
-        paddingHorizontal: 20,
+        paddingHorizontal: SPACING.l,
         marginBottom: SPACING.s,
         marginTop: SPACING.m,
     },
@@ -556,13 +546,13 @@ const styles = StyleSheet.create({
         marginTop: SPACING.s,
     },
     appearanceOption: {
-        paddingVertical: 16,
-        paddingHorizontal: 24,
+        paddingVertical: SPACING.m,
+        paddingHorizontal: SPACING.l,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     logoutButton: {
-        marginTop: 40,
-        marginBottom: 20,
+        marginTop: SPACING.xxl - 8,
+        marginBottom: SPACING.l,
         flexDirection: 'row',
         alignItems: 'center',
         alignSelf: 'center',
@@ -577,16 +567,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     pinStylePicker: {
-        padding: 16,
+        padding: SPACING.m,
     },
     pinIconRow: {
         flexDirection: 'row',
-        gap: 12,
+        gap: SPACING.m - 4,
     },
     pinIconItem: {
         width: 44,
         height: 44,
-        borderRadius: 12,
+        borderRadius: RADIUS.s,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,

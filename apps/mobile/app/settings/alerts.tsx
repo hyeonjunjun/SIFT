@@ -34,6 +34,8 @@ const AlertRow = ({ icon, title, subtitle, value, onValueChange, disabled }: Ale
                 onValueChange={onValueChange}
                 disabled={disabled}
                 trackColor={{ false: '#767577', true: COLORS.ink }}
+                accessibilityLabel={`${title} notifications`}
+                accessibilityRole="switch"
             />
         </View>
     );
