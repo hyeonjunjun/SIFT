@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Pressable, Image, Platform, ActionSheetIOS, Alert, Share } from 'react-native';
+import { View, Pressable, Platform, ActionSheetIOS, Alert, Share } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';

@@ -29,6 +29,7 @@ export const ActionSheet = ({ visible, onClose, title, options }: ActionSheetPro
             transparent={true}
             animationType="fade"
             onRequestClose={onClose}
+            statusBarTranslucent
         >
             <Pressable
                 style={[styles.overlay, { backgroundColor: isDark ? OVERLAYS.dark.scrim : OVERLAYS.light.scrim }]}

@@ -41,7 +41,7 @@ export default function CollectionScreen() {
     const [pickerVisible, setPickerVisible] = useState(false);
 
     // Fetch folder details
-    const { data: folder } = useQuery({
+    const { data: folder, isError: folderError, isLoading: folderLoading } = useQuery({
         queryKey: ['folder', id],
         queryFn: async () => {
             if (!id) return null;
@@ -51,10 +51,10 @@ export default function CollectionScreen() {
                 .eq('id', id)
                 .single();
             if (error) throw error;
-            return data as CollectionData & { user_id: string }; // Extended type dynamically
+            return data as CollectionData & { user_id: string };
         },
         enabled: !!id,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 5,
         retry: 2,
     });
 
@@ -242,6 +242,28 @@ export default function CollectionScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert('Link Copied', `Share this link:\n${deepLink}`);
     };
+
+    if (folderError || (!folderLoading && !folder)) {
+        return (
+            <ScreenWrapper edges={['top']}>
+                <Stack.Screen options={{ headerShown: false }} />
+                <View style={[styles.header, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <CaretLeft size={28} color={colors.ink} />
+                    </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+                    <Folder size={48} color={colors.stone} weight="thin" />
+                    <Typography variant="h3" style={{ marginTop: 16, textAlign: 'center' }}>
+                        Collection Not Found
+                    </Typography>
+                    <Typography variant="body" color="stone" style={{ textAlign: 'center', marginTop: 8 }}>
+                        This collection may have been deleted or you don't have access.
+                    </Typography>
+                </View>
+            </ScreenWrapper>
+        );
+    }
 
     if (!folder) {
         return (

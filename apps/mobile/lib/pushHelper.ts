@@ -20,6 +20,7 @@ interface PushParams {
     siftId?: string;
     messageContent?: string;
     collectionName?: string;
+    collectionId?: string;
 }
 
 /**

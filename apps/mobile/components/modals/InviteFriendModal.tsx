@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, UserPlus, Users, User, Check } from 'phosphor-react-native';
 import { Typography } from '../design-system/Typography';
 import { COLORS, RADIUS, Theme } from '../../lib/theme';
@@ -22,6 +23,7 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const { showToast } = useToast();
+    const insets = useSafeAreaInsets();
     const [sending, setSending] = useState<string | null>(null);
 
     // Fetch accepted friendships, AND who is already in the folder
@@ -124,6 +126,7 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
                 actorName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Someone',
                 type: 'collection_invite',
                 collectionName: folderName,
+                collectionId: folderId,
             });
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -146,6 +149,7 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
             transparent
             animationType="slide"
             onRequestClose={onClose}
+            statusBarTranslucent
         >
             <View style={styles.overlay}>
                 <TouchableOpacity
@@ -168,7 +172,7 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
 
                     <ScrollView
                         style={styles.friendsList}
-                        contentContainerStyle={styles.scrollContent}
+                        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 + insets.bottom }]}
                         showsVerticalScrollIndicator={false}
                     >
                         {isLoading ? (
@@ -266,7 +270,6 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 24,
-        paddingBottom: 40,
     },
     friendItem: {
         flexDirection: 'row',

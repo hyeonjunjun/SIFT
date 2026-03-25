@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, PaperPlaneTilt, Users, User } from 'phosphor-react-native';
 import { Typography } from '../design-system/Typography';
 import { COLORS, RADIUS, Theme } from '../../lib/theme';
@@ -21,6 +22,7 @@ interface ShareSiftModalProps {
 export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: ShareSiftModalProps) {
     const { user } = useAuth();
     const { showToast } = useToast();
+    const insets = useSafeAreaInsets();
     const [sending, setSending] = useState<string | null>(null);
     const [message, setMessage] = useState('');
 
@@ -106,6 +108,7 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
             transparent
             animationType="slide"
             onRequestClose={onClose}
+            statusBarTranslucent
         >
             <View style={styles.overlay}>
                 <TouchableOpacity
@@ -148,7 +151,7 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
 
                     <ScrollView
                         style={styles.friendsList}
-                        contentContainerStyle={styles.scrollContent}
+                        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 + insets.bottom }]}
                         showsVerticalScrollIndicator={false}
                     >
                         {isLoading ? (
@@ -237,7 +240,6 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 24,
-        paddingBottom: 40,
     },
     friendItem: {
         flexDirection: 'row',

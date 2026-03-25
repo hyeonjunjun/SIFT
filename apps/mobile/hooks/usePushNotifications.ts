@@ -45,12 +45,12 @@ export function usePushNotifications() {
 
             setTimeout(() => {
                 import('expo-router').then(({ router }) => {
-                    if (data?.siftId) {
+                    if (data?.siftId && typeof data.siftId === 'string') {
                         router.push(`/page/${data.siftId}?contextType=feed`);
+                    } else if (data?.collectionId && typeof data.collectionId === 'string') {
+                        router.push(`/collection/${data.collectionId}`);
                     } else if (data?.type === 'friend_request' || data?.type === 'friend_accepted') {
                         router.push('/(tabs)/social');
-                    } else if (data?.type === 'collection_invite' || data?.type === 'collection_sift_added') {
-                        router.push('/(tabs)/notifications');
                     } else {
                         router.push('/(tabs)/notifications');
                     }

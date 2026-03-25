@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
 
-        const { receiverId, actorName, type, siftTitle, messageContent, siftId, collectionName } = body;
+        const { receiverId, actorName, type, siftTitle, messageContent, siftId, collectionName, collectionId } = body;
 
         if (!receiverId || !type) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -41,6 +41,9 @@ export async function POST(req: Request) {
 
         if (siftId) {
             data.siftId = siftId;
+        }
+        if (collectionId) {
+            data.collectionId = collectionId;
         }
 
         switch (type) {

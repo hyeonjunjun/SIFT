@@ -26,6 +26,7 @@ export const ImagePreviewModal = ({ visible, images, onRemove, onDismiss, onConf
             transparent
             animationType="slide"
             onRequestClose={onDismiss}
+            statusBarTranslucent
         >
             <View style={styles.overlay}>
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>
@@ -51,7 +52,7 @@ export const ImagePreviewModal = ({ visible, images, onRemove, onDismiss, onConf
                         renderItem={({ item }) => (
                             <View style={[styles.imageContainer, { width: imageSize, height: imageSize }]}>
                                 <Image
-                                    source={item.uri}
+                                    source={{ uri: item.uri }}
                                     style={styles.image}
                                     contentFit="cover"
                                     transition={200}

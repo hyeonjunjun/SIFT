@@ -157,6 +157,7 @@ export default function NotificationsScreen() {
             }, () => {
                 queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
                 queryClient.invalidateQueries({ queryKey: ['social_badge', user.id] });
+                refetch();
             })
             .subscribe();
 

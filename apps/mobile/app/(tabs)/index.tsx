@@ -35,9 +35,6 @@ import { useSiftQueue } from "../../hooks/useSiftQueue";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import { safeSift } from "../../lib/sift-api";
 import { stripMarkdown } from "../../lib/utils";
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://sift-api.vercel.app';
 
 export default function HomeScreen() {
     const { user, tier, profile, refreshProfile, loading: authLoading } = useAuth();
@@ -169,18 +166,20 @@ export default function HomeScreen() {
                 const oldRecord = payload.old as any;
 
                 if (payload.eventType === 'INSERT') {
-                    queryClient.invalidateQueries({ queryKey: ['pages'] });
+                    await queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+                    refetch();
                     triggerHaptic('notification');
                     setManualUrl(prev => prev.trim() === newRecord.url?.trim() ? "" : prev);
                 } else if (payload.eventType === 'UPDATE') {
-                    // Always refresh on update — catches status changes, tag edits, etc.
-                    queryClient.invalidateQueries({ queryKey: ['pages'] });
+                    await queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+                    refetch();
                     const statusChanged = newRecord.metadata?.status === 'completed' && oldRecord.metadata?.status !== 'completed';
                     if (statusChanged) {
                         triggerHaptic('notification');
                     }
                 } else if (payload.eventType === 'DELETE') {
-                    queryClient.invalidateQueries({ queryKey: ['pages'] });
+                    await queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
+                    refetch();
                 }
             })
             .subscribe();
@@ -204,8 +203,10 @@ export default function HomeScreen() {
         triggerHaptic('impact');
         showToast({ message: "Retrying..." });
 
-        await supabase.from('pages').update({ metadata: { status: 'pending' } }).eq('id', id);
-        queryClient.invalidateQueries({ queryKey: ['pages'] });
+        try {
+            await supabase.from('pages').update({ metadata: { status: 'pending' } }).eq('id', id);
+        } catch { /* best effort */ }
+        queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
 
         try {
             await safeSift(url, user.id, id, tier);
@@ -218,7 +219,7 @@ export default function HomeScreen() {
                 await supabase.from('pages').update({
                     metadata: { status: 'failed', error: apiError.message }
                 }).eq('id', id);
-                queryClient.invalidateQueries({ queryKey: ['pages'] });
+                queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             }
         }
     };
@@ -245,13 +246,13 @@ export default function HomeScreen() {
                     label: 'Undo',
                     onPress: async () => {
                         await supabase.from('pages').update({ is_archived: false }).eq('id', id);
-                        queryClient.invalidateQueries({ queryKey: ['pages'] });
+                        queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
                     }
                 }
             });
             triggerHaptic('notification');
         } catch (e) {
-            queryClient.invalidateQueries({ queryKey: ['pages'] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
         }
     };
 
@@ -272,7 +273,7 @@ export default function HomeScreen() {
             showToast({ message: "Permanently Deleted" });
             triggerHaptic('notification');
         } catch (e) {
-            queryClient.invalidateQueries({ queryKey: ['pages'] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
         }
     };
 
@@ -280,8 +281,12 @@ export default function HomeScreen() {
         const page = pages.find(p => p.id === id);
         if (!page) return;
         triggerHaptic('selection');
-        await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
-        refetch();
+        try {
+            await supabase.from('pages').update({ is_pinned: !page.is_pinned }).eq('id', id);
+            refetch();
+        } catch {
+            showToast({ message: "Failed to update pin", type: 'error' });
+        }
     };
 
     const handleMoveToCollection = async (folderId: string) => {
@@ -339,7 +344,7 @@ export default function HomeScreen() {
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [16, 9],
-            quality: 1,
+            quality: 0.8,
         });
 
         if (result.canceled || !result.assets[0]) return;
@@ -376,12 +381,13 @@ export default function HomeScreen() {
                 .getPublicUrl(fileName);
 
             const page = pages.find(p => p.id === siftId);
+            if (!page) throw new Error('Page not found');
             await supabase
                 .from('pages')
-                .update({ metadata: { ...page?.metadata, image_url: publicUrl } })
+                .update({ metadata: { ...page.metadata, image_url: publicUrl } })
                 .eq('id', siftId);
 
-            queryClient.invalidateQueries({ queryKey: ['pages'] });
+            queryClient.invalidateQueries({ queryKey: ['pages', user?.id, tier] });
             queryClient.invalidateQueries({ queryKey: ['page', siftId] });
             showToast({ message: "Cover updated" });
             triggerHaptic('notification');

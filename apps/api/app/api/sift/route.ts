@@ -222,7 +222,8 @@ export async function POST(request: Request) {
         }
 
         // 4. EXECUTION
-        const domain = url ? new URL(url).hostname.replace('www.', '') : 'Image';
+        let domain = 'Image';
+        try { if (url) domain = new URL(url).hostname.replace('www.', ''); } catch {}
         let actorId: string | null = 'apify/website-content-crawler';
         let input: any = { "startUrls": [{ "url": url }], "maxCrawlDepth": 0 };
 
@@ -258,7 +259,8 @@ export async function POST(request: Request) {
     } catch (error: any) {
         console.error('[SIFT] Critical Error:', error.message);
         try {
-            const domain = urlForCapture ? new URL(urlForCapture).hostname.replace('www.', '') : 'Unknown';
+            let domain = 'Unknown';
+            try { if (urlForCapture) domain = new URL(urlForCapture).hostname.replace('www.', ''); } catch {}
             const fallbackData = {
                 user_id: userIdForCapture,
                 url: urlForCapture,
@@ -421,7 +423,13 @@ async function performFullSift(
 
             const result = await model.generateContent(parts);
             const responseText = result.response.text();
-            const ai = JSON.parse(responseText);
+            let ai;
+            try {
+                ai = JSON.parse(responseText);
+            } catch {
+                console.error('[SIFT] Invalid JSON from Gemini:', responseText.slice(0, 200));
+                ai = {};
+            }
 
             finalTitle = ai.title || finalTitle;
             finalSummary = ai.summary || finalSummary;

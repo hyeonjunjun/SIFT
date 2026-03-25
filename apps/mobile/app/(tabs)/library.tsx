@@ -74,6 +74,7 @@ import { ActionSheet } from '../../components/modals/ActionSheet';
 import { CollectionModal, CollectionData } from '../../components/modals/CollectionModal';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import { SiftActionSheet } from '../../components/modals/SiftActionSheet';
+import { InviteFriendModal } from '../../components/modals/InviteFriendModal';
 import { useToast } from '../../context/ToastContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../components/design-system/EmptyState';
@@ -142,6 +143,10 @@ export default function LibraryScreen() {
     const [collectionModalVisible, setCollectionModalVisible] = useState(false);
     const insets = useSafeAreaInsets();
     const [editingCollection, setEditingCollection] = useState<CollectionData | null>(null);
+
+    // Invite Modal State (for shared collection creation)
+    const [inviteModalVisible, setInviteModalVisible] = useState(false);
+    const [inviteTarget, setInviteTarget] = useState<{ folderId: string; folderName: string } | null>(null);
 
     // Smart Collection Modal State
     const [smartCollectionModalVisible, setSmartCollectionModalVisible] = useState(false);
@@ -527,11 +532,15 @@ export default function LibraryScreen() {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        await supabase.from('pages').update({ folder_id: null }).eq('folder_id', collectionId);
-                        await supabase.from('folders').delete().eq('id', collectionId);
-                        queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
-                        setCollectionModalVisible(false);
-                        showToast("Collection deleted");
+                        try {
+                            await supabase.from('pages').update({ folder_id: null }).eq('folder_id', collectionId);
+                            await supabase.from('folders').delete().eq('id', collectionId);
+                            queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+                            setCollectionModalVisible(false);
+                            showToast("Collection deleted");
+                        } catch (e: any) {
+                            showToast({ message: e.message || 'Failed to delete collection', type: 'error' });
+                        }
                     }
                 }
             ]
@@ -551,22 +560,26 @@ export default function LibraryScreen() {
     };
 
     const handleSaveSmartCollection = async (data: SmartCollectionData) => {
-        const { id, ...updateData } = data;
-        if (id) {
-            const { error } = await supabase
-                .from('categories')
-                .update(updateData)
-                .eq('id', id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase
-                .from('categories')
-                .insert({ ...updateData, user_id: user?.id });
-            if (error) throw error;
+        try {
+            const { id, ...updateData } = data;
+            if (id) {
+                const { error } = await supabase
+                    .from('categories')
+                    .update(updateData)
+                    .eq('id', id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('categories')
+                    .insert({ ...updateData, user_id: user?.id });
+                if (error) throw error;
+            }
+            queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
+            setEditingSmartCollection(null);
+            setSmartCollectionModalVisible(false);
+        } catch (e: any) {
+            showToast({ message: e.message || 'Failed to save smart collection', type: 'error' });
         }
-        queryClient.invalidateQueries({ queryKey: ['categories', user?.id] });
-        setEditingSmartCollection(null);
-        setSmartCollectionModalVisible(false);
     };
 
     const handleDeleteSmartCollection = async (id: string) => {
@@ -1080,7 +1093,23 @@ export default function LibraryScreen() {
                     onDelete={handleDeleteCollection}
                     onPin={handlePinCollection}
                     existingCollection={editingCollection}
+                    onCreatedShared={(folderId, folderName) => {
+                        setInviteTarget({ folderId, folderName });
+                        setInviteModalVisible(true);
+                    }}
                 />
+
+                {inviteTarget && (
+                    <InviteFriendModal
+                        visible={inviteModalVisible}
+                        onClose={() => {
+                            setInviteModalVisible(false);
+                            setInviteTarget(null);
+                        }}
+                        folderId={inviteTarget.folderId}
+                        folderName={inviteTarget.folderName}
+                    />
+                )}
 
                 <SmartCollectionModal
                     visible={smartCollectionModalVisible}

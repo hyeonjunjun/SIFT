@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,11 @@ export const useImageSifter = (onSuccess?: () => void) => {
     const [loading, setLoading] = useState(false);
     const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
     const [previewVisible, setPreviewVisible] = useState(false);
+
+    // Pre-request permissions so gallery opens instantly
+    useEffect(() => {
+        ImagePicker.requestMediaLibraryPermissionsAsync();
+    }, []);
 
     const pickImages = useCallback(async () => {
         if (!user) {

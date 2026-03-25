@@ -96,7 +96,8 @@ export function useSiftQueue() {
 
         const results = await Promise.allSettled(validTasks.map(async (task) => {
             try {
-                await safeSift(task.url, user!.id, task.id, tier);
+                if (!user?.id) throw new Error('Not authenticated');
+                await safeSift(task.url, user.id, task.id, tier);
             } catch (apiError: any) {
                 if (apiError.status === 'limit_reached') {
                     setUpgradeUrl(apiError.upgrade_url);

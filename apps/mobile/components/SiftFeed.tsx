@@ -413,6 +413,7 @@ export default function SiftFeed({
             data={data}
             onDragEnd={({ data }) => onDragEnd?.(data)}
             keyExtractor={(item) => (item as any).id}
+            keyboardDismissMode="on-drag"
             renderItem={({ item, drag, isActive }: RenderItemParams<Page>) => (
                 <ScaleDecorator>
                     <TouchableOpacity
@@ -487,6 +488,7 @@ export default function SiftFeed({
             data={data}
             keyExtractor={(item) => (item as any).id}
             numColumns={numColumns}
+            keyboardDismissMode="on-drag"
             extraData={[isDark, mode, isSelectMode, selectedIds]} // Re-render when mode/selection changes
             renderItem={({ item, index }) => (
                 viewMode === 'list' ? (

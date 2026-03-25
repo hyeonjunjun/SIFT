@@ -60,7 +60,13 @@ Return ONLY the JSON object.`,
         ]);
 
         const responseText = result.response.text();
-        const data = JSON.parse(responseText);
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch {
+            console.error('[AnalyzeImage] Invalid JSON from Gemini:', responseText.slice(0, 200));
+            return NextResponse.json({ status: 'error', message: 'AI returned invalid response' }, { status: 502, headers: corsHeaders });
+        }
 
         console.log(`[AnalyzeImage] Success: ${data.title}`);
 

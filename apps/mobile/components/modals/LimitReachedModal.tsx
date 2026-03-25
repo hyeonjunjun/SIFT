@@ -30,6 +30,7 @@ export const LimitReachedModal = ({ visible, onClose, upgradeUrl }: LimitReached
             transparent
             animationType="fade"
             onRequestClose={onClose}
+            statusBarTranslucent
         >
             <View style={[styles.overlay, { backgroundColor: isDark ? OVERLAYS.dark.scrim : OVERLAYS.light.scrim }]}>
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>

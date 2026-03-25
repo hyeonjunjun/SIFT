@@ -64,7 +64,7 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('Folder');
-    const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
+    const [selectedColor, setSelectedColor] = useState<string>(COLLECTION_COLORS[0]);
     const [imageUrl, setImageUrl] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
@@ -244,6 +244,7 @@ export const SmartCollectionModal = ({ visible, onClose, onSave, onDelete, exist
             transparent
             animationType="fade"
             onRequestClose={onClose}
+            statusBarTranslucent
         >
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

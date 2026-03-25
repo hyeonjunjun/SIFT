@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, ActivityIndicator } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Dimensions, ActivityIndicator, Switch, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography } from '../design-system/Typography';
 import { Button } from '../design-system/Button';
 import { COLORS, SPACING, RADIUS, Theme, COLLECTION_PALETTE, OVERLAYS } from '../../lib/theme';
-import { X, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket, Check, Trash, PushPin, ImageSquare, UploadSimple } from 'phosphor-react-native';
+import { X, Folder, FolderOpen, FolderStar, Heart, Star, BookmarkSimple, Lightning, Fire, Sparkle, Coffee, GameController, MusicNote, Camera, Palette, Book, Briefcase, GraduationCap, Trophy, Target, Lightbulb, Rocket, Check, Trash, PushPin, ImageSquare, UploadSimple, UsersThree } from 'phosphor-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -59,18 +59,20 @@ interface CollectionModalProps {
     onDelete?: (id: string) => Promise<void>;
     onPin?: (id: string, isPinned: boolean) => Promise<void>;
     existingCollection?: CollectionData | null;
+    onCreatedShared?: (folderId: string, folderName: string) => void;
 }
 
-export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, existingCollection: existingFolder }: CollectionModalProps) => {
+export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, existingCollection: existingFolder, onCreatedShared }: CollectionModalProps) => {
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
-    const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
+    const [selectedColor, setSelectedColor] = useState<string>(COLLECTION_COLORS[0]);
     const [selectedIcon, setSelectedIcon] = useState('Folder');
     const [isPinned, setIsPinned] = useState(false);
     const [imageUrl, setImageUrl] = useState('');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [isShared, setIsShared] = useState(false);
 
     const isEditMode = !!existingFolder?.id;
 
@@ -144,6 +146,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                 setSelectedIcon('Folder');
                 setIsPinned(false);
                 setImageUrl('');
+                setIsShared(false);
             }
         }
     }, [visible, existingFolder]);
@@ -165,6 +168,27 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                 image_url: imageUrl.trim() || undefined
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // If shared toggle is on and this is a new collection, trigger invite flow
+            if (isShared && !existingFolder?.id && onCreatedShared) {
+                // Fetch the just-created collection to get its ID
+                const { data: created } = await supabase
+                    .from('folders')
+                    .select('id')
+                    .eq('user_id', user?.id)
+                    .eq('name', name.trim())
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (created?.id) {
+                    onClose();
+                    // Small delay so modal close animation finishes before opening invite
+                    setTimeout(() => onCreatedShared(created.id, name.trim()), 400);
+                    return;
+                }
+            }
+
             onClose();
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to save collection');
@@ -231,6 +255,7 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
             transparent
             animationType="fade"
             onRequestClose={onClose}
+            statusBarTranslucent
         >
             <View style={styles.overlay}>
                 <View style={[styles.content, { backgroundColor: colors.paper }]}>
@@ -343,6 +368,41 @@ export const CollectionModal = ({ visible, onClose, onSave, onDelete, onPin, exi
                                 </TouchableOpacity>
                             )}
                         </View>
+
+                        {/* Shared Toggle — only for new collections */}
+                        {!isEditMode && (
+                            <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                    setIsShared(!isShared);
+                                    Haptics.selectionAsync();
+                                }}
+                                style={[styles.sharedToggle, {
+                                    backgroundColor: isShared ? (isDark ? 'rgba(138,175,154,0.15)' : 'rgba(138,175,154,0.1)') : (isDark ? 'rgba(255,255,255,0.05)' : colors.subtle),
+                                    borderColor: isShared ? colors.accent : colors.separator,
+                                }]}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                    <UsersThree size={20} color={isShared ? colors.accent : colors.stone} weight={isShared ? 'fill' : 'regular'} />
+                                    <View style={{ flex: 1 }}>
+                                        <Typography variant="bodyMedium">Shared Collection</Typography>
+                                        <Typography variant="caption" color="stone" style={{ marginTop: 1 }}>
+                                            Invite friends to collaborate after creating
+                                        </Typography>
+                                    </View>
+                                </View>
+                                <Switch
+                                    value={isShared}
+                                    onValueChange={(val) => {
+                                        setIsShared(val);
+                                        Haptics.selectionAsync();
+                                    }}
+                                    trackColor={{ false: isDark ? 'rgba(255,255,255,0.1)' : '#D1D1D6', true: colors.accent }}
+                                    thumbColor="#FFFFFF"
+                                    {...(Platform.OS === 'ios' ? { ios_backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#D1D1D6' } : {})}
+                                />
+                            </TouchableOpacity>
+                        )}
 
                         {/* Color Picker */}
                         <Typography variant="label" color="stone" style={styles.sectionLabel}>
@@ -526,6 +586,15 @@ const styles = StyleSheet.create({
         borderWidth: StyleSheet.hairlineWidth,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    sharedToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: SPACING.m,
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+        marginBottom: SPACING.l,
     },
     uploadButton: {
         flex: 1,

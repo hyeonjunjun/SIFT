@@ -92,7 +92,7 @@ export const FolderPickerModal = ({ visible, onClose, onSelect }: FolderPickerMo
 
     return (
         <>
-            <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+            <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
                 <View style={styles.overlay}>
                     <View style={[styles.content, { backgroundColor: colors.paper, paddingBottom: SPACING.xxl + insets.bottom }]}>
                         <View style={styles.header}>
@@ -152,7 +152,7 @@ export const FolderPickerModal = ({ visible, onClose, onSelect }: FolderPickerMo
                                     >
                                         {item.image_url ? (
                                             <Image
-                                                source={item.image_url}
+                                                source={{ uri: item.image_url }}
                                                 style={[styles.folderIcon, { backgroundColor: colors.subtle }]}
                                                 contentFit="cover"
                                             />

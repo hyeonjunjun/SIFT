@@ -49,6 +49,16 @@ const SUGGESTED_TAGS = [
 ];
 
 // Scale a quantity string like "2 cups flour" by a multiplier
+/** Safely parse servings from AI output — handles "4", "4-6", "Makes 12", etc. */
+function parseServings(raw: any): number {
+    if (typeof raw === 'number' && !isNaN(raw)) return raw;
+    if (typeof raw === 'string') {
+        const match = raw.match(/(\d+)/);
+        if (match) return parseInt(match[1], 10);
+    }
+    return 0; // 0 means unknown — hide the counter
+}
+
 function scaleIngredient(ingredient: string, multiplier: number): string {
     if (multiplier === 1) return ingredient;
     // Match leading fraction or decimal number
@@ -113,12 +123,17 @@ export default function PageDetail() {
     const [servingMultiplier, setServingMultiplier] = useState(1);
     const [cookModeVisible, setCookModeVisible] = useState(false);
 
+    // Pre-request media library permissions so gallery opens instantly
+    useEffect(() => {
+        ImagePicker.requestMediaLibraryPermissionsAsync();
+    }, []);
+
     const changeCoverImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [16, 9],
-            quality: 1,
+            quality: 0.8,
         });
 
         if (result.canceled || !result.assets[0]) return;
@@ -951,14 +966,13 @@ export default function PageDetail() {
                                         <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>
                                             INGREDIENTS
                                         </Typography>
-                                        {page.metadata.smart_data.servings && (
+                                        {parseServings(page.metadata.smart_data.servings) > 0 && (
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s }}>
                                                 <TouchableOpacity
                                                     onPress={() => {
                                                         Haptics.selectionAsync();
-                                                        const baseServings = page.metadata.smart_data.servings || 1;
+                                                        const baseServings = parseServings(page.metadata.smart_data.servings);
                                                         const newMultiplier = servingMultiplier - 0.5;
-                                                        // Don't go below 1 serving
                                                         if (Math.round(baseServings * newMultiplier) >= 1) {
                                                             setServingMultiplier(newMultiplier);
                                                         }
@@ -972,7 +986,7 @@ export default function PageDetail() {
                                                     <Typography variant="bodyMedium" style={{ fontSize: 16, lineHeight: 18 }}>-</Typography>
                                                 </TouchableOpacity>
                                                 <Typography variant="bodyMedium" style={{ fontSize: 14, minWidth: 60, textAlign: 'center' }}>
-                                                    {Math.max(1, Math.round((page.metadata.smart_data.servings || 1) * servingMultiplier))} servings
+                                                    {Math.max(1, Math.round(parseServings(page.metadata.smart_data.servings) * servingMultiplier))} servings
                                                 </Typography>
                                                 <TouchableOpacity
                                                     onPress={() => {
@@ -1012,7 +1026,8 @@ export default function PageDetail() {
                                             const list = page.metadata.smart_data.ingredients
                                                 .map((item: string) => `☐ ${scaleIngredient(item, servingMultiplier)}`)
                                                 .join('\n');
-                                            const header = `Shopping List: ${page.title}\n(${Math.round(page.metadata.smart_data.servings * servingMultiplier)} servings)\n\n`;
+                                            const baseServ = parseServings(page.metadata.smart_data.servings);
+                                            const header = `Shopping List: ${page.title}\n${baseServ > 0 ? `(${Math.round(baseServ * servingMultiplier)} servings)\n` : ''}\n`;
                                             await Clipboard.setStringAsync(header + list);
                                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                             Alert.alert('Copied', 'Shopping list copied to clipboard.');
