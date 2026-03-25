@@ -289,23 +289,6 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     )}
 
-                    {Platform.OS !== 'ios' && (
-                        <TouchableOpacity
-                            onPress={handleAppleSignIn}
-                            disabled={loading}
-                            activeOpacity={0.8}
-                            style={[
-                                styles.socialButtonApple,
-                                loading && { opacity: 0.5 }
-                            ]}
-                        >
-                            <View style={styles.socialButtonContent}>
-                                <AppleLogo size={20} color={COLORS.paper} weight="fill" />
-                                <Typography variant="label" style={styles.socialButtonAppleText}>Continue with Apple</Typography>
-                            </View>
-                        </TouchableOpacity>
-                    )}
-
                     <TouchableOpacity
                         onPress={handleGoogleSignIn}
                         disabled={loading}

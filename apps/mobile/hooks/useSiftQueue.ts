@@ -5,13 +5,13 @@ import { supabase } from '../lib/supabase';
 import { safeSift } from '../lib/sift-api';
 import { getDomain, getSmartTag } from '../lib/utils';
 import { useAuth } from '../lib/auth';
-import { useSubscription } from './useSubscription';
+import { useSubscription, TIER_LIMITS } from './useSubscription';
 import { useToast } from '../context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 
 export function useSiftQueue() {
     const { user, tier } = useAuth();
-    const { isOverLimit } = useSubscription();
+    const { isOverLimit, currentCount } = useSubscription();
     const { showToast } = useToast();
     const queryClient = useQueryClient();
 
@@ -128,6 +128,19 @@ export function useSiftQueue() {
         const hasSuccess = results.some(r => r.status === 'fulfilled');
         if (hasSuccess) {
             triggerHaptic('notification', Haptics.NotificationFeedbackType.Success);
+
+            // Soft limit nudge — warn when approaching limit
+            const limit = TIER_LIMITS[tier as keyof typeof TIER_LIMITS]?.maxSiftsTotal || 10;
+            const remaining = limit - (currentCount + validTasks.length);
+            if (tier !== 'unlimited' && tier !== 'admin' && remaining > 0 && remaining <= 3) {
+                setTimeout(() => {
+                    showToast({
+                        message: `${remaining} sift${remaining === 1 ? '' : 's'} remaining on your plan`,
+                        duration: 4000,
+                        type: 'info',
+                    });
+                }, 1500);
+            }
         }
         setIsProcessingQueue(false);
     }, [queue, isProcessingQueue, user, tier, showToast, queryClient, triggerHaptic, addToQueue]);

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ApifyClient } from 'apify-client';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendPushNotification } from '@/lib/notifications';
 
-// Force Redeploy: 2026-02-04 01:00 (Deep Resilience Upgrade)
+// Force Redeploy: 2026-03-24 (Gemini Flash Migration)
 export const maxDuration = 300;
 
 // Initialize clients safely
@@ -12,9 +12,8 @@ const apifyClient = new ApifyClient({
     token: process.env.APIFY_API_TOKEN || process.env.apify,
 });
 
-const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
-    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.open_ai })
-    : null;
+const geminiKey = process.env.GEMINI_API_KEY || process.env.gemini;
+const genAI = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
 
 // Master list of allowed tags — used by prompt and validation
 const ALLOWED_TAGS = [
@@ -24,90 +23,58 @@ const ALLOWED_TAGS = [
     "Music", "Photography", "Gaming", "Productivity", "Fashion", "Food"
 ] as const;
 
-const SYSTEM_PROMPT = `
-    You are an expert content curator specializing in high-fidelity information extraction.
-    Your goal is to deeply analyze the provided content (which may be web articles, images, videos, raw text, or social media posts) and synthesize it into a structured, highly accurate JSON response.
+const SYSTEM_PROMPT = `You are a content curator that extracts high-fidelity structured data from web content, images, videos, and social media posts. Preserve every specific detail, measurement, and data point — never dilute or omit.
 
-    **CORE PRINCIPLE: INFORMATION FIDELITY**
-    - Do not dilute, summarize away, or omit specific details, measurements, data points, or key arguments.
-    - Your summary should be an additive synthesis: it can provide context and flow, but it MUST preserve the full density of the source information.
-    - If the source is a recipe, technical guide, or data-heavy post, ensure every single instruction and value is captured perfectly.
+Return valid JSON with this schema:
+{
+  "title": "Catchy, accurate title (max 80 chars)",
+  "category": "Best-fit category from the tags list",
+  "tags": ["Tag1", "Tag2"],
+  "summary": "Markdown summary (150-300 words)",
+  "reading_time_minutes": 3,
+  "smart_data": {
+    "ingredients": ["1 cup flour", "2 eggs"],
+    "preparation_time": "15 mins",
+    "cook_time": "30 mins",
+    "total_time": "45 mins",
+    "servings": 4,
+    "cuisine": "Italian",
+    "nutrition_per_serving": { "calories": 350, "protein_g": 12, "carbs_g": 45, "fat_g": 14, "fiber_g": 3, "sugar_g": 8 },
+    "extracted_text": "raw text if relevant",
+    "video_insights": "key takeaways for video content",
+    "key_links": ["important URLs from content"],
+    "difficulty": "easy | medium | advanced",
+    "dietary_tags": ["High Protein", "Low Carb"]
+  }
+}
 
-    **OUTPUT FORMAT:**
-    You must return a valid JSON object with these exact keys:
-    {
-        "title": "A short, catchy but accurate title (max 80 characters)",
-        "category": "The single best-fit category from the tags list",
-        "tags": ["Tag1", "Tag2"],
-        "summary": "The high-fidelity summary (150-300 words)",
-        "reading_time_minutes": 3,
-        "smart_data": {
-            "ingredients": ["item1"],
-            "preparation_time": "e.g. 30 mins",
-            "servings": "e.g. 4 servings",
-            "extracted_text": "any specific raw text extracted",
-            "video_insights": "key takeaways if it's a video",
-            "key_links": ["any important URLs mentioned in the content"],
-            "difficulty": "easy | medium | advanced (for tutorials/recipes)"
-        }
-    }
+RULES:
+- Tags: Pick 2-3 ONLY from: ${JSON.stringify(ALLOWED_TAGS)}. Default to "Lifestyle" if none fit. Prefer specific tags (e.g. "Cooking" over "Food").
+- smart_data: Only include relevant fields. Omit empty/irrelevant ones. "servings" must be an integer.
+- ingredients: Array of strings with quantities (e.g. "2 cups all-purpose flour").
+- nutrition_per_serving: For recipes, always estimate this even if the source omits it.
+- dietary_tags (recipes only): Include all applicable from: "High Protein", "Low Carb", "Low Calorie", "High Fiber", "Keto", "Vegan", "Vegetarian", "Gluten Free", "Dairy Free", "Nut Free", "Meal Prep", "Quick Meal", "One Pot", "Budget Friendly".
+- reading_time_minutes: Integer estimate for original content (min 1).
 
-    **IMPORTANT NOTES ON OUTPUT:**
-    - "reading_time_minutes" is an integer estimate of how long it takes to read the original content (not your summary). Minimum 1.
-    - "smart_data" fields are ALL optional — only include fields that are relevant to the content type. Omit empty/irrelevant fields.
+SUMMARY FORMAT — General content:
+1. Bulleted key points (markdown \`-\`)
+2. Followed by a short conversational paragraph with additional context
+Use markdown headers (###), bold for key terms. Be specific — capture exact arguments, data, techniques. No filler.
 
-    **TAGGING RULES (STRICT):**
-    - You must select 2-3 tags **ONLY** from this list: ${JSON.stringify(ALLOWED_TAGS)}.
-    - **DO NOT** create new tags outside this list.
-    - If no tag fits, use "Lifestyle".
-    - Pick the most specific tags that apply. Prefer "Cooking" over "Food" for recipes, "Fitness" over "Health" for workouts.
+SUMMARY FORMAT — Recipes/Cooking (overrides above):
+## Overview
+[1-2 paragraphs: description, taste, origin]
+## Preparation
+1. **[Action]**: [Concise instruction]
+2. **[Action]**: [Next step...]
+## Notes & Equipment (optional)
+- [Tips, pan sizes, storage, substitutions]
+Do NOT put ingredients in the recipe summary — they go in smart_data.ingredients only.
 
-    **SUMMARY LENGTH CONTROL:**
-    - Target **150-300 words** for the summary. This is the sweet spot for high-fidelity yet scannable content.
-    - For very short source content (tweets, captions), aim for 80-150 words.
-    - For very dense/long source content (research papers, long articles), you may go up to 400 words.
-    - NEVER pad with filler. If the content is thin, keep the summary concise.
-
-    **CONTENT INSTRUCTIONS (for the 'summary' field):**
-    - **Tone**: Professional yet accessible. Sound like a knowledgeable expert providing a definitive briefing.
-    - **Format Rules**:
-        - Use Markdown structure to organize information.
-        - Use bulleted lists for sequences, features, or ingredients.
-        - Use bolding for emphasis on key terms or data points.
-        - Use headers (###) for distinct sections.
-        - YOU MUST WRITE THE SUMMARY WITH TWO PARTS (unless it's a recipe):
-          1. A concise **bulleted list** highlighting the key points (using standard markdown bullets \`-\`).
-          2. FOLLOWED BY a short **conversational paragraph** providing additional context in natural, short sentences when needed.
-    - **Depth & Complexity (CRITICAL)**: Do NOT write generic, high-level fluff. You MUST extract the specific, high-resolution details that make the content valuable.
-        - Capture the exact arguments, unique data points, clever techniques, or nuanced perspectives.
-        - Your goal is to make the user feel like they consumed the full content themselves. Never leave out the "secret sauce", the core complexities, or the subtle context of the original link.
-
-    **DOMAIN SPECIFIC CRITICAL RULES:**
-    - **Technical/Tutorials**: Explain the core concept naturally rather than dropping raw code blocks. Maintain technical accuracy.
-    - **Images/Videos**: Infer maximum context. If it's a TikTok/Reel with no transcript, use the title/caption and visuals to infer the complete high-quality takeaway.
-
-    =========================================
-    CRITICAL OVERRIDE FOR RECIPES / COOKING:
-    =========================================
-    If the content is a Recipe or Cooking Guide, YOU MUST COMPLETELY IGNORE the 2-part format rule above!
-    Instead, your 'summary' string MUST use this highly readable markdown structure, adapting intelligently to the content's length and complexity:
-
-    ## Overview
-    [1-2 introductory paragraphs describing the recipe, taste profile, or origin]
-
-    ## Ingredients
-    - **[quantity] [item]**, [prep/notes]
-    *(If the recipe has multiple parts e.g. Dough vs Filling, group them under ### Sub-headers)*
-
-    ## Preparation
-    *(If the recipe has distinct phases, use ### Sub-headers to break them up)*
-    1. **[Step Focus/Action]**: [Clear, concise instructions. Avoid giant walls of text per step.]
-    2. **[Step Focus/Action]**: [Next step...]
-
-    ## Notes & Equipment (Optional)
-    - [Capture any crucial tips, required pan sizes, storage advice, or ingredient substitutions mentioned]
-    =========================================
-`;
+DOMAIN RULES:
+- Technical content: Explain concepts naturally, no raw code blocks.
+- Videos/TikToks with no transcript: Infer takeaways from title, caption, and visuals.
+- Short content (tweets, captions): 80-150 word summary. Dense content: up to 400 words.`;
 
 // Validate AI-returned tags against the allowed list
 function validateTags(tags: string[]): string[] {
@@ -156,14 +123,13 @@ export async function OPTIONS() {
 
 export async function GET() {
     const apifyToken = process.env.APIFY_API_TOKEN || process.env.apify;
-    const openaiKey = process.env.OPENAI_API_KEY || process.env.open_ai;
 
     return NextResponse.json({
         status: 'alive',
-        version: 'v2-hyper-async',
+        version: 'v3-gemini-flash',
         env: {
             apify_present: !!apifyToken,
-            openai_present: !!openaiKey,
+            gemini_present: !!geminiKey,
             supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing'
         }
     }, { headers: corsHeaders });
@@ -182,7 +148,6 @@ export async function POST(request: Request) {
         userIdForCapture = user_id;
 
         console.log(`[SIFT] Start. URL: ${url}`);
-        const hasApifyToken = process.env.APIFY_API_TOKEN || process.env.apify;
 
         if (mock) {
             const { data, error } = await supabaseAdmin
@@ -413,7 +378,7 @@ async function performFullSift(
     let smartData: Record<string, any> = {};
     let readingTime = estimateReadingTime(scrapedData.description || scrapedData.transcript || "");
 
-    if (openai && (scrapedData.title || scrapedData.description || scrapedData.transcript || imageBase64)) {
+    if (genAI && (scrapedData.title || scrapedData.description || scrapedData.transcript || imageBase64)) {
         try {
             if (imageBase64 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
                 const buffer = Buffer.from(imageBase64, 'base64');
@@ -423,21 +388,41 @@ async function performFullSift(
                 ogImage = publicUrl;
             }
 
-            const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
+            const model = genAI.getGenerativeModel({
+                model: 'gemini-2.5-flash-preview-05-20',
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                },
+                systemInstruction: SYSTEM_PROMPT,
+            });
+
+            // Build content parts for Gemini
+            const parts: any[] = [];
+
             if (imageBase64) {
-                messages.push({ role: "user", content: [{ type: "text", text: "Extract info from this." }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }] });
+                parts.push({ text: "Extract info from this image." });
+                parts.push({ inlineData: { mimeType: 'image/jpeg', data: imageBase64 } });
             } else if (scrapedData.images && scrapedData.images.length > 1) {
-                const userContent: any[] = [{ type: "text", text: JSON.stringify({ title: scrapedData.title, description: scrapedData.description }) }];
-                scrapedData.images.forEach((img: string) => {
-                    userContent.push({ type: "image_url", image_url: { url: img } });
+                parts.push({ text: JSON.stringify({ title: scrapedData.title, description: scrapedData.description }) });
+                // Fetch and inline up to 4 images for Gemini vision
+                const imagePromises = scrapedData.images.slice(0, 4).map(async (imgUrl: string) => {
+                    try {
+                        const resp = await fetch(imgUrl);
+                        if (!resp.ok) return null;
+                        const buffer = Buffer.from(await resp.arrayBuffer());
+                        return { inlineData: { mimeType: 'image/jpeg', data: buffer.toString('base64') } };
+                    } catch { return null; }
                 });
-                messages.push({ role: "user", content: userContent });
+                const imageParts = (await Promise.all(imagePromises)).filter(Boolean);
+                parts.push(...imageParts);
             } else {
-                messages.push({ role: "user", content: JSON.stringify(scrapedData) });
+                parts.push({ text: JSON.stringify(scrapedData) });
             }
 
-            const completion = await openai.chat.completions.create({ model: "gpt-4o", messages, response_format: { type: "json_object" } });
-            const ai = JSON.parse(completion.choices[0].message.content || "{}");
+            const result = await model.generateContent(parts);
+            const responseText = result.response.text();
+            const ai = JSON.parse(responseText);
+
             finalTitle = ai.title || finalTitle;
             finalSummary = ai.summary || finalSummary;
             finalTags = validateTags(ai.tags || []);
@@ -447,7 +432,7 @@ async function performFullSift(
                 readingTime = ai.reading_time_minutes;
             }
         } catch (e: any) {
-            currentDebug += `AI Failed. `;
+            currentDebug += `AI Failed: ${e.message}. `;
         }
     }
 

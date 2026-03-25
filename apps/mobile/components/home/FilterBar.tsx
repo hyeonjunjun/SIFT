@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Typography } from '../design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
@@ -20,13 +20,53 @@ interface Props {
 const DEFAULT_FILTERS: FilterItem[] = [
     { id: 'all', text: 'All', active: true },
     { id: 'cooking', text: 'Cooking' },
-    { id: 'baking', text: 'Baking' },
     { id: 'tech', text: 'Tech' },
     { id: 'health', text: 'Health' },
+    { id: 'lifestyle', text: 'Lifestyle' },
+    { id: 'finance', text: 'Finance' },
+    { id: 'design', text: 'Design' },
+    { id: 'travel', text: 'Travel' },
 ];
 
+function FilterChip({ item, isActive, colors, isDark, onPress }: {
+    item: FilterItem;
+    isActive: boolean;
+    colors: any;
+    isDark: boolean;
+    onPress: () => void;
+}) {
+    return (
+        <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onPress}
+            style={[
+                styles.chip,
+                isActive
+                    ? { backgroundColor: colors.ink }
+                    : {
+                        backgroundColor: isDark ? '#2D2725' : '#FFFFFF',
+                        borderWidth: 1.5,
+                        borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#C8C3BB',
+                    },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter by ${item.text}`}
+        >
+            <Typography
+                variant="caption"
+                style={[
+                    styles.chipLabel,
+                    { color: isActive ? colors.paper : colors.ink },
+                ]}
+            >
+                {item.text || 'Unknown'}
+            </Typography>
+        </TouchableOpacity>
+    );
+}
+
 export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onSelect }: Props) {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
     const safeFilters = Array.isArray(filters) ? filters : DEFAULT_FILTERS;
 
     return (
@@ -39,32 +79,18 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
                 {safeFilters.map((item, index) => {
                     if (!item || !item.text) return null;
 
-                    const isActive = item.id === activeFilter;
-
                     return (
-                        <Pressable
+                        <FilterChip
                             key={item.id || index}
-                            style={({ pressed }) => [
-                                styles.chip,
-                                {
-                                    backgroundColor: isActive ? colors.ink : colors.subtle,
-                                    opacity: pressed ? 0.8 : 1,
-                                },
-                            ]}
+                            item={item}
+                            isActive={item.id === activeFilter}
+                            colors={colors}
+                            isDark={isDark}
                             onPress={() => {
                                 Haptics.selectionAsync();
                                 onSelect?.(item.id);
                             }}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Filter by ${item.text}`}
-                        >
-                            <Typography
-                                variant="bodyMedium"
-                                style={{ color: isActive ? colors.paper : colors.stone }}
-                            >
-                                {item.text || 'Unknown'}
-                            </Typography>
-                        </Pressable>
+                        />
                     );
                 })}
             </ScrollView>
@@ -75,16 +101,21 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
 const styles = StyleSheet.create({
     container: {
         minHeight: 48,
-        marginBottom: SPACING.s,
     },
     scrollContent: {
-        gap: SPACING.s,
         alignItems: 'center',
+        paddingRight: SPACING.m,
+        paddingVertical: SPACING.xs,
+        gap: SPACING.s,
     },
     chip: {
-        paddingHorizontal: SPACING.l - 4,
-        paddingVertical: SPACING.m - 4,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
         borderRadius: RADIUS.pill,
-        marginRight: SPACING.s,
+    },
+    chipLabel: {
+        fontSize: 13,
+        fontFamily: 'Satoshi-Medium',
+        letterSpacing: 0.2,
     },
 });

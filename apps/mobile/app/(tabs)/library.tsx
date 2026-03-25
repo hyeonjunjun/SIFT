@@ -182,7 +182,7 @@ export default function LibraryScreen() {
                 .from('pages')
                 .select('id, title, url, tags, created_at, folder_id, metadata')
                 .eq('user_id', user.id)
-                .eq('is_archived', false)
+                .or('is_archived.is.null,is_archived.eq.false')
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 

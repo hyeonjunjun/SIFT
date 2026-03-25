@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { DeviceEventEmitter, View, Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,7 +7,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { COLORS, SPACING, RADIUS } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
 
 function useUnreadNotificationCount() {
@@ -35,6 +36,26 @@ export default function TabLayout() {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
     const unreadCount = useUnreadNotificationCount();
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+
+    // Prefetch notifications so they're ready before the user taps the tab
+    useEffect(() => {
+        if (!user?.id) return;
+        queryClient.prefetchQuery({
+            queryKey: ['notifications', user.id],
+            queryFn: async () => {
+                const { data } = await supabase
+                    .from('notifications')
+                    .select('*, actor:actor_id(id, display_name, avatar_url, username)')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+                return data || [];
+            },
+            staleTime: 1000 * 60 * 5,
+        });
+    }, [user?.id]);
 
     return (
         <Tabs

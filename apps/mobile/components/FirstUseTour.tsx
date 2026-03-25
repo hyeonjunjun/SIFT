@@ -17,18 +17,18 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
     {
-        title: '👋 Welcome to SIFT',
-        description: 'Paste any URL above to get an AI-powered summary in seconds.',
+        title: 'Paste any link',
+        description: 'Drop a URL above and get an AI-powered summary with smart tags, nutrition info for recipes, and more.',
         position: 'top',
     },
     {
-        title: '📚 Your Library',
-        description: 'Swipe to the Library tab to organize saved sifts into collections.',
+        title: 'Share from any app',
+        description: 'Use the share sheet in Safari, Chrome, TikTok, Instagram, or YouTube to sift links directly into your library.',
         position: 'center',
     },
     {
-        title: '👥 Social Tab',
-        description: 'Connect with friends and share your favorite sifts.',
+        title: 'Cook mode & collections',
+        description: 'Organize sifts into collections, share them with friends, and use cook mode for hands-free recipe walkthroughs.',
         position: 'bottom',
     },
 ];

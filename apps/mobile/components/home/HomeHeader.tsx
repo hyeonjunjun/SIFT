@@ -10,9 +10,10 @@ interface HomeHeaderProps {
     user: any;
     tier: string;
     pagesCount: number;
+    profile?: { display_name?: string; [key: string]: any };
 }
 
-export function HomeHeader({ user, tier, pagesCount }: HomeHeaderProps) {
+export function HomeHeader({ user, tier, pagesCount, profile }: HomeHeaderProps) {
     const { colors } = useTheme();
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -61,7 +62,7 @@ export function HomeHeader({ user, tier, pagesCount }: HomeHeaderProps) {
                             {getGreeting()}
                         </Typography>
                         <Typography variant="h2" style={styles.userName}>
-                            {user?.email?.split('@')[0] || "friend"}
+                            {profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || "friend"}
                         </Typography>
                     </TouchableOpacity>
                 </View>

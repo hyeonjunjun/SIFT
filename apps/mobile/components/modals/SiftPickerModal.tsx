@@ -43,7 +43,7 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentCollectionS
                 .from('pages')
                 .select('id, title, url, tags, metadata')
                 .eq('user_id', user.id)
-                .eq('is_archived', false)
+                .or('is_archived.is.null,is_archived.eq.false')
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return data as SiftItem[];
@@ -120,7 +120,7 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentCollectionS
         <Modal
             visible={visible}
             animationType="slide"
-            presentationStyle="formSheet"
+            {...(Platform.OS === 'ios' ? { presentationStyle: 'formSheet' } : { statusBarTranslucent: true })}
             onRequestClose={onClose}
         >
             <ScreenWrapper edges={['top']}>

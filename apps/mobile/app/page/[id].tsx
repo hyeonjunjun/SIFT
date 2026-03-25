@@ -23,7 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
-import { CaretLeft, DotsThree, Export, NotePencil, Trash, House, Users, PaperPlaneTilt } from 'phosphor-react-native';
+import { CaretLeft, DotsThree, Export, NotePencil, Trash, House, Users, PaperPlaneTilt, CookingPot } from 'phosphor-react-native';
 import { Modal, FlatList } from 'react-native';
 import { Theme, COLORS, SPACING, RADIUS } from '../../lib/theme';
 import { Typography } from '../../components/design-system/Typography';
@@ -33,6 +33,7 @@ import SafeContentRenderer from '../../components/SafeContentRenderer';
 import { Plus, X, ArrowSquareOut, PlusCircle, Copy, ImageSquare } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ActionSheet } from '../../components/modals/ActionSheet';
+import { CookModeModal } from '../../components/modals/CookModeModal';
 import { useAuth } from '../../lib/auth';
 import { safeSift } from '../../lib/sift-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,50 @@ const SUGGESTED_TAGS = [
     "Fitness", "Beauty", "Education", "News", "DIY", "Parenting",
     "Music", "Photography", "Gaming", "Productivity", "Fashion", "Food"
 ];
+
+// Scale a quantity string like "2 cups flour" by a multiplier
+function scaleIngredient(ingredient: string, multiplier: number): string {
+    if (multiplier === 1) return ingredient;
+    // Match leading fraction or decimal number
+    const match = ingredient.match(/^(\d+\/\d+|\d+\.?\d*)\s*/);
+    if (!match) return ingredient;
+    let num: number;
+    if (match[1].includes('/')) {
+        const [n, d] = match[1].split('/');
+        num = parseInt(n) / parseInt(d);
+    } else {
+        num = parseFloat(match[1]);
+    }
+    const scaled = num * multiplier;
+    // Format nicely: use fractions for common values
+    const formatNum = (n: number): string => {
+        const rounded = Math.round(n * 4) / 4; // round to nearest quarter
+        const whole = Math.floor(rounded);
+        const frac = rounded - whole;
+        const fracStr = frac === 0.25 ? '1/4' : frac === 0.5 ? '1/2' : frac === 0.75 ? '3/4' : '';
+        if (whole === 0 && fracStr) return fracStr;
+        if (fracStr) return `${whole} ${fracStr}`;
+        return rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(1);
+    };
+    return ingredient.replace(match[0], formatNum(scaled) + ' ');
+}
+
+function MacroBar({ label, value, unit, color, isDark }: { label: string; value: number; unit: string; color: string; isDark: boolean }) {
+    // Max width relative to a typical macro ceiling (e.g. 100g for carbs)
+    const maxVal = label === 'Fiber' ? 30 : 100;
+    const pct = Math.min(value / maxVal, 1);
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Typography variant="caption" color="stone" style={{ width: 42, fontSize: 11 }}>{label}</Typography>
+            <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                <View style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 4, backgroundColor: color, minWidth: 4 }} />
+            </View>
+            <Typography variant="caption" style={{ fontSize: 12, fontFamily: 'Satoshi-Bold', width: 36, textAlign: 'right' }}>
+                {value}{unit}
+            </Typography>
+        </View>
+    );
+}
 
 export default function PageDetail() {
     const { colors, isDark } = useTheme();
@@ -65,6 +110,8 @@ export default function PageDetail() {
     const [reSifting, setReSifting] = useState(false);
     const [scrollProgress, setScrollProgress] = useState(0);
     const [uploadingCover, setUploadingCover] = useState(false);
+    const [servingMultiplier, setServingMultiplier] = useState(1);
+    const [cookModeVisible, setCookModeVisible] = useState(false);
 
     const changeCoverImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -135,7 +182,7 @@ export default function PageDetail() {
             if (contextType === 'archive') {
                 query = query.eq('is_archived', true);
             } else {
-                query = query.eq('is_archived', false);
+                query = query.or('is_archived.is.null,is_archived.eq.false');
             }
 
             const { data, error } = await query;
@@ -775,36 +822,240 @@ export default function PageDetail() {
                             {/* Smart Data Card (recipes, tutorials, videos) */}
                             {page?.metadata?.smart_data && Object.keys(page.metadata.smart_data).filter(k => {
                                 const v = page.metadata.smart_data[k];
-                                return v && v !== '' && !(Array.isArray(v) && v.length === 0);
+                                return v && v !== '' && v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0) && !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0);
                             }).length > 0 && (
-                                <View style={[styles.bentoCard, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)', paddingVertical: SPACING.m }]}>
-                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.m }}>
-                                        {page.metadata.smart_data.preparation_time && (
-                                            <View style={{ gap: 2 }}>
-                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>PREP TIME</Typography>
-                                                <Typography variant="bodyMedium">{page.metadata.smart_data.preparation_time}</Typography>
+                                <View style={[styles.bentoCard, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)', paddingVertical: SPACING.m, gap: SPACING.m }]}>
+                                    {/* Recipe Info Row */}
+                                    {(page.metadata.smart_data.preparation_time || page.metadata.smart_data.cook_time || page.metadata.smart_data.total_time || page.metadata.smart_data.servings || page.metadata.smart_data.difficulty || page.metadata.smart_data.cuisine) && (
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.m }}>
+                                            {page.metadata.smart_data.preparation_time && (
+                                                <View style={{ gap: 2 }}>
+                                                    <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>PREP</Typography>
+                                                    <Typography variant="bodyMedium">{page.metadata.smart_data.preparation_time}</Typography>
+                                                </View>
+                                            )}
+                                            {page.metadata.smart_data.cook_time && (
+                                                <View style={{ gap: 2 }}>
+                                                    <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>COOK</Typography>
+                                                    <Typography variant="bodyMedium">{page.metadata.smart_data.cook_time}</Typography>
+                                                </View>
+                                            )}
+                                            {page.metadata.smart_data.total_time && !page.metadata.smart_data.preparation_time && (
+                                                <View style={{ gap: 2 }}>
+                                                    <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>TOTAL</Typography>
+                                                    <Typography variant="bodyMedium">{page.metadata.smart_data.total_time}</Typography>
+                                                </View>
+                                            )}
+                                            {page.metadata.smart_data.servings && (
+                                                <View style={{ gap: 2 }}>
+                                                    <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>SERVES</Typography>
+                                                    <Typography variant="bodyMedium">{page.metadata.smart_data.servings}</Typography>
+                                                </View>
+                                            )}
+                                            {page.metadata.smart_data.difficulty && (
+                                                <View style={{ gap: 2 }}>
+                                                    <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>LEVEL</Typography>
+                                                    <Typography variant="bodyMedium" style={{ textTransform: 'capitalize' }}>{page.metadata.smart_data.difficulty}</Typography>
+                                                </View>
+                                            )}
+                                            {page.metadata.smart_data.cuisine && (
+                                                <View style={{ gap: 2 }}>
+                                                    <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>CUISINE</Typography>
+                                                    <Typography variant="bodyMedium">{page.metadata.smart_data.cuisine}</Typography>
+                                                </View>
+                                            )}
+                                        </View>
+                                    )}
+
+                                    {/* Dietary Tags */}
+                                    {page.metadata.smart_data.dietary_tags && page.metadata.smart_data.dietary_tags.length > 0 && (
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs }}>
+                                            {page.metadata.smart_data.dietary_tags.map((tag: string) => (
+                                                <View
+                                                    key={tag}
+                                                    style={{
+                                                        paddingHorizontal: SPACING.s,
+                                                        paddingVertical: 4,
+                                                        borderRadius: RADIUS.pill,
+                                                        backgroundColor: isDark ? 'rgba(138,175,154,0.15)' : 'rgba(138,175,154,0.12)',
+                                                        borderWidth: 1,
+                                                        borderColor: isDark ? 'rgba(138,175,154,0.25)' : 'rgba(138,175,154,0.2)',
+                                                    }}
+                                                >
+                                                    <Typography variant="caption" style={{ fontSize: 11, color: isDark ? '#A8C9B5' : '#5A8A6A', fontFamily: 'Satoshi-Medium' }}>
+                                                        {tag}
+                                                    </Typography>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
+
+                                    {/* Nutrition Macros */}
+                                    {page.metadata.smart_data.nutrition_per_serving && page.metadata.smart_data.nutrition_per_serving.calories && (
+                                        <>
+                                            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }} />
+                                            <View style={{ gap: SPACING.s }}>
+                                                <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>
+                                                    NUTRITION{servingMultiplier !== 1 ? ' (PER ADJUSTED SERVING)' : ' PER SERVING'}
+                                                </Typography>
+                                                <View style={{ flexDirection: 'row', gap: SPACING.s }}>
+                                                    {/* Calories — hero stat */}
+                                                    <View style={{
+                                                        flex: 1,
+                                                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                                        borderRadius: RADIUS.m,
+                                                        padding: SPACING.m,
+                                                        alignItems: 'center',
+                                                        gap: 2,
+                                                    }}>
+                                                        <Typography variant="h2" style={{ fontSize: 24, lineHeight: 28 }}>
+                                                            {page.metadata.smart_data.nutrition_per_serving.calories}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="stone" style={{ fontSize: 10 }}>cal</Typography>
+                                                    </View>
+                                                    {/* Macro pills */}
+                                                    <View style={{ flex: 2, gap: SPACING.xs }}>
+                                                        {page.metadata.smart_data.nutrition_per_serving.protein_g != null && (
+                                                            <MacroBar label="Protein" value={page.metadata.smart_data.nutrition_per_serving.protein_g} unit="g" color="#5B8DEF" isDark={isDark} />
+                                                        )}
+                                                        {page.metadata.smart_data.nutrition_per_serving.carbs_g != null && (
+                                                            <MacroBar label="Carbs" value={page.metadata.smart_data.nutrition_per_serving.carbs_g} unit="g" color="#F5A623" isDark={isDark} />
+                                                        )}
+                                                        {page.metadata.smart_data.nutrition_per_serving.fat_g != null && (
+                                                            <MacroBar label="Fat" value={page.metadata.smart_data.nutrition_per_serving.fat_g} unit="g" color="#E85D75" isDark={isDark} />
+                                                        )}
+                                                        {page.metadata.smart_data.nutrition_per_serving.fiber_g != null && (
+                                                            <MacroBar label="Fiber" value={page.metadata.smart_data.nutrition_per_serving.fiber_g} unit="g" color="#7DC881" isDark={isDark} />
+                                                        )}
+                                                    </View>
+                                                </View>
                                             </View>
-                                        )}
+                                        </>
+                                    )}
+
+                                    {/* Video Insights (non-recipe) */}
+                                    {page.metadata.smart_data.video_insights && (
+                                        <View style={{ gap: 2 }}>
+                                            <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>KEY TAKEAWAYS</Typography>
+                                            <Typography variant="body" color="stone" style={{ lineHeight: 20 }}>{page.metadata.smart_data.video_insights}</Typography>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+
+                            {/* Ingredients Card with Serving Adjuster */}
+                            {page?.metadata?.smart_data?.ingredients && page.metadata.smart_data.ingredients.length > 0 && (
+                                <View style={[styles.bentoCard, { backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)', gap: SPACING.m }]}>
+                                    {/* Header with serving adjuster */}
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>
+                                            INGREDIENTS
+                                        </Typography>
                                         {page.metadata.smart_data.servings && (
-                                            <View style={{ gap: 2 }}>
-                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>SERVINGS</Typography>
-                                                <Typography variant="bodyMedium">{page.metadata.smart_data.servings}</Typography>
-                                            </View>
-                                        )}
-                                        {page.metadata.smart_data.difficulty && (
-                                            <View style={{ gap: 2 }}>
-                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>DIFFICULTY</Typography>
-                                                <Typography variant="bodyMedium" style={{ textTransform: 'capitalize' }}>{page.metadata.smart_data.difficulty}</Typography>
-                                            </View>
-                                        )}
-                                        {page.metadata.smart_data.video_insights && (
-                                            <View style={{ gap: 2, flex: 1 }}>
-                                                <Typography variant="label" color="stone" style={{ fontSize: 10 }}>KEY TAKEAWAYS</Typography>
-                                                <Typography variant="body" color="stone" style={{ lineHeight: 20 }}>{page.metadata.smart_data.video_insights}</Typography>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s }}>
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        Haptics.selectionAsync();
+                                                        const baseServings = page.metadata.smart_data.servings || 1;
+                                                        const newMultiplier = servingMultiplier - 0.5;
+                                                        // Don't go below 1 serving
+                                                        if (Math.round(baseServings * newMultiplier) >= 1) {
+                                                            setServingMultiplier(newMultiplier);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: 28, height: 28, borderRadius: 14,
+                                                        backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                                                        justifyContent: 'center', alignItems: 'center',
+                                                    }}
+                                                >
+                                                    <Typography variant="bodyMedium" style={{ fontSize: 16, lineHeight: 18 }}>-</Typography>
+                                                </TouchableOpacity>
+                                                <Typography variant="bodyMedium" style={{ fontSize: 14, minWidth: 60, textAlign: 'center' }}>
+                                                    {Math.max(1, Math.round((page.metadata.smart_data.servings || 1) * servingMultiplier))} servings
+                                                </Typography>
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        Haptics.selectionAsync();
+                                                        setServingMultiplier(servingMultiplier + 0.5);
+                                                    }}
+                                                    style={{
+                                                        width: 28, height: 28, borderRadius: 14,
+                                                        backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                                                        justifyContent: 'center', alignItems: 'center',
+                                                    }}
+                                                >
+                                                    <Typography variant="bodyMedium" style={{ fontSize: 16, lineHeight: 18 }}>+</Typography>
+                                                </TouchableOpacity>
                                             </View>
                                         )}
                                     </View>
+
+                                    {/* Ingredient List */}
+                                    <View style={{ gap: SPACING.s }}>
+                                        {page.metadata.smart_data.ingredients.map((item: string, idx: number) => (
+                                            <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s }}>
+                                                <View style={{
+                                                    width: 6, height: 6, borderRadius: 3, marginTop: 7,
+                                                    backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                                                }} />
+                                                <Typography variant="body" style={{ flex: 1, lineHeight: 22 }}>
+                                                    {scaleIngredient(item, servingMultiplier)}
+                                                </Typography>
+                                            </View>
+                                        ))}
+                                    </View>
+
+                                    {/* Copy as Shopping List */}
+                                    <TouchableOpacity
+                                        onPress={async () => {
+                                            const list = page.metadata.smart_data.ingredients
+                                                .map((item: string) => `☐ ${scaleIngredient(item, servingMultiplier)}`)
+                                                .join('\n');
+                                            const header = `Shopping List: ${page.title}\n(${Math.round(page.metadata.smart_data.servings * servingMultiplier)} servings)\n\n`;
+                                            await Clipboard.setStringAsync(header + list);
+                                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                            Alert.alert('Copied', 'Shopping list copied to clipboard.');
+                                        }}
+                                        style={{
+                                            flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                                            gap: SPACING.s, paddingVertical: SPACING.s,
+                                            borderTopWidth: StyleSheet.hairlineWidth,
+                                            borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                                            marginTop: SPACING.xs,
+                                        }}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Copy size={16} color={colors.stone} />
+                                        <Typography variant="caption" color="stone" style={{ fontSize: 12 }}>
+                                            Copy as Shopping List
+                                        </Typography>
+                                    </TouchableOpacity>
                                 </View>
+                            )}
+
+                            {/* Cook Mode Button */}
+                            {page?.metadata?.smart_data?.ingredients && page.metadata.smart_data.ingredients.length > 0 && (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        setCookModeVisible(true);
+                                    }}
+                                    style={[styles.bentoCard, {
+                                        backgroundColor: colors.ink,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: SPACING.s,
+                                        paddingVertical: SPACING.m,
+                                    }]}
+                                    activeOpacity={0.8}
+                                >
+                                    <CookingPot size={20} color={colors.paper} weight="fill" />
+                                    <Typography variant="label" style={{ color: colors.paper, fontWeight: '700', fontSize: 14, letterSpacing: 0.5 }}>
+                                        Start Cooking
+                                    </Typography>
+                                </TouchableOpacity>
                             )}
 
                             {/* Card 4: Editorial Content */}
@@ -878,11 +1129,29 @@ export default function PageDetail() {
                     </View>
                 </Modal>
 
+                <CookModeModal
+                    visible={cookModeVisible}
+                    onClose={() => setCookModeVisible(false)}
+                    title={page?.title || ''}
+                    ingredients={page?.metadata?.smart_data?.ingredients || []}
+                    summary={page?.summary || content}
+                    servingMultiplier={servingMultiplier}
+                    scaleIngredient={scaleIngredient}
+                />
+
                 <ActionSheet
                     visible={actionSheetVisible}
                     onClose={() => setActionSheetVisible(false)}
                     title="Manage Sift"
                     options={[
+                        ...(page?.metadata?.smart_data?.ingredients?.length > 0 ? [{
+                            label: 'Cook Mode',
+                            icon: CookingPot,
+                            onPress: () => {
+                                setActionSheetVisible(false);
+                                setTimeout(() => setCookModeVisible(true), 300);
+                            }
+                        }] : []),
                         {
                             label: uploadingCover ? 'Uploading...' : 'Change Cover',
                             icon: ImageSquare,

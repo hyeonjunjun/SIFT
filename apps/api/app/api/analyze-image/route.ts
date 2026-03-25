@@ -1,12 +1,11 @@
 
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export const maxDuration = 60; // Allow enough time for vision analysis
+export const maxDuration = 60;
 
-const openai = (process.env.OPENAI_API_KEY || process.env.open_ai)
-    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.open_ai })
-    : null;
+const geminiKey = process.env.GEMINI_API_KEY || process.env.gemini;
+const genAI = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -26,49 +25,46 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Image URL is required' }, { status: 400, headers: corsHeaders });
         }
 
-        if (!openai) {
-            return NextResponse.json({ error: 'OpenAI client not configured' }, { status: 500, headers: corsHeaders });
+        if (!genAI) {
+            return NextResponse.json({ error: 'Gemini client not configured' }, { status: 500, headers: corsHeaders });
         }
 
         console.log(`[AnalyzeImage] Processing: ${imageUrl}`);
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: `You are an expert curator. Analyze the provided image and return a JSON object with a title, category, tags, and summary.
-                    
-                    **CATEGORIES:** Cooking, Tech, Design, Health, Fashion, News, or Random.
-                    **TAGGING RULES:** Select 2-3 tags ONLY from: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional"]. Use "Lifestyle" if no others fit.
-                    
-                    **MARKDOWN SUMMARY:** 
-                    - Start with a 1-sentence synopsis.
-                    - Use ## headers.
-                    - Be concise and cozy.
-                    
-                    Return ONLY a JSON object.`
-                },
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: "Analyze this image and return the structured JSON." },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                "url": imageUrl,
-                            },
-                        },
-                    ],
-                },
-            ],
-            response_format: { type: "json_object" }
+        // Fetch image and convert to base64 for Gemini
+        const imgResp = await fetch(imageUrl);
+        if (!imgResp.ok) {
+            return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400, headers: corsHeaders });
+        }
+        const buffer = Buffer.from(await imgResp.arrayBuffer());
+        const base64 = buffer.toString('base64');
+
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash-preview-05-20',
+            generationConfig: {
+                responseMimeType: 'application/json',
+            },
+            systemInstruction: `You are an expert curator. Analyze the provided image and return a JSON object with these fields:
+- "title": Catchy, accurate title (max 80 chars)
+- "category": Best-fit from: Cooking, Tech, Design, Health, Fashion, News, or Random.
+- "tags": 2-3 tags ONLY from: ["Cooking", "Baking", "Tech", "Health", "Lifestyle", "Professional", "Finance", "Design", "Travel", "Entertainment", "Science", "Shopping", "Fitness", "Beauty", "Education", "News", "DIY", "Parenting", "Music", "Photography", "Gaming", "Productivity", "Fashion", "Food"]. Use "Lifestyle" if no others fit.
+- "summary": Markdown summary. Start with a 1-sentence synopsis, use ## headers. Be concise and cozy.
+- "reading_time_minutes": Integer estimate (min 1).
+
+Return ONLY the JSON object.`,
         });
 
-        const result = JSON.parse(response.choices[0].message.content || "{}");
-        console.log(`[AnalyzeImage] Success: ${result.title}`);
+        const result = await model.generateContent([
+            { text: "Analyze this image and return the structured JSON." },
+            { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+        ]);
 
-        return NextResponse.json({ status: 'success', data: result }, { headers: corsHeaders });
+        const responseText = result.response.text();
+        const data = JSON.parse(responseText);
+
+        console.log(`[AnalyzeImage] Success: ${data.title}`);
+
+        return NextResponse.json({ status: 'success', data }, { headers: corsHeaders });
 
     } catch (error: any) {
         console.error('[AnalyzeImage] Error:', error.message);

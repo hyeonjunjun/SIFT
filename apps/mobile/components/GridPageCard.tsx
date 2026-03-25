@@ -132,7 +132,8 @@ function GridPageCardComponent({ id, title, url, imageUrl, index, onDelete, onDe
                             <Image
                                 source={{ uri: imageUrl }}
                                 style={{ width: '100%', height: '100%' }}
-                                resizeMode="cover"
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
                             />
                         ) : (
                             <View style={{ width: '100%', height: '100%', backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center' }}>

@@ -441,6 +441,7 @@ export default function SiftFeed({
                                     source={item.metadata.image_url}
                                     style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: SPACING.m - 4 }}
                                     contentFit="cover"
+                                    cachePolicy="memory-disk"
                                 />
                             ) : (
                                 <View style={{ width: 48, height: 48, borderRadius: RADIUS.s, backgroundColor: colors.subtle, marginRight: SPACING.m - 4, justifyContent: 'center', alignItems: 'center' }}>

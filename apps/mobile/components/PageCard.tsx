@@ -147,6 +147,7 @@ const PageCardComponent = ({ id, title, gist, url, tags = [], onDelete, onDelete
                             source={imageUrl}
                             style={{ width: '100%', height: 180, backgroundColor: colors.surfaceSecondary }}
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                             transition={500}
                         />
                     )}

@@ -264,6 +264,7 @@ export const PageRow = React.memo(({ item, colors, isDark, router, onLongPress, 
                             source={{ uri: item.image_url }}
                             style={styles.thumbnailImage}
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                             transition={200}
                         />
                     ) : (

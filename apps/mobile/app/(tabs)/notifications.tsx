@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Typography } from '../../components/design-system/Typography';
@@ -12,6 +12,8 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users, TrashSimple } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Skeleton } from '../../components/design-system/Skeleton';
 
 interface Notification {
     id: string;
@@ -27,6 +29,8 @@ interface Notification {
         username: string;
     };
 }
+
+const CACHE_KEY = '@notifications_cache';
 
 function timeAgo(dateStr: string): string {
     const now = new Date();
@@ -85,12 +89,38 @@ function getNotificationText(notification: Notification): string {
     }
 }
 
+function NotificationSkeleton({ colors }: { colors: any }) {
+    return (
+        <View style={{ paddingHorizontal: SPACING.l }}>
+            {[1, 2, 3, 4, 5].map(i => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.m }}>
+                    <Skeleton width={44} height={44} style={{ borderRadius: 22, marginRight: SPACING.m }} />
+                    <View style={{ flex: 1, gap: 6 }}>
+                        <Skeleton height={14} width="85%" />
+                        <Skeleton height={10} width="30%" />
+                    </View>
+                </View>
+            ))}
+        </View>
+    );
+}
+
 export default function NotificationsScreen() {
     const { colors } = useTheme();
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const router = useRouter();
     const [refreshing, setRefreshing] = React.useState(false);
+
+    // Load cached notifications for instant display
+    const [cachedData, setCachedData] = React.useState<Notification[] | undefined>(undefined);
+    useEffect(() => {
+        AsyncStorage.getItem(CACHE_KEY).then(raw => {
+            if (raw) {
+                try { setCachedData(JSON.parse(raw)); } catch { }
+            }
+        });
+    }, []);
 
     const { data: notifications = [], isLoading, refetch } = useQuery({
         queryKey: ['notifications', user?.id],
@@ -103,12 +133,37 @@ export default function NotificationsScreen() {
                 .order('created_at', { ascending: false })
                 .limit(50);
             if (error) throw error;
-            return (data || []) as Notification[];
+            const result = (data || []) as Notification[];
+            // Persist to cache for instant future loads
+            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(result)).catch(() => { });
+            return result;
         },
         enabled: !!user?.id,
-        staleTime: 1000 * 60 * 2, // 2 minutes
-        placeholderData: (prev: any) => prev,
+        staleTime: 1000 * 60 * 5, // 5 minutes — longer to reduce refetches
+        placeholderData: cachedData || ((prev: any) => prev),
     });
+
+    // Realtime subscription for instant updates
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const subscription = supabase
+            .channel(`notifications:${user.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'notifications',
+                filter: `user_id=eq.${user.id}`
+            }, () => {
+                queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+                queryClient.invalidateQueries({ queryKey: ['social_badge', user.id] });
+            })
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [user?.id]);
 
     // Mark all as read when screen is focused
     useFocusEffect(
@@ -336,6 +391,9 @@ export default function NotificationsScreen() {
         );
     };
 
+    // Show skeleton only on first load with no cached data
+    const showSkeleton = isLoading && notifications.length === 0 && !cachedData;
+
     return (
         <ScreenWrapper edges={['top']}>
             {/* Header */}
@@ -350,32 +408,36 @@ export default function NotificationsScreen() {
                 )}
             </View>
 
-            <FlatList
-                data={flatData}
-                renderItem={renderItem}
-                keyExtractor={(item: any) => item.id || item.title}
-                contentContainerStyle={styles.list}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={colors.stone}
-                    />
-                }
-                ListEmptyComponent={
-                    !isLoading ? (
-                        <View style={styles.emptyState}>
-                            <CheckCircle size={48} color={colors.stone} weight="thin" />
-                            <Typography variant="h3" style={{ marginTop: SPACING.m, textAlign: 'center' }}>
-                                All caught up!
-                            </Typography>
-                            <Typography variant="subhead" color="stone" style={{ marginTop: SPACING.xs, textAlign: 'center' }}>
-                                No new notifications
-                            </Typography>
-                        </View>
-                    ) : null
-                }
-            />
+            {showSkeleton ? (
+                <NotificationSkeleton colors={colors} />
+            ) : (
+                <FlatList
+                    data={flatData}
+                    renderItem={renderItem}
+                    keyExtractor={(item: any) => item.id || item.title}
+                    contentContainerStyle={styles.list}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor={colors.stone}
+                        />
+                    }
+                    ListEmptyComponent={
+                        !isLoading ? (
+                            <View style={styles.emptyState}>
+                                <CheckCircle size={48} color={colors.stone} weight="thin" />
+                                <Typography variant="h3" style={{ marginTop: SPACING.m, textAlign: 'center' }}>
+                                    All caught up!
+                                </Typography>
+                                <Typography variant="subhead" color="stone" style={{ marginTop: SPACING.xs, textAlign: 'center' }}>
+                                    No new notifications
+                                </Typography>
+                            </View>
+                        ) : null
+                    }
+                />
+            )}
         </ScreenWrapper>
     );
 }

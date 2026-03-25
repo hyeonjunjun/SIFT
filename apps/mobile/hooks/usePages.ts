@@ -60,7 +60,7 @@ export function usePages() {
                 .from('pages')
                 .select('id, title, summary, tags, created_at, url, is_pinned, metadata')
                 .eq('user_id', user.id)
-                .neq('is_archived', true)
+                .or('is_archived.is.null,is_archived.eq.false')
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false })
                 .range(from, to);
@@ -73,7 +73,8 @@ export function usePages() {
             return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
         },
         enabled: !!user,
-        staleTime: 1000 * 60,
+        staleTime: 1000 * 30, // 30s — shorter to catch realtime gaps
+        refetchOnWindowFocus: true,
     });
 
     const pages = useMemo(() => {
@@ -91,7 +92,7 @@ export function usePages() {
                 .from('pages')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('is_archived', false)
+                .or('is_archived.is.null,is_archived.eq.false')
                 .or(`title.ilike.%${q}%,summary.ilike.%${q}%`)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false })

@@ -9,6 +9,7 @@ import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
 import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-native";
 import SplashScreen from "../components/SplashScreen";
+import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
@@ -157,8 +158,9 @@ function RootLayoutNav() {
             NavigationBar.setBackgroundColorAsync('transparent');
             NavigationBar.setPositionAsync('absolute');
             NavigationBar.setBehaviorAsync('overlay-swipe');
+            NavigationBar.setButtonStyleAsync(isDark ? 'light' : 'dark');
         }
-    }, []);
+    }, [isDark]);
 
     const [fontsLoaded] = useFonts({
         PlayfairDisplay_700Bold,
@@ -178,6 +180,7 @@ function RootLayoutNav() {
     const [rcReady, setRcReady] = useState(false);
     const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
     const [splashDismissed, setSplashDismissed] = useState(false);
+    const [hasLaunched, setHasLaunched] = useState<boolean | null>(null);
     const splashHiddenRef = React.useRef(false);
 
     // RevenueCat Initialization
@@ -226,6 +229,13 @@ function RootLayoutNav() {
         };
         syncUser();
     }, [session?.user?.id, rcReady]);
+
+    // Check if first launch
+    useEffect(() => {
+        AsyncStorage.getItem('has_launched').then(val => {
+            setHasLaunched(val === 'true');
+        }).catch(() => setHasLaunched(false));
+    }, []);
 
     // Initial Preparation
     useEffect(() => {
@@ -287,7 +297,7 @@ function RootLayoutNav() {
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 
-    // CRITICAL: Block rendering of potentially themed components until fonts are loaded 
+    // CRITICAL: Block rendering of potentially themed components until fonts are loaded
     // to prevent "font family not found" crashes on launch.
     if (!fontsLoaded || !splashDismissed) {
         return (
@@ -295,6 +305,11 @@ function RootLayoutNav() {
                 onFinish={() => setSplashAnimationFinished(true)}
             />
         );
+    }
+
+    // Show onboarding for first-time users
+    if (hasLaunched === false) {
+        return <Onboarding onComplete={() => setHasLaunched(true)} />;
     }
 
     return (

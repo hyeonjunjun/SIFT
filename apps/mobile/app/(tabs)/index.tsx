@@ -2,6 +2,8 @@ import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState
 import { useEffect, useCallback, useRef, useMemo, useState } from "react";
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import Animated, { LinearTransition, FadeIn, FadeOut } from "react-native-reanimated";
 import {
     MagnifyingGlass, SquaresFour, Rows, XCircle, X, Archive, Plus, ImageSquare,
@@ -156,22 +158,25 @@ export default function HomeScreen() {
         if (!user?.id) return;
 
         const subscription = supabase
-            .channel('public:pages')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'pages' }, async (payload) => {
+            .channel(`pages:${user.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'pages',
+                filter: `user_id=eq.${user.id}`
+            }, async (payload) => {
                 const newRecord = payload.new as any;
                 const oldRecord = payload.old as any;
 
                 if (payload.eventType === 'INSERT') {
-                    if (newRecord.user_id !== user.id) return;
                     queryClient.invalidateQueries({ queryKey: ['pages'] });
                     triggerHaptic('notification');
                     setManualUrl(prev => prev.trim() === newRecord.url?.trim() ? "" : prev);
                 } else if (payload.eventType === 'UPDATE') {
-                    if (newRecord.user_id !== user.id) return;
-
+                    // Always refresh on update — catches status changes, tag edits, etc.
+                    queryClient.invalidateQueries({ queryKey: ['pages'] });
                     const statusChanged = newRecord.metadata?.status === 'completed' && oldRecord.metadata?.status !== 'completed';
                     if (statusChanged) {
-                        queryClient.invalidateQueries({ queryKey: ['pages'] });
                         triggerHaptic('notification');
                     }
                 } else if (payload.eventType === 'DELETE') {
@@ -329,6 +334,62 @@ export default function HomeScreen() {
         setMoveToCollectionSiftId(null);
     };
 
+    const handleChangeCover = async (siftId: string) => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 1,
+        });
+
+        if (result.canceled || !result.assets[0]) return;
+
+        triggerHaptic('impact');
+        showToast({ message: "Updating cover..." });
+
+        try {
+            const manipulated = await ImageManipulator.manipulateAsync(
+                result.assets[0].uri,
+                [{ resize: { width: 800 } }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const fileName = `${user?.id}/sift_cover_${siftId}_${Date.now()}.jpg`;
+            const formData = new FormData();
+            formData.append('file', {
+                uri: manipulated.uri,
+                name: fileName,
+                type: 'image/jpeg',
+            } as any);
+
+            const { error: uploadError } = await supabase.storage
+                .from('covers')
+                .upload(fileName, formData, {
+                    contentType: 'image/jpeg',
+                    upsert: true,
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('covers')
+                .getPublicUrl(fileName);
+
+            const page = pages.find(p => p.id === siftId);
+            await supabase
+                .from('pages')
+                .update({ metadata: { ...page?.metadata, image_url: publicUrl } })
+                .eq('id', siftId);
+
+            queryClient.invalidateQueries({ queryKey: ['pages'] });
+            queryClient.invalidateQueries({ queryKey: ['page', siftId] });
+            showToast({ message: "Cover updated" });
+            triggerHaptic('notification');
+        } catch (e: any) {
+            showToast({ message: "Failed to update cover", type: 'error' });
+        }
+    };
+
     const handleSiftOptions = (item: any) => {
         setSelectedSift(item);
         setSiftActionSheetVisible(true);
@@ -344,7 +405,7 @@ export default function HomeScreen() {
 
     const ListHeader = useMemo(() => (
         <View style={styles.headerContainer}>
-            <HomeHeader user={user} tier={tier} pagesCount={pages.length} />
+            <HomeHeader user={user} tier={tier} pagesCount={pages.length} profile={profile} />
 
             {/* Omni-Action Hero Card */}
             <View style={styles.omniActionCard}>
@@ -455,9 +516,9 @@ export default function HomeScreen() {
                 </View>
             )}
 
-            {/* Unified Control Center */}
+            {/* Library Control Center */}
             <View style={styles.controlCenter}>
-                {activeFilter === 'All' && searchQuery === '' && (
+                {searchQuery === '' && (
                     <Typography
                         variant="caption"
                         color="stone"
@@ -628,6 +689,7 @@ export default function HomeScreen() {
                     triggerHaptic('impact', Haptics.ImpactFeedbackStyle.Heavy);
                     setSelectedIds(new Set([id]));
                 }}
+                onChangeCover={handleChangeCover}
             />
 
             <FolderPickerModal
@@ -736,14 +798,13 @@ const styles = StyleSheet.create({
         opacity: 0.8,
     },
     controlCenter: {
-        // Removed marginTop, relying on parent padding/gap
-        paddingBottom: SPACING.s,
+        gap: SPACING.m,
     },
     searchRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.s,
-        marginBottom: SPACING.m,
+        marginBottom: SPACING.xs,
     },
     searchBar: {
         flex: 1,
