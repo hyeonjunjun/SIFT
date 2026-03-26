@@ -11,7 +11,6 @@ const ExpoSecureStoreAdapter = {
             return Promise.resolve(localStorage.getItem(key));
         }
         return SecureStore.getItemAsync(key).catch(err => {
-            console.warn(`[Supabase Storage] Error reading ${key}:`, err.message);
             return null; // Treat as not found on error to prevent total app crash
         });
     },
@@ -23,7 +22,6 @@ const ExpoSecureStoreAdapter = {
             return Promise.resolve();
         }
         return SecureStore.setItemAsync(key, value).catch(err => {
-            console.warn(`[Supabase Storage] Error writing ${key}:`, err.message);
         });
     },
     removeItem: (key: string) => {
@@ -34,7 +32,6 @@ const ExpoSecureStoreAdapter = {
             return Promise.resolve();
         }
         return SecureStore.deleteItemAsync(key).catch(err => {
-            console.warn(`[Supabase Storage] Error deleting ${key}:`, err.message);
         });
     },
 };
@@ -43,12 +40,8 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
 if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
-    console.warn("Supabase environment variables are missing! The app will likely fail to fetch data.");
 }
-
-console.log(`[Supabase] Initializing with URL: ${supabaseUrl ? `${supabaseUrl.substring(0, 15)}...` : 'MISSING'}`);
 if (supabaseUrl.includes('placeholder')) {
-    console.warn("⚠️ [Supabase] Using PLACEHOLDER URL. This will likely fail.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

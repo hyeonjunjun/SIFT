@@ -35,7 +35,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (savedHC !== null) setHighContrastState(savedHC === 'true');
                 if (savedRM !== null) setReduceMotionState(savedRM === 'true');
             } catch (e) {
-                console.error('[ThemeContext] Failed to load settings:', e);
             }
         };
         loadSettings();

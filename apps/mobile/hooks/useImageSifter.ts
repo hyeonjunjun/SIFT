@@ -129,7 +129,6 @@ export const useImageSifter = (onSuccess?: () => void) => {
 
             if (onSuccess) onSuccess();
         } catch (error: any) {
-            console.error('[VisualSift] Error:', error);
             Alert.alert('Scan Failed', error.message || 'Something went wrong while sifting images.');
         } finally {
             setLoading(false);

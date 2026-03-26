@@ -15,8 +15,6 @@ export default function NotFoundScreen() {
             router.replace("/(tabs)/");
             return;
         }
-
-        console.error("❌ 404 Not Found hit for path:", pathname);
     }, [pathname]);
 
     return (

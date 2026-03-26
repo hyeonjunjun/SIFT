@@ -62,7 +62,6 @@ export default function PrivacyScreen() {
                         try {
                             const { error } = await supabase.rpc('delete_user_account');
                             if (error) {
-                                console.error('Delete Account RPC error:', error);
                                 Alert.alert('Request Failed', 'We couldn\'t process your request automatically. Please contact support@sift.app to finalize your account deletion.');
                             } else {
                                 await signOut();

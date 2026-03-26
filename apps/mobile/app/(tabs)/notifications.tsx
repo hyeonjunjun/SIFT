@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Typography } from '../../components/design-system/Typography';
 import ScreenWrapper from '../../components/ScreenWrapper';
@@ -7,13 +7,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { SPACING, RADIUS, COLORS } from '../../lib/theme';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users, TrashSimple } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Skeleton } from '../../components/design-system/Skeleton';
+import { useToast } from '../../context/ToastContext';
 
 interface Notification {
     id: string;
@@ -110,6 +111,7 @@ export default function NotificationsScreen() {
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const router = useRouter();
+    const { showToast } = useToast();
     const [refreshing, setRefreshing] = React.useState(false);
 
     // Load cached notifications for instant display
@@ -122,26 +124,52 @@ export default function NotificationsScreen() {
         });
     }, []);
 
-    const { data: notifications = [], isLoading, refetch } = useQuery({
+    const PAGE_SIZE = 30;
+
+    // Clear any stale non-infinite query cache that would crash useInfiniteQuery.
+    // Must run synchronously before useInfiniteQuery reads the cache.
+    const existingCache = queryClient.getQueryData(['notifications', user?.id]);
+    if (existingCache && !(existingCache as any)?.pages) {
+        queryClient.removeQueries({ queryKey: ['notifications', user?.id] });
+    }
+
+    const {
+        data: infiniteData,
+        isLoading,
+        refetch,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useInfiniteQuery({
         queryKey: ['notifications', user?.id],
-        queryFn: async () => {
+        queryFn: async ({ pageParam = 0 }) => {
             if (!user?.id) return [];
             const { data, error } = await supabase
                 .from('notifications')
                 .select('*, actor:actor_id(id, display_name, avatar_url, username)')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .range(pageParam, pageParam + PAGE_SIZE - 1);
             if (error) throw error;
-            const result = (data || []) as Notification[];
-            // Persist to cache for instant future loads
-            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(result)).catch(() => { });
-            return result;
+            return (data || []) as Notification[];
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, allPages) => {
+            if (lastPage.length < PAGE_SIZE) return undefined;
+            return allPages.flat().length;
         },
         enabled: !!user?.id,
-        staleTime: 1000 * 60 * 5, // 5 minutes — longer to reduce refetches
-        placeholderData: cachedData || ((prev: any) => prev),
+        staleTime: 1000 * 60 * 5,
     });
+
+    const notifications = React.useMemo(() => {
+        const all = infiniteData?.pages?.flat() ?? [];
+        // Persist first page to cache for instant future loads
+        if (all.length > 0) {
+            AsyncStorage.setItem(CACHE_KEY, JSON.stringify(all.slice(0, PAGE_SIZE))).catch(() => { });
+        }
+        return all;
+    }, [infiniteData]);
 
     // Realtime subscription for instant updates
     useEffect(() => {
@@ -174,16 +202,17 @@ export default function NotificationsScreen() {
                 const unread = notifications.filter(n => !n.is_read);
                 if (unread.length === 0) return;
 
-                await supabase
-                    .from('notifications')
-                    .update({ is_read: true })
-                    .eq('user_id', user.id)
-                    .eq('is_read', false);
+                try {
+                    await supabase
+                        .from('notifications')
+                        .update({ is_read: true })
+                        .eq('user_id', user.id)
+                        .eq('is_read', false);
 
-                queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
-                queryClient.invalidateQueries({ queryKey: ['social_badge', user.id] });
+                    queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+                    queryClient.invalidateQueries({ queryKey: ['social_badge', user.id] });
+                } catch { /* silent — non-critical background operation */ }
             };
-            // Small delay so the user sees the unread state briefly
             const timeout = setTimeout(markRead, 1500);
             return () => clearTimeout(timeout);
         }, [user?.id, notifications.length])
@@ -192,27 +221,32 @@ export default function NotificationsScreen() {
     const handleMarkAllRead = async () => {
         if (!user?.id) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        await supabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('user_id', user.id)
-            .eq('is_read', false);
-        queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
-        queryClient.invalidateQueries({ queryKey: ['social_badge', user.id] });
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('user_id', user.id)
+                .eq('is_read', false);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['social_badge', user.id] });
+        } catch (e: any) {
+            showToast({ message: 'Failed to mark as read', type: 'error' });
+        }
     };
 
     const handleAcceptFriend = async (friendshipId: string) => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         try {
-            // Get the friendship to find the requester
             const { data: friendship } = await supabase
                 .from('friendships')
                 .select('user_id')
                 .eq('id', friendshipId)
                 .single();
 
-            await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+            const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+            if (error) throw error;
 
             // Notify the requester that their request was accepted
             if (friendship?.user_id) {
@@ -224,18 +258,23 @@ export default function NotificationsScreen() {
                 }]);
             }
 
-            queryClient.invalidateQueries({ queryKey: ['friends'] });
-            refetch();
+            queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
         } catch (e: any) {
-            console.error('Failed to accept friend:', e);
+            showToast({ message: 'Failed to accept request', type: 'error' });
         }
     };
 
     const handleDeclineFriend = async (friendshipId: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        await supabase.from('friendships').delete().eq('id', friendshipId);
-        queryClient.invalidateQueries({ queryKey: ['friends'] });
-        refetch();
+        try {
+            const { error } = await supabase.from('friendships').delete().eq('id', friendshipId);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['friendships', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+        } catch (e: any) {
+            showToast({ message: 'Failed to decline request', type: 'error' });
+        }
     };
 
     const onRefresh = async () => {
@@ -247,9 +286,14 @@ export default function NotificationsScreen() {
 
     const handleDeleteNotification = async (notificationId: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        await supabase.from('notifications').delete().eq('id', notificationId);
-        queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
-        queryClient.invalidateQueries({ queryKey: ['social_badge', user?.id] });
+        try {
+            const { error } = await supabase.from('notifications').delete().eq('id', notificationId);
+            if (error) throw error;
+            queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['social_badge', user?.id] });
+        } catch (e: any) {
+            showToast({ message: 'Failed to delete notification', type: 'error' });
+        }
     };
 
     const handleNotificationPress = (notification: Notification) => {
@@ -423,6 +467,17 @@ export default function NotificationsScreen() {
                             onRefresh={onRefresh}
                             tintColor={colors.stone}
                         />
+                    }
+                    onEndReached={() => {
+                        if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+                    }}
+                    onEndReachedThreshold={0.3}
+                    ListFooterComponent={
+                        isFetchingNextPage ? (
+                            <View style={{ paddingVertical: SPACING.l, alignItems: 'center' }}>
+                                <ActivityIndicator color={colors.stone} />
+                            </View>
+                        ) : null
                     }
                     ListEmptyComponent={
                         !isLoading ? (

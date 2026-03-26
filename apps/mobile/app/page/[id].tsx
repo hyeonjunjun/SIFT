@@ -202,7 +202,6 @@ export default function PageDetail() {
 
             const { data, error } = await query;
             if (error) {
-                console.error('Error fetching neighbors:', error);
                 return [];
             }
             return data.map(row => row.id);
@@ -340,7 +339,6 @@ export default function PageDetail() {
                 if (cached) {
                     return JSON.parse(cached);
                 }
-                console.error('Error fetching page:', error);
                 throw error;
             }
 
@@ -767,7 +765,6 @@ export default function PageDetail() {
                                                             Alert.alert('Unable to Open', 'Cannot open this URL on your device.');
                                                         }
                                                     } catch (error) {
-                                                        console.error('Error opening URL:', error);
                                                         Alert.alert('Error', 'Unable to open this link.');
                                                     }
                                                 }

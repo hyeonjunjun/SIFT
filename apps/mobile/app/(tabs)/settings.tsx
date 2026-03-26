@@ -62,7 +62,6 @@ export default function ProfileScreen() {
 
             if (data) setSavedPages(data as any);
         } catch (e) {
-            console.error(e);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -76,7 +75,6 @@ export default function ProfileScreen() {
             if (h !== null) setHapticsEnabled(h === 'true');
             if (c !== null) setAutoClipboard(c === 'true');
         } catch (e) {
-            console.error(e);
         }
     }, []);
 
@@ -126,7 +124,6 @@ export default function ProfileScreen() {
             if (hapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast("Cache Cleared");
         } catch (e) {
-            console.error(e);
         }
     };
 
@@ -407,7 +404,6 @@ export default function ProfileScreen() {
                                 fetchSavedPages(); // Final sync
                                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             } catch (e) {
-                                console.error('[Pin/Settings] Error:', e);
                                 fetchSavedPages(); // Revert on error
                                 Alert.alert("Error", "Failed to update pin");
                             }

@@ -31,7 +31,6 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
             if (canOpen) {
                 await Linking.openURL(url);
             } else {
-                console.warn(`Cannot open URL: ${url}`);
                 Alert.alert(
                     'Unable to Open Link',
                     'This link cannot be opened on your device. The app that handles this type of link may not be installed.',
@@ -39,7 +38,6 @@ const SafeContentRenderer: React.FC<SafeContentRendererProps> = ({ content }) =>
                 );
             }
         } catch (error) {
-            console.error('Error opening URL:', error);
             Alert.alert(
                 'Link Error',
                 'Unable to open this link. Please try again later.',

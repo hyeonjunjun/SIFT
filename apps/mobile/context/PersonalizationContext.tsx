@@ -29,7 +29,6 @@ export const PersonalizationProvider: React.FC<{ children: React.ReactNode }> = 
                     setPinIconState(savedIcon as PinIconType);
                 }
             } catch (e) {
-                console.error("Failed to load personalization settings", e);
             }
         };
         loadSettings();
@@ -57,7 +56,6 @@ export const PersonalizationProvider: React.FC<{ children: React.ReactNode }> = 
                 await updateProfileInDB({ pin_style: icon });
             }
         } catch (e) {
-            console.error("Failed to save personalization settings", e);
         }
     };
 

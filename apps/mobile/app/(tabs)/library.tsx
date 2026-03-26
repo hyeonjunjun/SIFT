@@ -109,12 +109,14 @@ declare module '../../components/modals/CollectionModal' {
 }
 
 const DEFAULT_SMART_COLLECTIONS = [
-    { name: 'COOKING', icon: 'Cooking', tags: ['COOKING', 'RECIPES', 'FOOD'] },
-    { name: 'BAKING', icon: 'Baking', tags: ['BAKING', 'DESSERT', 'BREAD'] },
-    { name: 'TECH', icon: 'Tech', tags: ['TECH', 'CODING', 'SOFTWARE'] },
-    { name: 'HEALTH', icon: 'Health', tags: ['HEALTH', 'FITNESS', 'WELLNESS'] },
-    { name: 'LIFESTYLE', icon: 'Lifestyle', tags: ['LIFESTYLE', 'HOME', 'DECOR'] },
-    { name: 'PROFESSIONAL', icon: 'Professional', tags: ['WORK', 'CAREER', 'BUSINESS'] },
+    { name: 'COOKING', icon: 'Cooking', tags: ['COOKING', 'BAKING', 'FOOD'] },
+    { name: 'TECH', icon: 'Tech', tags: ['TECH', 'GAMING', 'PRODUCTIVITY'] },
+    { name: 'HEALTH & FITNESS', icon: 'Health', tags: ['HEALTH', 'FITNESS', 'BEAUTY'] },
+    { name: 'LIFESTYLE', icon: 'Lifestyle', tags: ['LIFESTYLE', 'FASHION', 'DIY'] },
+    { name: 'WORK & FINANCE', icon: 'Professional', tags: ['PROFESSIONAL', 'FINANCE', 'EDUCATION'] },
+    { name: 'ENTERTAINMENT', icon: 'Entertainment', tags: ['ENTERTAINMENT', 'MUSIC', 'PHOTOGRAPHY'] },
+    { name: 'TRAVEL', icon: 'Travel', tags: ['TRAVEL', 'SHOPPING'] },
+    { name: 'NEWS & SCIENCE', icon: 'News', tags: ['NEWS', 'SCIENCE'] },
 ];
 
 const PAGE_SIZE = 20;
@@ -192,7 +194,6 @@ export default function LibraryScreen() {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error fetching sifts:', error);
                 throw error;
             }
             return (data || []) as SiftItem[];
@@ -219,12 +220,10 @@ export default function LibraryScreen() {
                     .order('sort_order', { ascending: true });
 
                 if (error) {
-                    console.warn('Collections query error:', error.message);
                     return [];
                 }
                 return (data || []) as CollectionData[];
             } catch (e) {
-                console.warn('Collections query failed:', e);
                 return [];
             }
         },
@@ -244,21 +243,33 @@ export default function LibraryScreen() {
         queryFn: async () => {
             if (!user?.id) return [];
             try {
-                const { data, error } = await supabase
+                // Step 1: Get folder IDs where user is an accepted member
+                const { data: memberships, error: memError } = await supabase
                     .from('folder_members')
-                    .select('folder:folder_id(*)')
-                    .eq('user_id', user.id);
+                    .select('folder_id')
+                    .eq('user_id', user.id)
+                    .eq('status', 'accepted');
 
-                if (error) {
-                    console.warn('Shared folders query error:', error.message);
+                if (memError) {
                     return [];
                 }
 
-                // Extract folder objects and filter out those owned by the user
-                const mapped = data.map((d: any) => d.folder).filter(Boolean) as CollectionData[];
-                return mapped.filter((f: any) => f.user_id !== user.id);
+                if (!memberships || memberships.length === 0) return [];
+
+                const folderIds = memberships.map((m: any) => m.folder_id);
+
+                // Step 2: Fetch the actual shared folders (including ones user owns)
+                const { data: folders, error: folderError } = await supabase
+                    .from('folders')
+                    .select('*')
+                    .in('id', folderIds);
+
+                if (folderError) {
+                    return [];
+                }
+
+                return (folders || []) as CollectionData[];
             } catch (e) {
-                console.warn('Shared collections query failed:', e);
                 return [];
             }
         },
@@ -294,7 +305,6 @@ export default function LibraryScreen() {
             queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
         },
         onError: (error: any) => {
-            console.error('Error updating sort order:', error);
             showToast('Failed to save order');
         }
     });
@@ -318,12 +328,33 @@ export default function LibraryScreen() {
                 .order('sort_order', { ascending: true });
 
             if (error) {
-                console.warn('Smart collections query error:', error.message);
                 return [];
             }
 
-            if (!data || data.length === 0) {
-                console.log('Seeding default smart collections...');
+            // Detect if we need to re-seed: either no data, or old defaults present
+            const OLD_DEFAULT_NAMES = new Set([
+                'COOKING', 'BAKING', 'TECH', 'HEALTH', 'LIFESTYLE', 'PROFESSIONAL',
+            ]);
+            const NEW_DEFAULT_NAMES = new Set(DEFAULT_SMART_COLLECTIONS.map(c => c.name));
+
+            const isOldDefaults = data && data.length > 0 &&
+                data.some(c => OLD_DEFAULT_NAMES.has(c.name) && !NEW_DEFAULT_NAMES.has(c.name));
+
+            if (!data || data.length === 0 || isOldDefaults) {
+                // Delete old default smart collections (preserve any custom ones)
+                if (isOldDefaults && data) {
+                    const allDefaultNames = new Set([...OLD_DEFAULT_NAMES, ...NEW_DEFAULT_NAMES]);
+                    const oldDefaultIds = data
+                        .filter(c => allDefaultNames.has(c.name))
+                        .map(c => c.id);
+                    if (oldDefaultIds.length > 0) {
+                        await supabase
+                            .from('categories')
+                            .delete()
+                            .in('id', oldDefaultIds);
+                    }
+                }
+
                 const seedData = DEFAULT_SMART_COLLECTIONS.map((cat, index) => ({
                     user_id: user.id,
                     name: cat.name,
@@ -335,6 +366,18 @@ export default function LibraryScreen() {
                     .from('categories')
                     .insert(seedData)
                     .select();
+
+                if (seedError) throw seedError;
+
+                // Re-fetch to include any preserved custom collections
+                if (isOldDefaults) {
+                    const { data: refreshed } = await supabase
+                        .from('categories')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('sort_order', { ascending: true });
+                    return refreshed || [];
+                }
                 return seeded || [];
             }
             return data;
@@ -507,12 +550,25 @@ export default function LibraryScreen() {
                 .eq('id', editingCollection.id);
             if (error) throw error;
         } else {
-            const { error } = await supabase
+            const { data: created, error } = await supabase
                 .from('folders')
-                .insert({ ...updateData, user_id: user?.id, image_url: data.image_url || null });
+                .insert({ ...updateData, user_id: user?.id, image_url: data.image_url || null })
+                .select()
+                .single();
             if (error) throw error;
+
+            // Add owner as a folder member so it shows in shared tab
+            if (created) {
+                await supabase.from('folder_members').insert({
+                    folder_id: created.id,
+                    user_id: user?.id,
+                    role: 'owner',
+                    status: 'accepted',
+                });
+            }
         }
         queryClient.invalidateQueries({ queryKey: ['folders', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['shared_folders', user?.id] });
         setEditingCollection(null);
         setCollectionModalVisible(false);
     };
@@ -718,9 +774,9 @@ export default function LibraryScreen() {
                         <View style={{ paddingHorizontal: 20 }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
                                 <Typography variant="label" color="stone" style={{ letterSpacing: 1.5 }}>
-                                    {activeView === 'shared' ? 'SHARED WITH ME' : 'COLLECTIONS'}
+                                    {activeView === 'shared' ? 'SHARED COLLECTIONS' : 'COLLECTIONS'}
                                 </Typography>
-                                <TouchableOpacity onPress={handleCreateCollection} style={{ opacity: activeView === 'shared' ? 0 : 1 }} disabled={activeView === 'shared'}>
+                                <TouchableOpacity onPress={handleCreateCollection}>
                                     <Plus size={20} color={colors.ink} />
                                 </TouchableOpacity>
                             </View>
@@ -860,9 +916,9 @@ export default function LibraryScreen() {
                                 <EmptyState
                                     type="no-collections"
                                     title={activeView === 'shared' ? "No Shared Collections" : "No Collections"}
-                                    description={activeView === 'shared' ? "Collections your friends share with you will appear here." : "Organize your sifts into bespoke collections."}
-                                    actionLabel={activeView === 'shared' ? undefined : "New Collection"}
-                                    onAction={activeView === 'shared' ? undefined : handleCreateCollection}
+                                    description={activeView === 'shared' ? "Create a collection and invite friends to collaborate." : "Organize your sifts into bespoke collections."}
+                                    actionLabel="New Collection"
+                                    onAction={handleCreateCollection}
                                 />
                             )}
                         </View>

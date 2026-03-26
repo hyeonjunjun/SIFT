@@ -272,7 +272,6 @@ export default function SocialScreen() {
             if (error) throw error;
             if (data) setSearchResults(data);
         } catch (e) {
-            console.error('[Social] Search error:', e);
         } finally {
             setIsSearching(false);
         }

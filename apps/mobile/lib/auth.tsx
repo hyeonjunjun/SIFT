@@ -17,10 +17,8 @@ if (isGoogleSigninAvailable) {
             offlineAccess: true,
         });
     } catch (e) {
-        console.warn('Google Sign-In initialization failed:', e);
     }
 } else {
-    console.log('Google Sign-In is not available in this environment');
 }
 
 export type Profile = {
@@ -68,7 +66,6 @@ const cacheProfileLocally = async (profile: Profile) => {
     try {
         await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
     } catch (e) {
-        console.error('[Auth] Failed to cache profile:', e);
     }
 };
 
@@ -77,7 +74,6 @@ const getCachedProfile = async (): Promise<Profile | null> => {
         const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
         return cached ? JSON.parse(cached) : null;
     } catch (e) {
-        console.error('[Auth] Failed to load cached profile:', e);
         return null;
     }
 };
@@ -110,13 +106,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         lastRefreshRef.current = now;
 
         try {
-            console.log(`[Auth] Refreshing profile for: ${actingUser.id}`);
-
             // Load from cache first for immediate UI update
             if (!profile) {
                 const cached = await getCachedProfile();
                 if (cached) {
-                    console.log('[Auth] Loaded profile from cache (Early)');
                     setProfile(cached);
                     setTier(cached.tier || 'free');
                     // Optimization: If we have a cache, we can unblock the UI immediately
@@ -131,7 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
                 try {
-                    if (attempt > 0) console.log(`[Auth] Retry attempt ${attempt}...`);
+                    // Retry auth fetch
 
                     const fetchPromise = supabase
                         .from('profiles')
@@ -149,7 +142,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     break; // Success!
                 } catch (err: any) {
                     lastError = err;
-                    console.warn(`[Auth] Attempt ${attempt} failed:`, err.message);
                     if (attempt < MAX_RETRIES) {
                         const backoff = Math.pow(2, attempt) * 1000;
                         await new Promise(resolve => setTimeout(resolve, backoff));
@@ -158,8 +150,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             if (data) {
-                console.log('[Auth] Profile refreshed successfully');
-
                 // ADMIN OVERRIDE: Check if user should be admin based on email
                 const isAdmin = ADMIN_EMAILS.includes(actingUser.email || '');
                 const resolvedTier = isAdmin ? 'admin' : (data.tier as any || 'free');
@@ -177,7 +167,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         .slice(0, 10);
                     const random = Math.floor(1000 + Math.random() * 9000);
                     updates.sift_id = `${base}-${random}`;
-                    console.log(`[Auth] Generated new Sift ID: ${updates.sift_id}`);
                 }
 
                 if (Object.keys(updates).length > 0) {
@@ -192,8 +181,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setTier(resolvedTier);
                 await cacheProfileLocally(data);
             } else {
-                console.log('[Auth] Profile fetch failed after retries, attempting JIT creation or fallback');
-
                 // If profiles don't exist yet, we try to create (JIT)
                 if (lastError?.code === 'PGRST116' || !lastError) { // Record not found
                     const { data: newProfile, error: insertError } = await supabase
@@ -208,7 +195,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         .single();
 
                     if (!insertError && newProfile) {
-                        console.log('[Auth] JIT Profile created successfully');
                         setProfile(newProfile);
                         setTier('free');
                         await cacheProfileLocally(newProfile);
@@ -228,12 +214,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             }
         } catch (e: any) {
-            console.error('[Auth] Critical failure in refreshProfile:', e.message);
             // If we timed out or failed, ensure we at least use the cache
             if (!profile) {
                 const cachedFallback = await getCachedProfile();
                 if (cachedFallback) {
-                    console.log('[Auth] Falling back to cached profile after error');
                     setProfile(cachedFallback);
                     setTier(cachedFallback.tier || 'free');
                 } else {
@@ -247,7 +231,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const signOut = async () => {
         const { error } = await supabase.auth.signOut();
-        if (error) console.error('Error signing out:', error);
+        // Sign out error is non-blocking
         await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
         setTier('free');
         setProfile(null);
@@ -285,7 +269,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     }
                 }
             } catch (error) {
-                console.error('Error fetching session:', error);
             } finally {
                 // CRITICAL FIX: Always unblock the UI immediately after session check.
                 // Profile data can lazy-load.
@@ -296,8 +279,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         fetchInitialState();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            console.log('Auth state change:', _event);
-
             if (isMounted) {
                 const currentUser = session?.user ?? null;
                 setSession(session);
@@ -315,7 +296,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         await AsyncStorage.removeItem(PROFILE_CACHE_KEY);
                     }
                 } catch (err) {
-                    console.error('[Auth] Event handler error:', err);
                 }
             }
         });
@@ -350,7 +330,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 updateProfileLocally(data);
             }
         } catch (e) {
-            console.error('[Auth] Failed to update profile in DB:', e);
             throw e;
         }
     };

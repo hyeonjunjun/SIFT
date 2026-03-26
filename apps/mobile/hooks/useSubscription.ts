@@ -79,7 +79,6 @@ export const useSubscription = () => {
                 if (isMounted) setCustomerInfo(info);
             } catch (e: any) {
                 if (e?.code === 16) return; // Ignore concurrent request errors defensively
-                console.error('[useSubscription] Error fetching customer info:', e);
             } finally {
                 // Clear the promise so future calls can request fresh data
                 // RevenueCat's internal cache will handle subsequent sequential calls efficiently

@@ -193,7 +193,6 @@ export default function CollectionScreen() {
             await refetch();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
-            console.error(e);
             showToast({ message: "Failed to add sifts.", type: 'error' });
         }
     };
@@ -403,9 +402,18 @@ export default function CollectionScreen() {
                     <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
                         No sifts in this collection yet.
                     </Typography>
-                    <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>
-                        Long-press any sift to add it here.
-                    </Typography>
+                    {canContribute && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.selectionAsync();
+                                setPickerVisible(true);
+                            }}
+                            style={styles.addSiftsButton}
+                        >
+                            <Plus size={18} color="#FFFFFF" weight="bold" />
+                            <Typography variant="label" style={{ color: '#FFFFFF', marginLeft: 6 }}>Add Sifts</Typography>
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 
@@ -432,12 +440,9 @@ export default function CollectionScreen() {
                         }
                     }] : []),
                     ...(canContribute ? [{
-                        label: `Manage ${folder.name}`,
+                        label: 'Add Sifts',
                         onPress: () => {
-                            setTimeout(() => {
-                                setEditingCollection(folder);
-                                setEditModalVisible(true);
-                            }, 200);
+                            setTimeout(() => setPickerVisible(true), 200);
                         }
                     }] : []),
                     ...(canContribute && pages.length > 1 ? [{
@@ -447,7 +452,7 @@ export default function CollectionScreen() {
                         }
                     }] : []),
                     ...(isOwner ? [{
-                        label: 'Edit Collection Details',
+                        label: 'Edit Collection',
                         onPress: () => {
                             setTimeout(() => {
                                 setEditingCollection(folder);
@@ -576,5 +581,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingTop: 100,
+    },
+    addSiftsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.ink,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: RADIUS.pill,
+        marginTop: SPACING.l,
     },
 });

@@ -31,7 +31,6 @@ export default function SubscriptionScreen() {
                     setOfferings(availableOfferings.current);
                 }
             } catch (e) {
-                console.error('[Subscription] Error fetching offerings:', e);
             }
         };
         fetchOfferings();

@@ -26,52 +26,55 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
     const insets = useSafeAreaInsets();
     const [sending, setSending] = useState<string | null>(null);
 
-    // Fetch accepted friendships, AND who is already in the folder
+    // Fetch accepted friends and folder members in one query
     const { data: friendsWithStatus = [], isLoading } = useQuery({
-        queryKey: ['invitable_friends', user?.id, folderId],
+        queryKey: ['invite-friends', user?.id, folderId],
         queryFn: async () => {
-            if (!user?.id || !folderId) return [];
+            if (!user?.id) return [];
 
-            // 1. Get all friends
-            const { data: friendships, error: friendErr } = await supabase
-                .from('friendships')
-                .select(`
-                    id,
-                    requester:user_id (id, username, display_name, avatar_url),
-                    receiver:friend_id (id, username, display_name, avatar_url)
-                `)
-                .eq('status', 'accepted')
-                .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+            // Fetch friendships and folder members in parallel
+            const [friendshipsRes, membersRes] = await Promise.all([
+                supabase
+                    .from('friendships')
+                    .select('user_id, friend_id, status')
+                    .eq('status', 'accepted')
+                    .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`),
+                supabase
+                    .from('folder_members')
+                    .select('user_id')
+                    .eq('folder_id', folderId),
+            ]);
 
-            if (friendErr) throw friendErr;
+            if (friendshipsRes.error) {
+                return [];
+            }
 
-            const friends = friendships.map((f: any) =>
-                f.requester.id === user.id ? f.receiver : f.requester
+            const memberIds = new Set((membersRes.data || []).map((m: any) => m.user_id));
+
+            // Extract friend IDs
+            const friendIds = (friendshipsRes.data || []).map((f: any) =>
+                f.user_id === user.id ? f.friend_id : f.user_id
             );
 
-            // 2. Get existing folder members
-            const { data: members, error: memErr } = await supabase
-                .from('folder_members')
-                .select('user_id')
-                .eq('folder_id', folderId);
+            if (friendIds.length === 0) return [];
 
-            if (memErr) throw memErr;
+            // Fetch friend profiles
+            const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .in('id', friendIds);
 
-            const memberIds = new Set(members.map(m => m.user_id));
+            if (profilesError) {
+                return [];
+            }
 
-            // 3. Mark friends who are already members
-            return friends.map((f: any) => {
-                const req = Array.isArray(f.requester) ? f.requester[0] : f.requester;
-                const rec = Array.isArray(f.receiver) ? f.receiver[0] : f.receiver;
-                const actualFriend = f.user_id === user.id ? rec : req;
-                
-                return {
-                    ...actualFriend,
-                    isMember: memberIds.has(actualFriend.id)
-                };
-            });
+            return (profiles || []).map((p: any) => ({
+                ...p,
+                isMember: memberIds.has(p.id),
+            }));
         },
         enabled: visible && !!user?.id && !!folderId,
+        staleTime: 1000 * 60 * 2,
     });
 
     const handleInvite = async (friendId: string, friendName: string) => {
@@ -132,9 +135,8 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast({ message: `${friendName} added to collection.`, type: 'success' });
 
-            // Invalidate queries so the UI updates
+            // Invalidate folder members so the UI updates
             queryClient.invalidateQueries({ queryKey: ['folder-members', folderId] });
-            queryClient.invalidateQueries({ queryKey: ['invitable_friends', user?.id, folderId] });
 
         } catch (e: any) {
             showToast({ message: e.message || "Could not complete the invite.", type: 'error' });

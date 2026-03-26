@@ -71,7 +71,6 @@ export default function ArchiveScreen() {
             queryClient.resetQueries({ queryKey: ['pages', 'archived', user?.id] });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {
-            console.error(e);
             Alert.alert("Error", "Failed to restore page");
         }
     };
@@ -93,7 +92,6 @@ export default function ArchiveScreen() {
                             queryClient.resetQueries({ queryKey: ['pages', 'archived', user?.id] });
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         } catch (e) {
-                            console.error(e);
                             Alert.alert("Error", "Failed to delete page");
                         }
                     }

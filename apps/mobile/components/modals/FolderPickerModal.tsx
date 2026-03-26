@@ -131,8 +131,9 @@ export const FolderPickerModal = ({ visible, onClose, onSelect }: FolderPickerMo
                                 sections={sections}
                                 keyExtractor={(item) => item.id}
                                 contentContainerStyle={{ paddingBottom: SPACING.xl }}
+                                stickySectionHeadersEnabled={false}
                                 renderSectionHeader={({ section }) => (
-                                    <View style={styles.sectionHeader}>
+                                    <View style={[styles.sectionHeader, { backgroundColor: colors.paper }]}>
                                         {section.title === 'Shared with You' && (
                                             <UsersThree size={14} color={colors.stone} weight="bold" style={{ marginRight: 6 }} />
                                         )}
@@ -234,8 +235,8 @@ const styles = StyleSheet.create({
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingTop: SPACING.m,
-        paddingBottom: SPACING.s,
+        paddingTop: SPACING.l,
+        paddingBottom: SPACING.xs,
     },
     sectionTitle: {
         fontFamily: 'GeistMono_400Regular',

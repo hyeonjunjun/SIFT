@@ -46,7 +46,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     }
 
     componentDidCatch(error: any, errorInfo: any) {
-        console.error("App Crash:", error, errorInfo);
     }
 
     render() {
@@ -201,7 +200,6 @@ function RootLayoutNav() {
                     await Purchases.configure({ apiKey: googleKey });
                 }
             } catch (error) {
-                console.error('[RevenueCat] Configuration error:', error);
             } finally {
                 setRcReady(true);
             }
@@ -224,7 +222,6 @@ function RootLayoutNav() {
                     }
                 }
             } catch (error) {
-                console.error('[RevenueCat] Sync error:', error);
             }
         };
         syncUser();

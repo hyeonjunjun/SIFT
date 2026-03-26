@@ -52,22 +52,24 @@ export const getDomain = (url: string | null | undefined): string => {
 };
 
 // Maps a URL domain to a smart default tag for initial categorization.
+// All values must be from ALLOWED_TAGS in the API so smart collections can match them.
 const DOMAIN_TAG_MAP: Record<string, string> = {
-    // Video
-    'youtube.com': 'Video',
-    'youtu.be': 'Video',
-    'vimeo.com': 'Video',
-    'tiktok.com': 'Video',
-    'twitch.tv': 'Video',
-    // Social
-    'twitter.com': 'Social',
-    'x.com': 'Social',
-    'instagram.com': 'Social',
-    'facebook.com': 'Social',
-    'threads.net': 'Social',
-    'reddit.com': 'Social',
-    'linkedin.com': 'Social',
-    'bsky.app': 'Social',
+    // Entertainment
+    'youtube.com': 'Entertainment',
+    'youtu.be': 'Entertainment',
+    'vimeo.com': 'Entertainment',
+    'tiktok.com': 'Entertainment',
+    'twitch.tv': 'Gaming',
+    'netflix.com': 'Entertainment',
+    // Social / Lifestyle
+    'twitter.com': 'Lifestyle',
+    'x.com': 'Lifestyle',
+    'instagram.com': 'Lifestyle',
+    'facebook.com': 'Lifestyle',
+    'threads.net': 'Lifestyle',
+    'reddit.com': 'Entertainment',
+    'linkedin.com': 'Professional',
+    'bsky.app': 'Lifestyle',
     // News
     'nytimes.com': 'News',
     'washingtonpost.com': 'News',
@@ -77,7 +79,10 @@ const DOMAIN_TAG_MAP: Record<string, string> = {
     'cnn.com': 'News',
     'reuters.com': 'News',
     'apnews.com': 'News',
-    'bloomberg.com': 'News',
+    // Finance
+    'bloomberg.com': 'Finance',
+    'investopedia.com': 'Finance',
+    'fool.com': 'Finance',
     // Tech
     'techcrunch.com': 'Tech',
     'theverge.com': 'Tech',
@@ -85,26 +90,27 @@ const DOMAIN_TAG_MAP: Record<string, string> = {
     'wired.com': 'Tech',
     'hackernews.com': 'Tech',
     'news.ycombinator.com': 'Tech',
-    // Research
-    'arxiv.org': 'Research',
-    'scholar.google.com': 'Research',
-    'nature.com': 'Research',
-    'science.org': 'Research',
-    'pubmed.ncbi.nlm.nih.gov': 'Research',
-    // Dev
-    'github.com': 'Dev',
-    'stackoverflow.com': 'Dev',
-    'dev.to': 'Dev',
-    'medium.com': 'Article',
-    'substack.com': 'Article',
+    'github.com': 'Tech',
+    'stackoverflow.com': 'Tech',
+    'dev.to': 'Tech',
+    // Science / Education
+    'arxiv.org': 'Science',
+    'scholar.google.com': 'Science',
+    'nature.com': 'Science',
+    'science.org': 'Science',
+    'pubmed.ncbi.nlm.nih.gov': 'Health',
+    'medium.com': 'Education',
+    'substack.com': 'News',
     // Shopping
     'amazon.com': 'Shopping',
     'ebay.com': 'Shopping',
     'etsy.com': 'Shopping',
     // Food
-    'allrecipes.com': 'Recipe',
-    'seriouseats.com': 'Recipe',
-    'bonappetit.com': 'Recipe',
+    'allrecipes.com': 'Cooking',
+    'seriouseats.com': 'Cooking',
+    'bonappetit.com': 'Cooking',
+    'food52.com': 'Cooking',
+    'kingarthurbaking.com': 'Baking',
     // Music
     'spotify.com': 'Music',
     'open.spotify.com': 'Music',
@@ -114,6 +120,11 @@ const DOMAIN_TAG_MAP: Record<string, string> = {
     'tripadvisor.com': 'Travel',
     'airbnb.com': 'Travel',
     'booking.com': 'Travel',
+    // Fitness
+    'strava.com': 'Fitness',
+    // DIY
+    'instructables.com': 'DIY',
+    'pinterest.com': 'DIY',
 };
 
 export const getSmartTag = (url: string | null | undefined): string => {

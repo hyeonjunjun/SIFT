@@ -86,10 +86,8 @@ export default function IdentityScreen() {
         }
 
         setLoading(true);
-        console.log('[Identity] Starting profile save...');
         try {
             // 1. Update User Metadata (Auth)
-            console.log('[Identity] Updating auth user metadata...');
             const { error: authError } = await supabase.auth.updateUser({
                 data: {
                     display_name: displayName,
@@ -100,12 +98,10 @@ export default function IdentityScreen() {
                 }
             });
             if (authError) {
-                console.error('[Identity] Auth update error:', authError);
                 throw new Error(`Auth Update Failed: ${authError.message}`);
             }
 
             // 2. Update Profiles Table (Public Schema)
-            console.log('[Identity] Updating profiles table...');
             const { error: profileError } = await supabase
                 .from('profiles')
                 .upsert({
@@ -118,12 +114,8 @@ export default function IdentityScreen() {
                 });
 
             if (profileError) {
-                console.error('[Identity] Profile table error:', profileError);
                 throw new Error(`Profile table update failed: ${profileError.message}`);
             }
-
-            console.log('[Identity] Database updates complete. Updating local state...');
-
             updateProfileLocally({
                 display_name: displayName,
                 username: username,
@@ -134,15 +126,11 @@ export default function IdentityScreen() {
 
             // 3. Refresh AuthContext for full synchronization
             await refreshProfile();
-
-            console.log('[Identity] Save successful!');
             Alert.alert('Success', 'Profile updated successfully.');
             router.back();
         } catch (error: any) {
-            console.error('[Identity] handleSave terminal error:', error);
             Alert.alert('Update Failed', error.message || 'An unexpected error occurred.');
         } finally {
-            console.log('[Identity] handleSave finished.');
             setLoading(false);
         }
     };

@@ -101,7 +101,6 @@ async function registerForPushNotifications(): Promise<string | null> {
 
         return tokenData.data;
     } catch (error) {
-        console.error('[Push] Registration error:', error);
         return null;
     }
 }

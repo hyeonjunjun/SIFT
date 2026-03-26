@@ -45,9 +45,6 @@ interface CompactSiftListProps {
 }
 
 const ROW_HEIGHT = 64; // Exact match to image height
-
-console.log('[CompactSiftList] STRICT 64px Layout Active');
-
 export default function CompactSiftList({
     pages,
     pendingSifts = [],
