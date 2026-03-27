@@ -1,4 +1,4 @@
-import { TextStyle } from 'react-native';
+import { TextStyle, Platform } from 'react-native';
 import { COLORS } from './theme';
 
 export const TEXT: Record<string, TextStyle> = {
@@ -8,14 +8,14 @@ export const TEXT: Record<string, TextStyle> = {
         fontSize: 34,
         fontWeight: '700',
         color: COLORS.ink,
-        letterSpacing: -0.5,
+        letterSpacing: Platform.OS === 'android' ? 0 : -0.5,
     },
     h2: {
         fontFamily: 'PlayfairDisplay_600SemiBold',
         fontSize: 28,
         fontWeight: '600',
         color: COLORS.ink,
-        letterSpacing: -0.3,
+        letterSpacing: Platform.OS === 'android' ? 0 : -0.3,
     },
     h3: {
         fontFamily: 'Satoshi-Bold',

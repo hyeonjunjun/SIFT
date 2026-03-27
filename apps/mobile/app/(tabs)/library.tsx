@@ -243,6 +243,47 @@ export default function LibraryScreen() {
         queryFn: async () => {
             if (!user?.id) return [];
             try {
+                // Backfill: ensure owner has a folder_members row for any folder that has other members
+                const { data: ownedFolders } = await supabase
+                    .from('folders')
+                    .select('id')
+                    .eq('user_id', user.id);
+
+                if (ownedFolders && ownedFolders.length > 0) {
+                    const ownedIds = ownedFolders.map((f: any) => f.id);
+                    const { data: existingOwnerRows } = await supabase
+                        .from('folder_members')
+                        .select('folder_id')
+                        .eq('user_id', user.id)
+                        .eq('role', 'owner')
+                        .in('folder_id', ownedIds);
+
+                    const hasOwnerRow = new Set((existingOwnerRows || []).map((r: any) => r.folder_id));
+                    const missing = ownedIds.filter((id: string) => !hasOwnerRow.has(id));
+
+                    // Check which missing folders actually have other members (only backfill shared ones)
+                    if (missing.length > 0) {
+                        const { data: sharedOnes } = await supabase
+                            .from('folder_members')
+                            .select('folder_id')
+                            .in('folder_id', missing);
+
+                        const sharedFolderIds = new Set((sharedOnes || []).map((r: any) => r.folder_id));
+                        const toInsert = missing
+                            .filter((id: string) => sharedFolderIds.has(id))
+                            .map((folderId: string) => ({
+                                folder_id: folderId,
+                                user_id: user.id,
+                                role: 'owner',
+                                status: 'accepted',
+                            }));
+
+                        if (toInsert.length > 0) {
+                            await supabase.from('folder_members').insert(toInsert);
+                        }
+                    }
+                }
+
                 // Step 1: Get folder IDs where user is an accepted member
                 const { data: memberships, error: memError } = await supabase
                     .from('folder_members')

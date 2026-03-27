@@ -135,8 +135,9 @@ export function InviteFriendModal({ visible, onClose, folderId, folderName }: In
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showToast({ message: `${friendName} added to collection.`, type: 'success' });
 
-            // Invalidate folder members so the UI updates
+            // Invalidate both folder members and invite-friends so the UI updates
             queryClient.invalidateQueries({ queryKey: ['folder-members', folderId] });
+            queryClient.invalidateQueries({ queryKey: ['invite-friends', user.id, folderId] });
 
         } catch (e: any) {
             showToast({ message: e.message || "Could not complete the invite.", type: 'error' });

@@ -85,10 +85,10 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
     return ingredient.replace(match[0], formatNum(scaled) + ' ');
 }
 
-function MacroBar({ label, value, unit, color, isDark }: { label: string; value: number; unit: string; color: string; isDark: boolean }) {
-    // Max width relative to a typical macro ceiling (e.g. 100g for carbs)
+function MacroBar({ label, value, unit, color, isDark, multiplier = 1 }: { label: string; value: number; unit: string; color: string; isDark: boolean; multiplier?: number }) {
+    const scaled = Math.round(value * multiplier);
     const maxVal = label === 'Fiber' ? 30 : 100;
-    const pct = Math.min(value / maxVal, 1);
+    const pct = Math.min(scaled / maxVal, 1);
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Typography variant="caption" color="stone" style={{ width: 42, fontSize: 11 }}>{label}</Typography>
@@ -96,7 +96,7 @@ function MacroBar({ label, value, unit, color, isDark }: { label: string; value:
                 <View style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 4, backgroundColor: color, minWidth: 4 }} />
             </View>
             <Typography variant="caption" style={{ fontSize: 12, fontFamily: 'Satoshi-Bold', width: 36, textAlign: 'right' }}>
-                {value}{unit}
+                {scaled}{unit}
             </Typography>
         </View>
     );
@@ -861,7 +861,11 @@ export default function PageDetail() {
                                             {page.metadata.smart_data.servings && (
                                                 <View style={{ gap: 2 }}>
                                                     <Typography variant="label" color="stone" style={{ fontSize: 10, letterSpacing: 1 }}>SERVES</Typography>
-                                                    <Typography variant="bodyMedium">{page.metadata.smart_data.servings}</Typography>
+                                                    <Typography variant="bodyMedium">
+                                                        {parseServings(page.metadata.smart_data.servings) > 0
+                                                            ? Math.max(1, Math.round(parseServings(page.metadata.smart_data.servings) * servingMultiplier))
+                                                            : page.metadata.smart_data.servings}
+                                                    </Typography>
                                                 </View>
                                             )}
                                             {page.metadata.smart_data.difficulty && (
@@ -921,23 +925,23 @@ export default function PageDetail() {
                                                         gap: 2,
                                                     }}>
                                                         <Typography variant="h2" style={{ fontSize: 24, lineHeight: 28 }}>
-                                                            {page.metadata.smart_data.nutrition_per_serving.calories}
+                                                            {Math.round(page.metadata.smart_data.nutrition_per_serving.calories * servingMultiplier)}
                                                         </Typography>
                                                         <Typography variant="caption" color="stone" style={{ fontSize: 10 }}>cal</Typography>
                                                     </View>
                                                     {/* Macro pills */}
                                                     <View style={{ flex: 2, gap: SPACING.xs }}>
                                                         {page.metadata.smart_data.nutrition_per_serving.protein_g != null && (
-                                                            <MacroBar label="Protein" value={page.metadata.smart_data.nutrition_per_serving.protein_g} unit="g" color="#5B8DEF" isDark={isDark} />
+                                                            <MacroBar label="Protein" value={page.metadata.smart_data.nutrition_per_serving.protein_g} unit="g" color="#5B8DEF" isDark={isDark} multiplier={servingMultiplier} />
                                                         )}
                                                         {page.metadata.smart_data.nutrition_per_serving.carbs_g != null && (
-                                                            <MacroBar label="Carbs" value={page.metadata.smart_data.nutrition_per_serving.carbs_g} unit="g" color="#F5A623" isDark={isDark} />
+                                                            <MacroBar label="Carbs" value={page.metadata.smart_data.nutrition_per_serving.carbs_g} unit="g" color="#F5A623" isDark={isDark} multiplier={servingMultiplier} />
                                                         )}
                                                         {page.metadata.smart_data.nutrition_per_serving.fat_g != null && (
-                                                            <MacroBar label="Fat" value={page.metadata.smart_data.nutrition_per_serving.fat_g} unit="g" color="#E85D75" isDark={isDark} />
+                                                            <MacroBar label="Fat" value={page.metadata.smart_data.nutrition_per_serving.fat_g} unit="g" color="#E85D75" isDark={isDark} multiplier={servingMultiplier} />
                                                         )}
                                                         {page.metadata.smart_data.nutrition_per_serving.fiber_g != null && (
-                                                            <MacroBar label="Fiber" value={page.metadata.smart_data.nutrition_per_serving.fiber_g} unit="g" color="#7DC881" isDark={isDark} />
+                                                            <MacroBar label="Fiber" value={page.metadata.smart_data.nutrition_per_serving.fiber_g} unit="g" color="#7DC881" isDark={isDark} multiplier={servingMultiplier} />
                                                         )}
                                                     </View>
                                                 </View>
