@@ -5,7 +5,7 @@ export default function SupportPage() {
 
             <section className="mb-8">
                 <p className="text-lg mb-4">
-                    Need help with Sift? We are here to assist you.
+                    Need help with Sift? We&apos;re here to assist you.
                 </p>
 
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-100">
@@ -14,10 +14,10 @@ export default function SupportPage() {
                         For bug reports, feature requests, or account inquiries, please email us directly:
                     </p>
                     <a
-                        href="mailto:hello@sift.app"
+                        href="mailto:support@siftsave.app"
                         className="text-blue-600 font-medium hover:underline text-lg"
                     >
-                        hello@sift.app
+                        support@siftsave.app
                     </a>
                 </div>
             </section>
@@ -29,7 +29,7 @@ export default function SupportPage() {
                     <div>
                         <h3 className="font-medium text-gray-900">How do I save a link?</h3>
                         <p className="text-gray-600 mt-1">
-                            You can save a link by tapping &quot;Share&quot; in any app and selecting &quot;Sift&quot; from the share sheet, or by copying a URL and opening the Sift app.
+                            Tap &ldquo;Share&rdquo; in any app (Safari, Instagram, YouTube, TikTok, etc.) and select &ldquo;Sift&rdquo; from the share sheet. You can also sift screenshots and photos directly from your camera roll.
                         </p>
                     </div>
 
@@ -43,7 +43,14 @@ export default function SupportPage() {
                     <div>
                         <h3 className="font-medium text-gray-900">How do I delete my account?</h3>
                         <p className="text-gray-600 mt-1">
-                            Please email us at the address above with the subject &quot;Account Deletion&quot; and we will process your request immediately.
+                            Go to Settings &gt; Privacy &gt; Delete Account. This will permanently remove your account and all associated data.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 className="font-medium text-gray-900">How do I manage my subscription?</h3>
+                        <p className="text-gray-600 mt-1">
+                            You can manage or cancel your subscription through your device&apos;s App Store or Play Store settings.
                         </p>
                     </div>
                 </div>
