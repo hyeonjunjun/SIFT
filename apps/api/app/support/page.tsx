@@ -14,10 +14,10 @@ export default function SupportPage() {
                         For bug reports, feature requests, or account inquiries, please email us directly:
                     </p>
                     <a
-                        href="mailto:support@siftsave.app"
+                        href="mailto:siftsupportteam@gmail.com"
                         className="text-blue-600 font-medium hover:underline text-lg"
                     >
-                        support@siftsave.app
+                        siftsupportteam@gmail.com
                     </a>
                 </div>
             </section>

@@ -79,7 +79,7 @@ export default function PrivacyPolicy() {
                     <h2 className="text-xl font-semibold mb-3">10. Contact Us</h2>
                     <p>
                         If you have questions about this Privacy Policy, please contact us at:{' '}
-                        <a href="mailto:support@siftsave.app" className="text-blue-600 hover:underline">support@siftsave.app</a>
+                        <a href="mailto:siftsupportteam@gmail.com" className="text-blue-600 hover:underline">siftsupportteam@gmail.com</a>
                     </p>
                 </section>
             </div>
