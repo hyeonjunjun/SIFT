@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Typography } from '../design-system/Typography';
-import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
+import { SPACING } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { API_URL } from '../../lib/config';
 import Constants from 'expo-constants';
@@ -50,49 +50,31 @@ export function HomeHeader({ user, tier, pagesCount, profile }: HomeHeaderProps)
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.bentoContainer}>
-                <View style={[styles.bentoHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <TouchableOpacity
-                        activeOpacity={1}
-                        onLongPress={showDiagnostics}
-                        style={styles.greetingWrapper}
-                    >
-                        <Typography variant="body" color="stone" style={styles.greetingText}>
-                            {getGreeting()}
-                        </Typography>
-                        <Typography variant="h2" style={styles.userName}>
-                            {profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || "friend"}
-                        </Typography>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
+        <TouchableOpacity
+            activeOpacity={1}
+            onLongPress={showDiagnostics}
+            style={styles.container}
+        >
+            <Typography variant="body" color="stone" style={styles.greetingText}>
+                {getGreeting()}
+            </Typography>
+            <Typography variant="h2" style={styles.userName}>
+                {profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || "friend"}
+            </Typography>
+        </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        // Removed paddingTop to let parent control vertical rhythm
-    },
-    bentoContainer: {
-        // Removed paddingHorizontal to prevent double-padding when placed in index.tsx
-        marginBottom: SPACING.m,
-    },
-    bentoHeader: {
-        borderRadius: RADIUS.l,
-        padding: SPACING.l,
-        borderWidth: 1,
-        ...Theme.shadows.soft,
-    },
-    greetingWrapper: {
+        marginBottom: SPACING.s,
         gap: SPACING.xs,
     },
     greetingText: {
         textTransform: 'lowercase',
     },
     userName: {
-        fontSize: 32,
-        lineHeight: 34,
-    }
+        fontSize: 28,
+        lineHeight: 32,
+    },
 });

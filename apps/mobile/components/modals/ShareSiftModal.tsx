@@ -26,28 +26,30 @@ export default function ShareSiftModal({ visible, onClose, siftId, siftTitle }: 
     const [sending, setSending] = useState<string | null>(null);
     const [message, setMessage] = useState('');
 
-    // Fetch accepted friendships
+    // Fetch accepted friendships (multi-step to avoid embedded join RLS issues)
     const { data: friends = [], isLoading } = useQuery({
         queryKey: ['accepted_friends', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data, error } = await supabase
+            const { data: rawFriendships, error } = await supabase
                 .from('friendships')
-                .select(`
-                    *,
-                    requester:user_id (id, username, display_name, avatar_url),
-                    receiver:friend_id (id, username, display_name, avatar_url)
-                `)
+                .select('*')
                 .eq('status', 'accepted')
                 .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
 
             if (error) throw error;
+            if (!rawFriendships || rawFriendships.length === 0) return [];
 
-            return data.map((f: any) => {
-                const req = Array.isArray(f.requester) ? f.requester[0] : f.requester;
-                const rec = Array.isArray(f.receiver) ? f.receiver[0] : f.receiver;
-                return f.user_id === user.id ? rec : req;
-            });
+            const friendIds = rawFriendships.map((f: any) =>
+                f.user_id === user.id ? f.friend_id : f.user_id
+            );
+
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .in('id', friendIds);
+
+            return profiles || [];
         },
         enabled: visible && !!user?.id,
     });

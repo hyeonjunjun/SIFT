@@ -15,6 +15,7 @@ interface Props {
     filters?: FilterItem[];
     activeFilter?: string;
     onSelect?: (id: string) => void;
+    compact?: boolean;
 }
 
 const DEFAULT_FILTERS: FilterItem[] = [
@@ -28,24 +29,25 @@ const DEFAULT_FILTERS: FilterItem[] = [
     { id: 'travel', text: 'Travel' },
 ];
 
-function FilterChip({ item, isActive, colors, isDark, onPress }: {
+function FilterChip({ item, isActive, colors, isDark, onPress, compact }: {
     item: FilterItem;
     isActive: boolean;
     colors: any;
     isDark: boolean;
     onPress: () => void;
+    compact?: boolean;
 }) {
     return (
         <TouchableOpacity
             activeOpacity={0.7}
             onPress={onPress}
             style={[
-                styles.chip,
+                compact ? styles.chipCompact : styles.chip,
                 isActive
                     ? { backgroundColor: colors.ink }
                     : {
                         backgroundColor: isDark ? '#2D2725' : '#FFFFFF',
-                        borderWidth: 1.5,
+                        borderWidth: compact ? 1 : 1.5,
                         borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#C8C3BB',
                     },
             ]}
@@ -55,7 +57,7 @@ function FilterChip({ item, isActive, colors, isDark, onPress }: {
             <Typography
                 variant="caption"
                 style={[
-                    styles.chipLabel,
+                    compact ? styles.chipLabelCompact : styles.chipLabel,
                     { color: isActive ? colors.paper : colors.ink },
                 ]}
             >
@@ -65,12 +67,12 @@ function FilterChip({ item, isActive, colors, isDark, onPress }: {
     );
 }
 
-export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onSelect }: Props) {
+export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onSelect, compact }: Props) {
     const { colors, isDark } = useTheme();
     const safeFilters = Array.isArray(filters) ? filters : DEFAULT_FILTERS;
 
     return (
-        <View style={styles.container}>
+        <View style={compact ? styles.containerCompact : styles.container}>
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -86,6 +88,7 @@ export function FilterBar({ filters = DEFAULT_FILTERS, activeFilter = 'all', onS
                             isActive={item.id === activeFilter}
                             colors={colors}
                             isDark={isDark}
+                            compact={compact}
                             onPress={() => {
                                 Haptics.selectionAsync();
                                 onSelect?.(item.id);
@@ -102,6 +105,9 @@ const styles = StyleSheet.create({
     container: {
         minHeight: 48,
     },
+    containerCompact: {
+        minHeight: 36,
+    },
     scrollContent: {
         alignItems: 'center',
         paddingRight: SPACING.m,
@@ -113,9 +119,19 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: RADIUS.pill,
     },
+    chipCompact: {
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: RADIUS.pill,
+    },
     chipLabel: {
         fontSize: 13,
         fontFamily: 'Satoshi-Medium',
         letterSpacing: 0.2,
+    },
+    chipLabelCompact: {
+        fontSize: 11,
+        fontFamily: 'Satoshi-Medium',
+        letterSpacing: 0.1,
     },
 });

@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"isError\\\\|error.*render\\\\|Unable\\\\|not found\\\\|Not Found\" \"/Users/ryanjun/antigravity/SIFT/apps/mobile/app\"'/\\(tabs\\)'/*.tsx -n)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|sql\\)$\")",
+      "Bash(find /Users/ryanjun/antigravity/SIFT -path */app/[id]/* -o -path */page/[id]*)",
+      "Bash(wc -l /Users/ryanjun/antigravity/SIFT/apps/mobile/app/page/[id].tsx)",
+      "Bash(grep -n \"recipe\\\\|notes\\\\|metadata\\\\|content\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app/page/[id].tsx)",
+      "Bash(find /Users/ryanjun/antigravity/SIFT/apps/mobile -type d -name \"query\\\\|queries\\\\|api\\\\|lib\")",
+      "Bash(grep -n \"useQuery\\\\|const.*=.*async\\\\|const page\\\\|const fetchPage\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app/page/[id].tsx)",
+      "Bash(grep -n \"\\\\.update\\\\|\\\\.from.*update\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app/page/[id].tsx)",
+      "Bash(grep -n \"const handleSave\\\\|tags: editedTags\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app/page/[id].tsx)",
+      "Bash(npx expo:*)",
+      "Bash(wc -l /Users/ryanjun/antigravity/SIFT/apps/mobile/app/\\\\\\(tabs\\\\\\)/social.tsx)",
+      "Bash(find /Users/ryanjun/antigravity/SIFT -type f -name *.sql)",
+      "Bash(grep -rn catch.*=)",
+      "Bash(/Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn import.*AsyncStorage.*from /Users/ryanjun/antigravity/SIFT/apps/mobile --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"RenderItemParams\\\\|SetStateAction\\\\|EventSubscription\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"ERROR\\\\|error\\\\|Error\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn 'await supabase' /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"queryClient.setQueryData\\\\|queryClient.invalidateQueries\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"old:\\\\s*any\\\\|new:\\\\s*any\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"\\\\.from\\(''''.*''''\\)\\\\.select\\\\|\\\\.from\\(''''.*''''\\)\\\\.update\\\\|\\\\.from\\(''''.*''''\\)\\\\.insert\\\\|\\\\.from\\(''''.*''''\\)\\\\.delete\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"QueryCache\\\\|STALE_TIME\\\\|GC_TIME\\\\|gcTime\\\\|staleTime\" /Users/ryanjun/antigravity/SIFT/apps/mobile --include=*.tsx --include=*.ts)"
+    ]
+  }
+}

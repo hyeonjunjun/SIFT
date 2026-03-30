@@ -17,6 +17,15 @@ export interface Page {
         image_url?: string;
         status?: string;
         source?: string;
+        smart_data?: {
+            cuisine?: string;
+            difficulty?: string;
+            dietary_tags?: string[];
+            cook_time?: string;
+            preparation_time?: string;
+            total_time?: string;
+            servings?: number;
+        };
     };
 }
 
@@ -27,6 +36,7 @@ export function usePages() {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
     const [activeFilter, setActiveFilter] = useState("All");
+    const [activeSmartFilter, setActiveSmartFilter] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<'date' | 'title' | 'domain'>('date');
 
     // Load sort preference
@@ -111,19 +121,31 @@ export function usePages() {
             results = results.filter(p => p.tags?.some((t: string) => t && t.toLowerCase() === activeFilter.toLowerCase()));
         }
 
+        if (activeSmartFilter) {
+            const sf = activeSmartFilter.toLowerCase();
+            results = results.filter(p => {
+                const sd = p.metadata?.smart_data;
+                if (!sd) return false;
+                if (sd.cuisine?.toLowerCase() === sf) return true;
+                if (sd.difficulty?.toLowerCase() === sf) return true;
+                if (sd.dietary_tags?.some(dt => dt.toLowerCase() === sf)) return true;
+                return false;
+            });
+        }
+
         return [...results].sort((a, b) => {
             if (a.is_pinned && !b.is_pinned) return -1;
             if (!a.is_pinned && b.is_pinned) return 1;
 
             if (sortBy === 'title') return (a.title || '').localeCompare(b.title || '');
             if (sortBy === 'domain') {
-                const domA = a.url ? new URL(a.url).hostname : '';
-                const domB = b.url ? new URL(b.url).hostname : '';
+                const domA = (() => { try { return a.url ? new URL(a.url).hostname : ''; } catch { return ''; } })();
+                const domB = (() => { try { return b.url ? new URL(b.url).hostname : ''; } catch { return ''; } })();
                 return domA.localeCompare(domB);
             }
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
-    }, [pages, debouncedSearchQuery, activeFilter, searchResults, sortBy]);
+    }, [pages, debouncedSearchQuery, activeFilter, activeSmartFilter, searchResults, sortBy]);
 
     const dynamicTags = useMemo(() => {
         const tagCounts: Record<string, number> = {};
@@ -138,10 +160,37 @@ export function usePages() {
             .map(([tag]) => tag);
     }, [pages]);
 
+    // Smart filters extracted from smart_data
+    const smartFilters = useMemo(() => {
+        const cuisineCounts: Record<string, number> = {};
+        const difficultyCounts: Record<string, number> = {};
+        const dietaryCounts: Record<string, number> = {};
+
+        for (const p of pages) {
+            const sd = p.metadata?.smart_data;
+            if (!sd) continue;
+            if (sd.cuisine) cuisineCounts[sd.cuisine] = (cuisineCounts[sd.cuisine] || 0) + 1;
+            if (sd.difficulty) difficultyCounts[sd.difficulty] = (difficultyCounts[sd.difficulty] || 0) + 1;
+            for (const dt of (sd.dietary_tags || [])) {
+                if (dt) dietaryCounts[dt] = (dietaryCounts[dt] || 0) + 1;
+            }
+        }
+
+        const topCuisines = Object.entries(cuisineCounts)
+            .sort((a, b) => b[1] - a[1]).slice(0, 6).map(([c]) => c);
+        const difficulties = Object.entries(difficultyCounts)
+            .sort((a, b) => b[1] - a[1]).map(([d]) => d);
+        const topDietary = Object.entries(dietaryCounts)
+            .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([d]) => d);
+
+        return { cuisines: topCuisines, difficulties, dietary: topDietary };
+    }, [pages]);
+
     return {
         pages,
         filteredPages,
         dynamicTags,
+        smartFilters,
         isLoading: isLoading || (!!debouncedSearchQuery && isSearching),
         isFetchingNextPage,
         hasNextPage,
@@ -151,6 +200,8 @@ export function usePages() {
         setSearchQuery,
         activeFilter,
         setActiveFilter,
+        activeSmartFilter,
+        setActiveSmartFilter,
         sortBy,
         updateSortBy
     };

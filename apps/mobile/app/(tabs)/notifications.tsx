@@ -144,14 +144,31 @@ export default function NotificationsScreen() {
         queryKey: ['notifications', user?.id],
         queryFn: async ({ pageParam = 0 }) => {
             if (!user?.id) return [];
-            const { data, error } = await supabase
+            // Step 1: Fetch notifications
+            const { data: rawNotifs, error } = await supabase
                 .from('notifications')
-                .select('*, actor:actor_id(id, display_name, avatar_url, username)')
+                .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .range(pageParam, pageParam + PAGE_SIZE - 1);
             if (error) throw error;
-            return (data || []) as Notification[];
+            if (!rawNotifs || rawNotifs.length === 0) return [];
+
+            // Step 2: Fetch actor profiles separately (avoids RLS join issues)
+            const actorIds = [...new Set(rawNotifs.map((n: any) => n.actor_id).filter(Boolean))];
+            let actorMap = new Map();
+            if (actorIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, avatar_url, username')
+                    .in('id', actorIds);
+                actorMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+            }
+
+            return rawNotifs.map((n: any) => ({
+                ...n,
+                actor: n.actor_id ? actorMap.get(n.actor_id) || null : null,
+            })) as Notification[];
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, allPages) => {

@@ -590,6 +590,7 @@ export default function HomeScreen() {
                     activeFilter={activeFilter}
                     onSelect={setActiveFilter}
                 />
+
             </View>
 
         </View>

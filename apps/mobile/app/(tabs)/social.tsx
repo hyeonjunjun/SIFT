@@ -61,24 +61,41 @@ export default function SocialScreen() {
 
     const [activeView, setActiveView] = useState<'network' | 'activity'>('network');
 
-    // 1. Fetch Friends/Relationships
+    // 1. Fetch Friends/Relationships (multi-step to avoid embedded join RLS issues)
     const { data: friendships = [], isLoading: isLoadingFriends } = useQuery({
         queryKey: ['friendships', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data, error } = await supabase
+            // Step 1: Get raw friendships
+            const { data: rawFriendships, error } = await supabase
                 .from('friendships')
-                .select(`
-                    *,
-                    requester:user_id (id, username, display_name, avatar_url, bio),
-                    receiver:friend_id (id, username, display_name, avatar_url, bio)
-                `)
+                .select('*')
                 .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
             if (error) throw error;
-            return data;
+            if (!rawFriendships || rawFriendships.length === 0) return [];
+
+            // Step 2: Collect all user IDs and fetch profiles
+            const userIds = new Set<string>();
+            for (const f of rawFriendships) {
+                userIds.add(f.user_id);
+                userIds.add(f.friend_id);
+            }
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, username, display_name, avatar_url, bio')
+                .in('id', Array.from(userIds));
+
+            const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+            // Step 3: Attach profiles to friendships
+            return rawFriendships.map((f: any) => ({
+                ...f,
+                requester: profileMap.get(f.user_id) || null,
+                receiver: profileMap.get(f.friend_id) || null,
+            }));
         },
         enabled: !!user?.id,
-        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        staleTime: 1000 * 60 * 5,
         retry: 2,
     });
 
@@ -93,16 +110,29 @@ export default function SocialScreen() {
         queryKey: ['direct_messages', user?.id, selectedFriendId],
         queryFn: async () => {
             if (!user?.id || !selectedFriendId) return [];
-            const { data, error } = await supabase
+            const { data: rawMessages, error } = await supabase
                 .from('direct_messages')
-                .select(`
-                    *,
-                    sift:sift_id (id, title, summary, url, metadata)
-                `)
+                .select('*')
                 .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${user.id})`)
                 .order('created_at', { ascending: true });
             if (error) throw error;
-            return data;
+            if (!rawMessages || rawMessages.length === 0) return [];
+
+            // Fetch attached sifts separately
+            const siftIds = [...new Set(rawMessages.map((m: any) => m.sift_id).filter(Boolean))];
+            let siftMap = new Map();
+            if (siftIds.length > 0) {
+                const { data: sifts } = await supabase
+                    .from('pages')
+                    .select('id, title, summary, url, metadata')
+                    .in('id', siftIds);
+                siftMap = new Map((sifts || []).map((s: any) => [s.id, s]));
+            }
+
+            return rawMessages.map((m: any) => ({
+                ...m,
+                sift: m.sift_id ? siftMap.get(m.sift_id) || null : null,
+            }));
         },
         enabled: !!user?.id && !!selectedFriendId,
         staleTime: 1000 * 30, // 30s cache for active chats
@@ -132,19 +162,37 @@ export default function SocialScreen() {
         queryKey: ['global_activity', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data, error } = await supabase
+            const { data: rawActivity, error } = await supabase
                 .from('direct_messages')
-                .select(`
-                    id, created_at, message_type, content, sender_id, receiver_id,
-                    sift:sift_id (id, title, summary, url, metadata),
-                    sender:sender_id (id, username, display_name, avatar_url)
-                `)
+                .select('id, created_at, message_type, content, sender_id, receiver_id, sift_id')
                 .eq('receiver_id', user.id)
                 .eq('message_type', 'sift')
                 .order('created_at', { ascending: false })
                 .limit(50);
             if (error) throw error;
-            return data;
+            if (!rawActivity || rawActivity.length === 0) return [];
+
+            // Fetch sifts and senders separately
+            const siftIds = [...new Set(rawActivity.map((a: any) => a.sift_id).filter(Boolean))];
+            const senderIds = [...new Set(rawActivity.map((a: any) => a.sender_id).filter(Boolean))];
+
+            const [siftsRes, sendersRes] = await Promise.all([
+                siftIds.length > 0
+                    ? supabase.from('pages').select('id, title, summary, url, metadata').in('id', siftIds)
+                    : { data: [] },
+                senderIds.length > 0
+                    ? supabase.from('profiles').select('id, username, display_name, avatar_url').in('id', senderIds)
+                    : { data: [] },
+            ]);
+
+            const siftMap = new Map((siftsRes.data || []).map((s: any) => [s.id, s]));
+            const senderMap = new Map((sendersRes.data || []).map((p: any) => [p.id, p]));
+
+            return rawActivity.map((a: any) => ({
+                ...a,
+                sift: a.sift_id ? siftMap.get(a.sift_id) || null : null,
+                sender: a.sender_id ? senderMap.get(a.sender_id) || null : null,
+            }));
         },
         enabled: !!user?.id,
         staleTime: 1000 * 60,

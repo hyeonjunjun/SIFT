@@ -63,19 +63,27 @@ export default function CollectionScreen() {
         queryKey: ['folder-members', id],
         queryFn: async () => {
             if (!id) return [];
-            const { data, error } = await supabase
+            // Step 1: Get raw folder members
+            const { data: rawMembers, error } = await supabase
                 .from('folder_members')
-                .select(`
-                    id,
-                    role,
-                    status,
-                    user:user_id ( id, username, display_name, avatar_url )
-                `)
+                .select('id, role, status, user_id')
                 .eq('folder_id', id)
-                .eq('status', 'accepted'); // Only show accepted participants
-
+                .eq('status', 'accepted');
             if (error) throw error;
-            return data;
+            if (!rawMembers || rawMembers.length === 0) return [];
+
+            // Step 2: Fetch profiles separately
+            const userIds = rawMembers.map((m: any) => m.user_id);
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .in('id', userIds);
+            const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+            return rawMembers.map((m: any) => ({
+                ...m,
+                user: profileMap.get(m.user_id) || null,
+            }));
         },
         enabled: !!id,
         staleTime: 1000 * 60 * 5, // 5 minutes

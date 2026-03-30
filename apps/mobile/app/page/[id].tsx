@@ -30,7 +30,7 @@ import { Typography } from '../../components/design-system/Typography';
 import { useTheme } from '../../context/ThemeContext';
 import { getDomain } from '../../lib/utils';
 import SafeContentRenderer from '../../components/SafeContentRenderer';
-import { Plus, X, ArrowSquareOut, PlusCircle, Copy, ImageSquare } from 'phosphor-react-native';
+import { Plus, X, ArrowSquareOut, PlusCircle, Copy, ImageSquare, CheckSquare, Square, Basket } from 'phosphor-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ActionSheet } from '../../components/modals/ActionSheet';
 import { CookModeModal } from '../../components/modals/CookModeModal';
@@ -61,28 +61,38 @@ function parseServings(raw: any): number {
 
 function scaleIngredient(ingredient: string, multiplier: number): string {
     if (multiplier === 1) return ingredient;
-    // Match leading fraction or decimal number
-    const match = ingredient.match(/^(\d+\/\d+|\d+\.?\d*)\s*/);
-    if (!match) return ingredient;
-    let num: number;
-    if (match[1].includes('/')) {
-        const [n, d] = match[1].split('/');
-        num = parseInt(n) / parseInt(d);
-    } else {
-        num = parseFloat(match[1]);
-    }
-    const scaled = num * multiplier;
-    // Format nicely: use fractions for common values
+
     const formatNum = (n: number): string => {
         const rounded = Math.round(n * 4) / 4; // round to nearest quarter
         const whole = Math.floor(rounded);
         const frac = rounded - whole;
-        const fracStr = frac === 0.25 ? '1/4' : frac === 0.5 ? '1/2' : frac === 0.75 ? '3/4' : '';
+        const fracStr = frac === 0.25 ? '¼' : frac === 0.5 ? '½' : frac === 0.75 ? '¾' : '';
         if (whole === 0 && fracStr) return fracStr;
         if (fracStr) return `${whole} ${fracStr}`;
         return rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(1);
     };
-    return ingredient.replace(match[0], formatNum(scaled) + ' ');
+
+    // Scale all numbers in the ingredient (fractions, decimals, integers)
+    // Matches: "1/2", "1 1/2", "2.5", "14", etc.
+    return ingredient.replace(
+        /(\d+\s+\d+\/\d+|\d+\/\d+|\d+\.?\d*)/g,
+        (match) => {
+            let num: number;
+            if (/^\d+\s+\d+\/\d+$/.test(match)) {
+                // Mixed number like "1 1/2"
+                const [whole, frac] = match.split(/\s+/);
+                const [n, d] = frac.split('/');
+                num = parseInt(whole) + parseInt(n) / parseInt(d);
+            } else if (match.includes('/')) {
+                const [n, d] = match.split('/');
+                num = parseInt(n) / parseInt(d);
+            } else {
+                num = parseFloat(match);
+            }
+            if (isNaN(num) || num === 0) return match;
+            return formatNum(num * multiplier);
+        }
+    );
 }
 
 function MacroBar({ label, value, unit, color, isDark, multiplier = 1 }: { label: string; value: number; unit: string; color: string; isDark: boolean; multiplier?: number }) {
@@ -122,6 +132,11 @@ export default function PageDetail() {
     const [uploadingCover, setUploadingCover] = useState(false);
     const [servingMultiplier, setServingMultiplier] = useState(1);
     const [cookModeVisible, setCookModeVisible] = useState(false);
+    const [userNotes, setUserNotes] = useState('');
+    const [isEditingNotes, setIsEditingNotes] = useState(false);
+    const [savingNotes, setSavingNotes] = useState(false);
+    const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
+    const [groceryMode, setGroceryMode] = useState(false);
 
     // Pre-request media library permissions so gallery opens instantly
     useEffect(() => {
@@ -283,20 +298,25 @@ export default function PageDetail() {
         queryKey: ['friendships', user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data, error } = await supabase
+            const { data: rawFriendships, error } = await supabase
                 .from('friendships')
-                .select(`
-                    *,
-                    requester:user_id (id, username, display_name, avatar_url),
-                    receiver:friend_id (id, username, display_name, avatar_url)
-                `)
+                .select('*')
                 .eq('status', 'accepted')
                 .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
             if (error) throw error;
-            return data.map((f: any) => f.user_id === user.id ? f.receiver : f.requester);
+            if (!rawFriendships || rawFriendships.length === 0) return [];
+
+            const friendIds = rawFriendships.map((f: any) =>
+                f.user_id === user.id ? f.friend_id : f.user_id
+            );
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .in('id', friendIds);
+            return profiles || [];
         },
         enabled: !!user?.id && showDirectShare,
-        staleTime: 1000 * 60 * 5, // 5 mins
+        staleTime: 1000 * 60 * 5,
         retry: 2,
     });
 
@@ -356,6 +376,7 @@ export default function PageDetail() {
             const fullDoc = page.content || `# ${page.title}\n\n> ${page.summary}`;
             setContent(fullDoc);
             setEditedTags(page.tags || []);
+            setUserNotes(page.metadata?.user_notes || '');
         }
     }, [page, user?.id]);
 
@@ -572,6 +593,28 @@ export default function PageDetail() {
             Alert.alert('Error', error.message);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleSaveNotes = async () => {
+        if (!page) return;
+        setSavingNotes(true);
+        try {
+            const { error } = await supabase
+                .from('pages')
+                .update({
+                    metadata: { ...page.metadata, user_notes: userNotes.trim() }
+                })
+                .eq('id', id);
+
+            if (error) throw error;
+            setIsEditingNotes(false);
+            queryClient.resetQueries({ queryKey: ['page', id] });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (error: any) {
+            Alert.alert('Error', error.message);
+        } finally {
+            setSavingNotes(false);
         }
     };
 
@@ -1008,45 +1051,94 @@ export default function PageDetail() {
 
                                     {/* Ingredient List */}
                                     <View style={{ gap: SPACING.s }}>
-                                        {page.metadata.smart_data.ingredients.map((item: string, idx: number) => (
-                                            <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s }}>
-                                                <View style={{
-                                                    width: 6, height: 6, borderRadius: 3, marginTop: 7,
-                                                    backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                                                }} />
-                                                <Typography variant="body" style={{ flex: 1, lineHeight: 22 }}>
-                                                    {scaleIngredient(item, servingMultiplier)}
-                                                </Typography>
-                                            </View>
-                                        ))}
+                                        {page.metadata.smart_data.ingredients.map((item: string, idx: number) => {
+                                            const isChecked = checkedIngredients.has(idx);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={idx}
+                                                    activeOpacity={0.7}
+                                                    onPress={groceryMode ? () => {
+                                                        Haptics.selectionAsync();
+                                                        setCheckedIngredients(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(idx)) next.delete(idx); else next.add(idx);
+                                                            return next;
+                                                        });
+                                                    } : undefined}
+                                                    disabled={!groceryMode}
+                                                    style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.s, opacity: groceryMode && isChecked ? 0.4 : 1 }}
+                                                >
+                                                    {groceryMode ? (
+                                                        isChecked
+                                                            ? <CheckSquare size={20} color={colors.accent} weight="fill" style={{ marginTop: 1 }} />
+                                                            : <Square size={20} color={colors.stone} weight="regular" style={{ marginTop: 1 }} />
+                                                    ) : (
+                                                        <View style={{
+                                                            width: 6, height: 6, borderRadius: 3, marginTop: 7,
+                                                            backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                                                        }} />
+                                                    )}
+                                                    <Typography variant="body" style={{
+                                                        flex: 1, lineHeight: 22,
+                                                        textDecorationLine: groceryMode && isChecked ? 'line-through' : 'none',
+                                                    }}>
+                                                        {scaleIngredient(item, servingMultiplier)}
+                                                    </Typography>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
                                     </View>
 
-                                    {/* Copy as Shopping List */}
-                                    <TouchableOpacity
-                                        onPress={async () => {
-                                            const list = page.metadata.smart_data.ingredients
-                                                .map((item: string) => `☐ ${scaleIngredient(item, servingMultiplier)}`)
-                                                .join('\n');
-                                            const baseServ = parseServings(page.metadata.smart_data.servings);
-                                            const header = `Shopping List: ${page.title}\n${baseServ > 0 ? `(${Math.round(baseServ * servingMultiplier)} servings)\n` : ''}\n`;
-                                            await Clipboard.setStringAsync(header + list);
-                                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                            Alert.alert('Copied', 'Shopping list copied to clipboard.');
-                                        }}
-                                        style={{
-                                            flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                                            gap: SPACING.s, paddingVertical: SPACING.s,
-                                            borderTopWidth: StyleSheet.hairlineWidth,
-                                            borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-                                            marginTop: SPACING.xs,
-                                        }}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Copy size={16} color={colors.stone} />
-                                        <Typography variant="caption" color="stone" style={{ fontSize: 12 }}>
-                                            Copy as Shopping List
-                                        </Typography>
-                                    </TouchableOpacity>
+                                    {/* Grocery Mode Toggle + Copy */}
+                                    <View style={{
+                                        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                                        gap: SPACING.m, paddingVertical: SPACING.s,
+                                        borderTopWidth: StyleSheet.hairlineWidth,
+                                        borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                                        marginTop: SPACING.xs,
+                                    }}>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                Haptics.selectionAsync();
+                                                if (groceryMode) {
+                                                    setGroceryMode(false);
+                                                    setCheckedIngredients(new Set());
+                                                } else {
+                                                    setGroceryMode(true);
+                                                }
+                                            }}
+                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Basket size={16} color={groceryMode ? colors.accent : colors.stone} weight={groceryMode ? 'fill' : 'regular'} />
+                                            <Typography variant="caption" style={{ fontSize: 12, color: groceryMode ? colors.accent : colors.stone }}>
+                                                {groceryMode ? `${checkedIngredients.size}/${page.metadata.smart_data.ingredients.length} Got` : 'Grocery Mode'}
+                                            </Typography>
+                                        </TouchableOpacity>
+
+                                        <View style={{ width: 1, height: 14, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} />
+
+                                        <TouchableOpacity
+                                            onPress={async () => {
+                                                const list = page.metadata.smart_data.ingredients
+                                                    .filter((_: string, i: number) => !checkedIngredients.has(i))
+                                                    .map((item: string) => `☐ ${scaleIngredient(item, servingMultiplier)}`)
+                                                    .join('\n');
+                                                const baseServ = parseServings(page.metadata.smart_data.servings);
+                                                const header = `Shopping List: ${page.title}\n${baseServ > 0 ? `(${Math.round(baseServ * servingMultiplier)} servings)\n` : ''}\n`;
+                                                await Clipboard.setStringAsync(header + list);
+                                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                                Alert.alert('Copied', checkedIngredients.size > 0 ? 'Remaining items copied to clipboard.' : 'Shopping list copied to clipboard.');
+                                            }}
+                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Copy size={16} color={colors.stone} />
+                                            <Typography variant="caption" color="stone" style={{ fontSize: 12 }}>
+                                                {checkedIngredients.size > 0 ? 'Copy Remaining' : 'Copy List'}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             )}
 
@@ -1099,6 +1191,74 @@ export default function PageDetail() {
                                     />
                                 )}
                             </View>
+
+                            {/* Card 5: My Notes */}
+                            {!isShared && (
+                                <View style={[styles.bentoCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginTop: 16 }]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <NotePencil size={18} color={colors.stone} weight="fill" />
+                                            <Typography variant="label" style={{ fontSize: 13, letterSpacing: 1, color: colors.stone, textTransform: 'uppercase' }}>
+                                                My Notes
+                                            </Typography>
+                                        </View>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                if (isEditingNotes) {
+                                                    handleSaveNotes();
+                                                } else {
+                                                    setIsEditingNotes(true);
+                                                }
+                                            }}
+                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        >
+                                            <Typography variant="caption" style={{ color: colors.accent, fontFamily: 'Satoshi-Medium' }}>
+                                                {savingNotes ? 'Saving...' : isEditingNotes ? 'Save' : (userNotes ? 'Edit' : 'Add')}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    </View>
+                                    {isEditingNotes ? (
+                                        <TextInput
+                                            style={{
+                                                fontSize: 15,
+                                                lineHeight: 22,
+                                                color: colors.ink,
+                                                fontFamily: 'Satoshi-Regular',
+                                                minHeight: 80,
+                                                textAlignVertical: 'top',
+                                            }}
+                                            multiline
+                                            scrollEnabled={false}
+                                            value={userNotes}
+                                            onChangeText={setUserNotes}
+                                            placeholder="Add your notes, substitutions, tips..."
+                                            placeholderTextColor={colors.stone}
+                                            autoFocus
+                                        />
+                                    ) : userNotes ? (
+                                        <Typography variant="body" style={{ fontSize: 15, lineHeight: 22, color: colors.ink }}>
+                                            {userNotes}
+                                        </Typography>
+                                    ) : (
+                                        <TouchableOpacity onPress={() => setIsEditingNotes(true)}>
+                                            <Typography variant="body" color="stone" style={{ fontSize: 14, fontStyle: 'italic' }}>
+                                                Tap to add notes, substitutions, or tips...
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    )}
+                                    {isEditingNotes && (
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setIsEditingNotes(false);
+                                                setUserNotes(page?.metadata?.user_notes || '');
+                                            }}
+                                            style={{ marginTop: 8 }}
+                                        >
+                                            <Typography variant="caption" style={{ color: colors.stone }}>Cancel</Typography>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            )}
 
                         </ScrollView>
                     </Animated.View>

@@ -36,7 +36,17 @@ export function useSiftQueue() {
         const lines = urlOrText.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
 
         let duplicateCount = 0;
-        for (const url of lines) {
+        let invalidCount = 0;
+        for (let url of lines) {
+            // Auto-prepend https:// if missing
+            if (!/^https?:\/\//i.test(url)) {
+                url = `https://${url}`;
+            }
+            // Skip invalid URLs (must have a dot in the domain)
+            if (!/^https?:\/\/.+\..+/i.test(url)) {
+                invalidCount++;
+                continue;
+            }
             if (processingUrls.current.has(url)) {
                 duplicateCount++;
                 continue;
@@ -160,7 +170,17 @@ export function useSiftQueue() {
         }
 
         if (manualUrl.trim()) {
-            const url = manualUrl.trim();
+            let url = manualUrl.trim();
+            // Auto-prepend https:// if missing a protocol
+            if (!/^https?:\/\//i.test(url)) {
+                url = `https://${url}`;
+            }
+            // Validate it looks like a URL (must have a dot in the domain)
+            if (!/^https?:\/\/.+\..+/i.test(url)) {
+                showToast({ message: 'Please enter a valid link', duration: 2500, type: 'error' });
+                triggerHaptic('notification', Haptics.NotificationFeedbackType.Warning);
+                return;
+            }
             Keyboard.dismiss();
             addToQueue(url);
             setManualUrl("");

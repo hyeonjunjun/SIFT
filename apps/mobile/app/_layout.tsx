@@ -76,27 +76,8 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                                 marginBottom: 24,
                                 lineHeight: 24
                             }}>
-                                Something encountered an unexpected error. We've been notified and are looking into it.
+                                An unexpected error occurred. Tap below to continue.
                             </Text>
-
-                            {this.state.error && (
-                                <View style={{
-                                    backgroundColor: 'rgba(0,0,0,0.03)',
-                                    padding: 16,
-                                    borderRadius: 12,
-                                    marginBottom: 32,
-                                    width: '100%'
-                                }}>
-                                    <Text style={{
-                                        fontSize: 12,
-                                        color: '#CF957B', // COLORS.accent
-                                        fontFamily: 'GeistMono_400Regular',
-                                        textAlign: 'left'
-                                    }}>
-                                        {this.state.error.message}
-                                    </Text>
-                                </View>
-                            )}
 
                             <TouchableOpacity
                                 onPress={() => this.setState({ hasError: false, error: null })}
@@ -112,7 +93,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
                                     elevation: 3
                                 }}
                             >
-                                <Text style={{ color: LIGHT_COLORS.paper, fontWeight: '600', fontSize: 16, letterSpacing: 0.5 }}>Try Again</Text>
+                                <Text style={{ color: LIGHT_COLORS.paper, fontWeight: '600', fontSize: 16, letterSpacing: 0.5 }}>Go Back</Text>
                             </TouchableOpacity>
                         </View>
                     </ImageBackground>
