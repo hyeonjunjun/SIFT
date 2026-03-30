@@ -317,46 +317,58 @@ async function performFullSift(
     let ogImage: string | null = null;
     let currentDebug = debugInfoSnippet;
 
-    // 1. SCRAPE
+    // 1. SCRAPE (with one retry on failure)
+    const MAX_SCRAPE_ATTEMPTS = 2;
     if (actorId && url) {
-        try {
-            console.log(`[ENGINE] Apify: ${actorId}`);
-            const run = await apifyClient.actor(actorId).call(input, { memory: 2048 });
-            const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
-            const rawItem = items[0] as any;
+        for (let attempt = 1; attempt <= MAX_SCRAPE_ATTEMPTS; attempt++) {
+            try {
+                const run = await apifyClient.actor(actorId).call(input, { memory: 2048 });
+                const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
+                const rawItem = items[0] as any;
 
-            if (rawItem) {
-                if (domain.includes('tiktok.com')) {
-                    scrapedData = {
-                        title: rawItem.text || "TikTok",
-                        description: rawItem.text,
-                        imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl,
-                        transcript: rawItem.transcript || rawItem.subtitles || (rawItem.videoMeta && rawItem.videoMeta.subtitle) || (rawItem.suggestedWords ? rawItem.suggestedWords.join(' ') : "")
-                    };
-                } else if (domain.includes('instagram.com')) {
-                    const images: string[] = [];
-                    if (rawItem.displayUrl) images.push(rawItem.displayUrl);
-                    if (rawItem.childPosts && Array.isArray(rawItem.childPosts)) {
-                        rawItem.childPosts.forEach((post: any) => {
-                            if (post.displayUrl && !images.includes(post.displayUrl)) images.push(post.displayUrl);
-                        });
+                if (rawItem) {
+                    if (domain.includes('tiktok.com')) {
+                        scrapedData = {
+                            title: rawItem.text || "TikTok",
+                            description: rawItem.text,
+                            imageUrl: rawItem.videoMeta?.coverUrl || rawItem.cover || rawItem.imageUrl,
+                            transcript: rawItem.transcript || rawItem.subtitles || (rawItem.videoMeta && rawItem.videoMeta.subtitle) || (rawItem.suggestedWords ? rawItem.suggestedWords.join(' ') : "")
+                        };
+                    } else if (domain.includes('instagram.com')) {
+                        const images: string[] = [];
+                        if (rawItem.displayUrl) images.push(rawItem.displayUrl);
+                        if (rawItem.childPosts && Array.isArray(rawItem.childPosts)) {
+                            rawItem.childPosts.forEach((post: any) => {
+                                if (post.displayUrl && !images.includes(post.displayUrl)) images.push(post.displayUrl);
+                            });
+                        }
+                        scrapedData = {
+                            title: rawItem.caption?.substring(0, 100) || "Instagram",
+                            description: rawItem.caption,
+                            imageUrl: rawItem.displayUrl,
+                            images: images.slice(0, 10),
+                            transcript: rawItem.transcript || rawItem.subtitles || rawItem.video_subtitles || rawItem.video_transcripts || ""
+                        };
+                    } else if (domain.includes('youtube.com')) {
+                        scrapedData = { title: rawItem.title, description: rawItem.description, imageUrl: rawItem.thumbnailUrl, transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "" };
+                    } else {
+                        scrapedData = { title: rawItem.metadata?.title || rawItem.title, description: rawItem.metadata?.description || rawItem.text, imageUrl: rawItem.metadata?.ogImage || rawItem.ogImage };
                     }
-                    scrapedData = {
-                        title: rawItem.caption?.substring(0, 100) || "Instagram",
-                        description: rawItem.caption,
-                        imageUrl: rawItem.displayUrl,
-                        images: images.slice(0, 10),
-                        transcript: rawItem.transcript || rawItem.subtitles || rawItem.video_subtitles || rawItem.video_transcripts || ""
-                    };
-                } else if (domain.includes('youtube.com')) {
-                    scrapedData = { title: rawItem.title, description: rawItem.description, imageUrl: rawItem.thumbnailUrl, transcript: rawItem.subtitles ? JSON.stringify(rawItem.subtitles) : "" };
-                } else {
-                    scrapedData = { title: rawItem.metadata?.title || rawItem.title, description: rawItem.metadata?.description || rawItem.text, imageUrl: rawItem.metadata?.ogImage || rawItem.ogImage };
+                    ogImage = scrapedData.imageUrl;
+                    break; // Success — exit retry loop
                 }
-                ogImage = scrapedData.imageUrl;
+
+                // Empty result — retry if we have attempts left
+                if (attempt < MAX_SCRAPE_ATTEMPTS) {
+                    currentDebug += `Scrape attempt ${attempt} returned empty, retrying. `;
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            } catch (e: any) {
+                currentDebug += `Scrape attempt ${attempt} failed: ${e.message}. `;
+                if (attempt < MAX_SCRAPE_ATTEMPTS) {
+                    await new Promise(r => setTimeout(r, 2000));
+                }
             }
-        } catch (e: any) {
-            currentDebug += `Scrape Failed: ${e.message}. `;
         }
     }
 
@@ -421,14 +433,17 @@ async function performFullSift(
                 parts.push({ text: JSON.stringify(scrapedData) });
             }
 
-            const result = await model.generateContent(parts);
-            const responseText = result.response.text();
-            let ai;
-            try {
-                ai = JSON.parse(responseText);
-            } catch {
-                console.error('[SIFT] Invalid JSON from Gemini:', responseText.slice(0, 200));
-                ai = {};
+            let ai: any = {};
+            for (let aiAttempt = 1; aiAttempt <= 2; aiAttempt++) {
+                try {
+                    const result = await model.generateContent(parts);
+                    const responseText = result.response.text();
+                    ai = JSON.parse(responseText);
+                    break; // Success
+                } catch (parseErr: any) {
+                    currentDebug += `AI attempt ${aiAttempt} failed: ${parseErr.message}. `;
+                    if (aiAttempt < 2) await new Promise(r => setTimeout(r, 1500));
+                }
             }
 
             finalTitle = ai.title || finalTitle;
@@ -461,6 +476,13 @@ async function performFullSift(
     }
 
     // 5. UPDATE
+    // If AI produced nothing useful and we only have bare fallback data, mark as needing retry
+    const hasGoodData = finalSummary && finalSummary !== "Synthesizing..." && finalSummary !== "No summary generated.";
+    const finalStatus = hasGoodData ? 'completed' : 'completed'; // Still mark completed but ensure summary is usable
+    if (!hasGoodData && scrapedData.description) {
+        finalSummary = scrapedData.description;
+    }
+
     const recordData = {
         user_id,
         url,
@@ -476,7 +498,7 @@ async function performFullSift(
             reading_time_minutes: readingTime,
             debug_info: currentDebug,
             scraped_at: new Date().toISOString(),
-            status: 'completed'
+            status: finalStatus
         }
     };
 
