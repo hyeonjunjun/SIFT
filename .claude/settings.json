@@ -22,7 +22,11 @@
       "Bash(grep -rn \"queryClient.setQueryData\\\\|queryClient.invalidateQueries\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
       "Bash(grep -rn \"old:\\\\s*any\\\\|new:\\\\s*any\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
       "Bash(grep -rn \"\\\\.from\\(''''.*''''\\)\\\\.select\\\\|\\\\.from\\(''''.*''''\\)\\\\.update\\\\|\\\\.from\\(''''.*''''\\)\\\\.insert\\\\|\\\\.from\\(''''.*''''\\)\\\\.delete\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app --include=*.tsx --include=*.ts)",
-      "Bash(grep -rn \"QueryCache\\\\|STALE_TIME\\\\|GC_TIME\\\\|gcTime\\\\|staleTime\" /Users/ryanjun/antigravity/SIFT/apps/mobile --include=*.tsx --include=*.ts)"
+      "Bash(grep -rn \"QueryCache\\\\|STALE_TIME\\\\|GC_TIME\\\\|gcTime\\\\|staleTime\" /Users/ryanjun/antigravity/SIFT/apps/mobile --include=*.tsx --include=*.ts)",
+      "Bash(npx -p typescript tsc --noEmit --project apps/api/tsconfig.json)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
