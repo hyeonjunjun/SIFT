@@ -459,6 +459,49 @@ async function performFullSift(
             if (ai.reading_time_minutes && typeof ai.reading_time_minutes === 'number') {
                 readingTime = ai.reading_time_minutes;
             }
+
+            // VALIDATION: If this looks like a recipe but smart_data is missing ingredients, re-extract
+            const looksLikeRecipe = /ingredien|recipe|cook|bak|serv|calori|protein|carb|prep time|tablespoon|teaspoon|cup[s ]|gram[s ]|oz\b/i
+                .test(finalSummary + ' ' + (scrapedData.description || '') + ' ' + finalTitle);
+            const hasIngredients = smartData.ingredients && Array.isArray(smartData.ingredients) && smartData.ingredients.length > 0;
+
+            if (looksLikeRecipe && !hasIngredients) {
+                currentDebug += 'Recipe detected but smart_data missing — re-extracting. ';
+                try {
+                    const reExtractPrompt = `The following is a recipe. Extract ONLY the structured data as JSON. Do NOT include a summary.
+
+Return JSON:
+{
+  "ingredients": ["quantity + ingredient", ...],
+  "preparation_time": "X mins",
+  "cook_time": "X mins",
+  "total_time": "X mins",
+  "servings": integer,
+  "cuisine": "string",
+  "difficulty": "easy|medium|advanced",
+  "nutrition_per_serving": { "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number, "fiber_g": number, "sugar_g": number },
+  "dietary_tags": ["tag1", ...]
+}
+
+Extract every ingredient with quantities. Estimate nutrition if not provided. Content:
+${JSON.stringify({ title: finalTitle, description: scrapedData.description || finalSummary, transcript: scrapedData.transcript || '' })}`;
+
+                    const reResult = await model.generateContent([{ text: reExtractPrompt }]);
+                    const reText = reResult.response.text();
+                    const reData = JSON.parse(reText);
+                    if (reData.ingredients && Array.isArray(reData.ingredients) && reData.ingredients.length > 0) {
+                        smartData = { ...smartData, ...reData };
+                        currentDebug += `Re-extraction got ${reData.ingredients.length} ingredients. `;
+                    }
+                } catch (reErr: any) {
+                    currentDebug += `Re-extraction failed: ${reErr.message}. `;
+                }
+
+                // Also fix tags if it was miscategorized
+                if (!finalTags.some(t => ['Cooking', 'Baking', 'Food'].includes(t))) {
+                    finalTags = ['Cooking', ...finalTags.filter(t => t !== 'Lifestyle')].slice(0, 3);
+                }
+            }
         } catch (e: any) {
             currentDebug += `AI Failed: ${e.message}. `;
         }
