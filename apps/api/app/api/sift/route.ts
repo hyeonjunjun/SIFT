@@ -27,7 +27,7 @@ const SYSTEM_PROMPT = `You are a content curator that extracts high-fidelity str
 
 Return valid JSON with this schema:
 {
-  "title": "Clean, accurate title (max 80 chars, no emojis)",
+  "title": "Catchy, accurate title (max 80 chars)",
   "category": "Best-fit category from the tags list",
   "tags": ["Tag1", "Tag2"],
   "summary": "Markdown summary (150-300 words)",
@@ -50,15 +50,12 @@ Return valid JSON with this schema:
 
 RULES:
 - Tags: Pick 2-3 ONLY from: ${JSON.stringify(ALLOWED_TAGS)}. Default to "Lifestyle" if none fit. Prefer specific tags (e.g. "Cooking" over "Food").
-- smart_data: For non-recipe content, only include relevant fields. But for ANY content involving food, recipes, cooking, or meal prep — you MUST populate ALL of these fields: ingredients, preparation_time, cook_time, total_time, servings, cuisine, difficulty, nutrition_per_serving, dietary_tags. Estimate values if the source doesn't provide them explicitly.
-- ingredients: Array of strings with quantities (e.g. "2 cups all-purpose flour"). Extract EVERY ingredient mentioned, even if they appear inline in a caption or paragraph. Parse them into individual items with quantities.
-- nutrition_per_serving: For recipes, ALWAYS populate this even if you need to estimate from the ingredients. If the source provides macros (e.g. "423 Calories | 41g Protein"), use those exact values.
-- "servings" must be an integer.
+- smart_data: Only include relevant fields. Omit empty/irrelevant ones. "servings" must be an integer.
+- ingredients: Array of strings with quantities (e.g. "2 cups all-purpose flour").
+- nutrition_per_serving: For recipes, always estimate this even if the source omits it.
 - dietary_tags (recipes only): Include all applicable from: "High Protein", "Low Carb", "Low Calorie", "High Fiber", "Keto", "Vegan", "Vegetarian", "Gluten Free", "Dairy Free", "Nut Free", "Meal Prep", "Quick Meal", "One Pot", "Budget Friendly".
 - reading_time_minutes: Integer estimate for original content (min 1).
-
-CRITICAL — RECIPE DETECTION:
-If the content mentions ANY of: ingredients, cooking steps, calories, macros, servings, prep time, baking, frying, marinating — treat it as a RECIPE. Use "Cooking" or "Baking" as the primary tag. Extract ALL structured data into smart_data. Do NOT leave recipe data as plain text in the summary.
+- For ANY recipe content: you MUST populate smart_data with ingredients, times, servings, cuisine, difficulty, and nutrition. Never leave recipe data as plain text in the summary.
 
 SUMMARY FORMAT — General content:
 1. Bulleted key points (markdown \`-\`)
@@ -67,19 +64,18 @@ Use markdown headers (###), bold for key terms. Be specific — capture exact ar
 
 SUMMARY FORMAT — Recipes/Cooking (overrides above):
 ## Overview
-[1-2 paragraphs: description, taste, origin — written in your own words, NOT copied from the caption]
+[1-2 paragraphs: description, taste, origin]
 ## Preparation
 1. **[Action]**: [Concise instruction]
 2. **[Action]**: [Next step...]
 ## Notes & Equipment (optional)
 - [Tips, pan sizes, storage, substitutions]
-IMPORTANT: Do NOT copy the raw caption/post text into the summary. Rewrite it as structured content. Ingredients go ONLY in smart_data.ingredients, nutrition goes ONLY in smart_data.nutrition_per_serving. The summary should contain preparation steps and context only.
+Do NOT put ingredients in the recipe summary — they go in smart_data.ingredients only.
 
 DOMAIN RULES:
 - Technical content: Explain concepts naturally, no raw code blocks.
 - Videos/TikToks with no transcript: Infer takeaways from title, caption, and visuals.
-- Short content (tweets, captions): 80-150 word summary. Dense content: up to 400 words.
-- Instagram/TikTok recipe posts: ALWAYS extract structured smart_data even if the caption is unstructured. Parse ingredients from captions, estimate times, extract macros.`;
+- Short content (tweets, captions): 80-150 word summary. Dense content: up to 400 words.`;
 
 // Validate AI-returned tags against the allowed list
 function validateTags(tags: string[]): string[] {
@@ -468,25 +464,40 @@ async function performFullSift(
             if (looksLikeRecipe && !hasIngredients) {
                 currentDebug += 'Recipe detected but smart_data missing — re-extracting. ';
                 try {
-                    const reExtractPrompt = `The following is a recipe. Extract ONLY the structured data as JSON. Do NOT include a summary.
+                    // Use a CLEAN model instance without the main system prompt
+                    const reModel = genAI!.getGenerativeModel({
+                        model: 'gemini-2.5-flash-preview-05-20',
+                        generationConfig: { responseMimeType: 'application/json' },
+                    });
 
-Return JSON:
+                    const sourceText = scrapedData.description || finalSummary || '';
+                    const reExtractPrompt = `You are a recipe data extractor. Given this recipe content, return ONLY valid JSON with structured recipe data. Do NOT include anything else.
+
+CONTENT:
+Title: ${finalTitle}
+Text: ${sourceText}
+${scrapedData.transcript ? `Transcript: ${scrapedData.transcript}` : ''}
+
+Return this EXACT JSON structure (populate ALL fields, estimate if needed):
 {
-  "ingredients": ["quantity + ingredient", ...],
-  "preparation_time": "X mins",
-  "cook_time": "X mins",
-  "total_time": "X mins",
-  "servings": integer,
-  "cuisine": "string",
-  "difficulty": "easy|medium|advanced",
-  "nutrition_per_serving": { "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number, "fiber_g": number, "sugar_g": number },
-  "dietary_tags": ["tag1", ...]
+  "ingredients": ["4 small pitas, cut in half", "1 yellow onion, grated", ...every single ingredient with quantity],
+  "preparation_time": "15 mins",
+  "cook_time": "20 mins",
+  "total_time": "35 mins",
+  "servings": 4,
+  "cuisine": "Middle Eastern",
+  "difficulty": "easy",
+  "nutrition_per_serving": { "calories": 400, "protein_g": 25, "carbs_g": 35, "fat_g": 18, "fiber_g": 3, "sugar_g": 4 },
+  "dietary_tags": ["High Protein"]
 }
 
-Extract every ingredient with quantities. Estimate nutrition if not provided. Content:
-${JSON.stringify({ title: finalTitle, description: scrapedData.description || finalSummary, transcript: scrapedData.transcript || '' })}`;
+RULES:
+- Extract EVERY ingredient from the text, each as its own array item with quantity
+- If quantities are missing, estimate reasonable amounts
+- ALWAYS estimate nutrition_per_serving based on the ingredients
+- servings must be an integer`;
 
-                    const reResult = await model.generateContent([{ text: reExtractPrompt }]);
+                    const reResult = await reModel.generateContent([{ text: reExtractPrompt }]);
                     const reText = reResult.response.text();
                     const reData = JSON.parse(reText);
                     if (reData.ingredients && Array.isArray(reData.ingredients) && reData.ingredients.length > 0) {
@@ -500,6 +511,12 @@ ${JSON.stringify({ title: finalTitle, description: scrapedData.description || fi
                 // Also fix tags if it was miscategorized
                 if (!finalTags.some(t => ['Cooking', 'Baking', 'Food'].includes(t))) {
                     finalTags = ['Cooking', ...finalTags.filter(t => t !== 'Lifestyle')].slice(0, 3);
+                }
+
+                // Rewrite the summary to be structured, not raw caption
+                if (finalSummary === (scrapedData.description || '').trim() || !finalSummary.includes('##')) {
+                    const cleanDesc = (scrapedData.description || '').replace(/Comment .*/i, '').replace(/Search .*/i, '').replace(/you can find .*/i, '').trim();
+                    finalSummary = `## Overview\n${cleanDesc || finalTitle}\n\n## Preparation\n1. **Prepare ingredients**: Gather and measure all ingredients\n2. **Follow recipe steps**: See original post for detailed instructions`;
                 }
             }
         } catch (e: any) {
