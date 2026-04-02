@@ -404,7 +404,7 @@ async function performFullSift(
             }
 
             const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash-preview-05-20',
+                model: 'gemini-2.5-flash',
                 generationConfig: {
                     responseMimeType: 'application/json',
                 },
@@ -466,7 +466,7 @@ async function performFullSift(
                 try {
                     // Use a CLEAN model instance without the main system prompt
                     const reModel = genAI!.getGenerativeModel({
-                        model: 'gemini-2.5-flash-preview-05-20',
+                        model: 'gemini-2.5-flash',
                         generationConfig: { responseMimeType: 'application/json' },
                     });
 
