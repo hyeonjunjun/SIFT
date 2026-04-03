@@ -312,6 +312,7 @@ function RootLayoutNav() {
             >
                 <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="notifications" options={{ headerShown: false, animation: 'ios_from_right' }} />
                     <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
                     <Stack.Screen name="+not-found" options={{ headerShown: false }} />
                 </Stack>

@@ -63,7 +63,7 @@ export function usePushNotifications() {
                         router.push('/(tabs)/social');
                     } else if (isRecent) {
                         // Only navigate to notifications tab for actually tapped notifications
-                        router.push('/(tabs)/notifications');
+                        router.push('/notifications');
                     }
                 });
             }, 300);

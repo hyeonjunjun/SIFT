@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Typography } from '../../components/design-system/Typography';
-import ScreenWrapper from '../../components/ScreenWrapper';
-import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../lib/auth';
-import { supabase } from '../../lib/supabase';
-import { SPACING, RADIUS, COLORS } from '../../lib/theme';
+import { Typography } from '../components/design-system/Typography';
+import ScreenWrapper from '../components/ScreenWrapper';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+import { SPACING, RADIUS, COLORS } from '../lib/theme';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users, TrashSimple, CaretLeft } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Skeleton } from '../../components/design-system/Skeleton';
-import { useToast } from '../../context/ToastContext';
+import { Skeleton } from '../components/design-system/Skeleton';
+import { useToast } from '../context/ToastContext';
 
 interface Notification {
     id: string;

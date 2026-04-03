@@ -70,7 +70,7 @@ export function HomeHeader({ user, tier, pagesCount, profile, unreadCount = 0 }:
             </TouchableOpacity>
 
             <TouchableOpacity
-                onPress={() => router.push('/(tabs)/notifications')}
+                onPress={() => router.push('/notifications')}
                 style={styles.bellButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
