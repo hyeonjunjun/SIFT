@@ -1,40 +1,15 @@
 import { Tabs } from "expo-router";
-import { DeviceEventEmitter, View, Platform, StyleSheet } from "react-native";
+import { DeviceEventEmitter, Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Books, User, SquaresFour, UsersThree, Bell } from 'phosphor-react-native';
+import { Books, User, SquaresFour, UsersThree, CalendarBlank } from 'phosphor-react-native';
 import { useTheme } from "../../context/ThemeContext";
-import { COLORS, SPACING, RADIUS } from "../../lib/theme";
+import { SPACING } from "../../lib/theme";
 import { useAuth } from "../../lib/auth";
-import { supabase } from "../../lib/supabase";
-import { useQuery } from "@tanstack/react-query";
 import * as Haptics from 'expo-haptics';
-
-function useUnreadNotificationCount() {
-    const { user } = useAuth();
-
-    const { data: count = 0 } = useQuery({
-        queryKey: ['social_badge', user?.id],
-        queryFn: async () => {
-            if (!user?.id) return 0;
-            const { count: unread } = await supabase
-                .from('notifications')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id)
-                .eq('is_read', false);
-            return unread || 0;
-        },
-        enabled: !!user?.id,
-        staleTime: 1000 * 30,
-        refetchInterval: 1000 * 60,
-    });
-
-    return count;
-}
 
 export default function TabLayout() {
     const { colors, isDark } = useTheme();
     const insets = useSafeAreaInsets();
-    const unreadCount = useUnreadNotificationCount();
     const { user } = useAuth();
 
     return (
@@ -121,28 +96,27 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="notifications"
+                name="plan"
                 listeners={() => ({
                     tabPress: () => {
                         Haptics.selectionAsync();
                     },
                 })}
                 options={{
-                    title: "Alerts",
+                    title: "Plan",
                     tabBarIcon: ({ color, focused }) => (
-                        <View>
-                            <Bell
-                                size={24}
-                                color={color}
-                                weight={focused ? "fill" : "regular"}
-                            />
-                            {unreadCount > 0 && (
-                                <View style={styles.badge}>
-                                    <View style={styles.badgeDot} />
-                                </View>
-                            )}
-                        </View>
+                        <CalendarBlank
+                            size={24}
+                            color={color}
+                            weight={focused ? "fill" : "regular"}
+                        />
                     ),
+                }}
+            />
+            <Tabs.Screen
+                name="notifications"
+                options={{
+                    href: null,
                 }}
             />
             <Tabs.Screen
@@ -167,22 +141,4 @@ export default function TabLayout() {
     );
 }
 
-const styles = StyleSheet.create({
-    badge: {
-        position: 'absolute',
-        top: -2,
-        right: -6,
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: COLORS.canvas,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    badgeDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: COLORS.accent,
-    },
-});
+const styles = StyleSheet.create({});

@@ -35,11 +35,13 @@ import { useSiftQueue } from "../../hooks/useSiftQueue";
 import { useImageSifter } from "../../hooks/useImageSifter";
 import { safeSift } from "../../lib/sift-api";
 import { stripMarkdown } from "../../lib/utils";
+import { useUnreadNotificationCount } from "../../hooks/useUnreadNotifications";
 
 export default function HomeScreen() {
     const { user, tier, profile, refreshProfile, loading: authLoading } = useAuth();
     const router = useRouter();
     const { showToast } = useToast();
+    const unreadCount = useUnreadNotificationCount();
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -421,7 +423,7 @@ export default function HomeScreen() {
 
     const ListHeader = useMemo(() => (
         <View style={styles.headerContainer}>
-            <HomeHeader user={user} tier={tier} pagesCount={pages.length} profile={profile} />
+            <HomeHeader user={user} tier={tier} pagesCount={pages.length} profile={profile} unreadCount={unreadCount} />
 
             {/* Omni-Action Hero Card */}
             <View style={styles.omniActionCard}>
