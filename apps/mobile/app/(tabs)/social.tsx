@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions, FlatList, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Alert, Dimensions, FlatList, KeyboardAvoidingView, Platform, Keyboard, Share } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
 import { MagnifyingGlass, UserPlus, Users, Check, X, ChatCircleText, ShareNetwork, Plus, User, ProhibitInset, ArrowLeft, CaretRight, PaperPlaneTilt, Smiley, LinkSimple } from 'phosphor-react-native';
@@ -98,6 +98,29 @@ export default function SocialScreen() {
         staleTime: 1000 * 60 * 5,
         retry: 2,
     });
+
+    // Fetch own profile for invite link
+    const { data: myProfile } = useQuery({
+        queryKey: ['my-profile', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return null;
+            const { data } = await supabase.from('profiles').select('username, sift_id').eq('id', user.id).single();
+            return data;
+        },
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 30,
+    });
+
+    const handleShareInvite = async () => {
+        triggerHaptic('impact');
+        const username = myProfile?.username || myProfile?.sift_id || user?.id;
+        const displayName = user?.user_metadata?.display_name || 'me';
+        try {
+            await Share.share({
+                message: `Save recipes from TikTok, Instagram & YouTube with Sift! Add me: @${username}\n\nhttps://sift.so/invite/${username}`,
+            });
+        } catch {}
+    };
 
     // Derived states for easier UX
     const incomingRequests = friendships.filter((f: any) => f.friend_id === user?.id && f.status === 'pending');
@@ -543,48 +566,19 @@ export default function SocialScreen() {
                 </View>
 
                 {activeView === 'network' && (
-                    <>
-                        <View style={styles.searchContainer}>
-                            <View style={[styles.searchInputWrapper, { backgroundColor: colors.paper, borderColor: colors.separator }]}>
-                                <MagnifyingGlass size={18} color={colors.stone} style={{ marginRight: 10 }} />
-                                <TextInput
-                                    style={[styles.searchInput, { color: colors.ink }]}
-                                    placeholder="Find friends by @username or ID..."
-                                    placeholderTextColor={colors.stone}
-                                    value={searchQuery}
-                                    onChangeText={handleSearch}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
-                                {isSearching && (
-                                    <ActivityIndicator size="small" color={colors.ink} style={{ marginLeft: 8 }} />
-                                )}
-                            </View>
-                        </View>
-
-                        {searchResults.length > 0 ? (
-                    <View style={[styles.searchResultsBox, { backgroundColor: colors.paper }]}>
-                        {searchResults.map(u => (
-                            <TouchableOpacity key={u.id} style={styles.searchResultItem} onPress={() => sendFriendRequest(u.id)}>
-                                <Image source={{ uri: u.avatar_url }} style={styles.miniAvatar} />
-                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                    <Typography variant="label">{u.display_name}</Typography>
-                                    <Typography variant="caption" color="stone">@{u.username}</Typography>
-                                </View>
-                                <UserPlus size={20} color={colors.ink} />
-                            </TouchableOpacity>
-                        ))}
+                    <View style={styles.searchContainer}>
+                        <TouchableOpacity
+                            onPress={handleShareInvite}
+                            style={[styles.inviteButton, { backgroundColor: colors.ink }]}
+                            activeOpacity={0.8}
+                        >
+                            <ShareNetwork size={18} color={colors.paper} weight="bold" />
+                            <Typography variant="label" style={{ color: colors.paper, marginLeft: 8 }}>
+                                Invite Friends
+                            </Typography>
+                        </TouchableOpacity>
                     </View>
-                ) : (
-                    searchQuery.length >= 3 && !isSearching && (
-                        <View style={[styles.searchResultsBox, { backgroundColor: colors.paper, padding: 20, alignItems: 'center' }]}>
-                            <Typography variant="body" color="stone">No users found matching "{searchQuery}"</Typography>
-                            <Typography variant="caption" color="stone" style={{ marginTop: 4 }}>Try searching by @username or exact email</Typography>
-                        </View>
-                    )
                 )}
-                </>
-            )}
 
             <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink} />}>
                     {activeView === 'network' ? (
@@ -634,8 +628,8 @@ export default function SocialScreen() {
                                 incomingRequests.length === 0 && (
                                     <EmptyState
                                         icon={<Users size={40} color={colors.stone} />}
-                                        title="Build your network"
-                                        description="Search for friends to share recipes and collections with."
+                                        title="Add your first friend"
+                                        description="Tap 'Invite Friends' above to share your invite link via text, WhatsApp, or any messaging app."
                                     />
                                 )
                             )}
@@ -1066,7 +1060,14 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         marginHorizontal: 20,
-        marginBottom: 12
+        marginBottom: 12,
+    },
+    inviteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        borderRadius: RADIUS.l,
     },
     searchInputWrapper: {
         flexDirection: 'row',
