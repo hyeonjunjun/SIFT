@@ -133,7 +133,7 @@ export default function ProfileScreen() {
             return;
         }
 
-        const message = `Hey! I've been using Sift to stay mindful of the cool things I find online. 🕊️ I thought you'd love it too! Let's connect so we can share our favorite finds.\n\nMy Sift ID is: ${profile.sift_id}\n\nJoin me here: sift://user/${profile.sift_id}`;
+        const message = `Save recipes from TikTok, Instagram & YouTube with Sift! Add me: @${profile.sift_id}\n\nhttps://sift-rho.vercel.app/invite/${profile.sift_id}`;
 
         try {
             await Share.share({

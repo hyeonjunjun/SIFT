@@ -117,7 +117,7 @@ export default function SocialScreen() {
         const displayName = user?.user_metadata?.display_name || 'me';
         try {
             await Share.share({
-                message: `Save recipes from TikTok, Instagram & YouTube with Sift! Add me: @${username}\n\nhttps://sift.so/invite/${username}`,
+                message: `Save recipes from TikTok, Instagram & YouTube with Sift! Add me: @${username}\n\nhttps://sift-rho.vercel.app/invite/${username}`,
             });
         } catch {}
     };
