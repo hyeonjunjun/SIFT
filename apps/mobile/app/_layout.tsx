@@ -267,17 +267,12 @@ function RootLayoutNav() {
     }, [session, authLoading, segments, splashDismissed]);
 
     // Share Intent Logic — flag to prevent notification listener from hijacking
-    const shareIntentHandled = useRef(false);
+    // Share Intent Logic — route to share confirmation screen
     useEffect(() => {
         if (hasShareIntent && shareIntent.type === "weburl" && shareIntent.webUrl) {
             const url = shareIntent.webUrl;
-            shareIntentHandled.current = true;
             resetShareIntent();
-            // Navigate to home tab first, then emit event to process the URL
-            router.replace('/(tabs)/');
-            setTimeout(() => {
-                DeviceEventEmitter.emit('shareIntentUrl', url.trim());
-            }, 500);
+            router.replace(`/share?url=${encodeURIComponent(url.trim())}`);
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 
@@ -313,7 +308,7 @@ function RootLayoutNav() {
                 <Stack initialRouteName="(tabs)" screenOptions={{ contentStyle: { backgroundColor: 'transparent' }, headerShown: false }}>
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen name="notifications" options={{ headerShown: false, animation: 'ios_from_right' }} />
-                    <Stack.Screen name="share" options={{ headerShown: false, presentation: 'modal' }} />
+                    <Stack.Screen name="share" options={{ headerShown: false, presentation: 'transparentModal', animation: 'fade' }} />
                     <Stack.Screen name="+not-found" options={{ headerShown: false }} />
                 </Stack>
             </ImageBackground>
