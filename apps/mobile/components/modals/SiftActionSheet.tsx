@@ -51,7 +51,7 @@ export const SiftActionSheet = ({
 
     const options: ActionSheetOption[] = [
         {
-            label: sift.is_pinned ? 'Unpin Sift' : 'Pin Sift',
+            label: sift.is_pinned ? 'Unpin' : 'Pin to Top',
             icon: PushPin,
             onPress: () => onPin?.(sift.id),
         },
@@ -99,12 +99,12 @@ export const SiftActionSheet = ({
         },
         ...additionalOptions,
         {
-            label: 'Archive Sift',
+            label: 'Archive',
             icon: Trash,
             isDestructive: true,
             onPress: () => {
                 Alert.alert(
-                    "Archive Sift?",
+                    "Archive this recipe?",
                     "It will be moved to your archive.",
                     [
                         { text: "Cancel", style: "cancel" },
@@ -124,8 +124,8 @@ export const SiftActionSheet = ({
             onPress: () => {
                 if (sift) {
                     Alert.alert(
-                        "Delete Sift",
-                        "Are you sure you want to permanently delete this sift?",
+                        "Delete Forever",
+                        "Are you sure you want to permanently delete this?",
                         [
                             { text: "Cancel", style: "cancel" },
                             { text: "Delete", style: "destructive", onPress: () => onDeleteForever?.(sift.id) }

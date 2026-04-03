@@ -6,7 +6,7 @@ interface FeedLoadingScreenProps {
     message?: string;
 }
 
-export function FeedLoadingScreen({ message = 'Loading your sifts...' }: FeedLoadingScreenProps) {
+export function FeedLoadingScreen({ message = 'Loading your recipes...' }: FeedLoadingScreenProps) {
     const { width } = useWindowDimensions();
 
     // Replicate grid logic

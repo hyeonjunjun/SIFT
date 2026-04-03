@@ -128,7 +128,7 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentCollectionS
                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                         <X size={24} color={colors.ink} />
                     </TouchableOpacity>
-                    <Typography variant="h3">Add Sifts</Typography>
+                    <Typography variant="h3">Add Recipes</Typography>
                     <TouchableOpacity
                         onPress={handleSave}
                         disabled={selectedIds.size === 0}
@@ -166,7 +166,7 @@ export const SiftPickerModal = ({ visible, onClose, onSelect, currentCollectionS
                         ListEmptyComponent={
                             <View style={styles.center}>
                                 <Typography variant="body" color="stone">
-                                    {searchQuery ? "No matching sifts found." : "No sifts available to add."}
+                                    {searchQuery ? "No matching recipes found." : "No recipes available to add."}
                                 </Typography>
                             </View>
                         }

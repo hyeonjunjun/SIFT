@@ -408,7 +408,7 @@ export default function CollectionScreen() {
                 <View style={styles.emptyState}>
                     <Folder size={48} color={COLORS.stone} weight="thin" />
                     <Typography variant="body" color="stone" style={{ marginTop: SPACING.m }}>
-                        No sifts in this collection yet.
+                        No recipes in this collection yet.
                     </Typography>
                     {canContribute && (
                         <TouchableOpacity

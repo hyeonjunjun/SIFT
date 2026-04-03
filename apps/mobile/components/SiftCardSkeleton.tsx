@@ -6,9 +6,9 @@ import { useTheme } from '../context/ThemeContext';
 import { Typography } from './design-system/Typography';
 
 const SIFT_STEPS = [
-    'Fetching page...',
-    'Reading content...',
-    'Generating summary...',
+    'Fetching recipe...',
+    'Extracting ingredients...',
+    'Building your recipe card...',
 ];
 
 const STEP_INTERVAL = 6000; // 6s per step

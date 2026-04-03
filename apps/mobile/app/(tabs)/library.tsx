@@ -729,23 +729,23 @@ export default function LibraryScreen() {
 
 
     const ListEmptyComponent = useMemo(() => {
-        if (searchQuery) return <EmptyState type="no-results" title="No results found" description={`We couldn't find any sifts matching "${searchQuery}"`} />;
+        if (searchQuery) return <EmptyState type="no-results" title="No results found" description={`We couldn't find any recipes matching "${searchQuery}"`} />;
 
         if (activeCategoryId) {
             return <EmptyState
                 type="no-sifts"
                 title="Empty Collection"
-                description="No sifts found in this collection."
-                actionLabel="Add Sift"
+                description="No recipes in this collection yet."
+                actionLabel="Add Recipe"
                 onAction={() => router.push('/')}
             />;
         }
 
         return <EmptyState
             type="no-sifts"
-            title="Start Sifting"
-            description="Your library is empty. Sift content to see it here."
-            actionLabel="Start Sifting"
+            title="Save Your First Recipe"
+            description="Your recipe box is empty. Paste a link to get started."
+            actionLabel="Save a Recipe"
             onAction={() => router.push('/')}
         />;
     }, [searchQuery, activeCategoryId]);
@@ -957,7 +957,7 @@ export default function LibraryScreen() {
                                 <EmptyState
                                     type="no-collections"
                                     title={activeView === 'shared' ? "No Shared Collections" : "No Collections"}
-                                    description={activeView === 'shared' ? "Create a collection and invite friends to collaborate." : "Organize your sifts into bespoke collections."}
+                                    description={activeView === 'shared' ? "Create a collection and invite friends to collaborate." : "Organize your recipes into collections."}
                                     actionLabel="New Collection"
                                     onAction={handleCreateCollection}
                                 />

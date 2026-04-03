@@ -635,7 +635,7 @@ export default function SocialScreen() {
                                     <EmptyState
                                         icon={<Users size={40} color={colors.stone} />}
                                         title="Build your network"
-                                        description="Search for friends to start sharing your best finds directly with them."
+                                        description="Search for friends to share recipes and collections with."
                                     />
                                 )
                             )}
@@ -681,7 +681,7 @@ export default function SocialScreen() {
                                 <EmptyState
                                     icon={<PaperPlaneTilt size={40} color={colors.stone} weight="thin" />}
                                     title="No activity yet"
-                                    description="When friends share sifts with you, they'll appear here in your activity feed."
+                                    description="When friends share recipes with you, they'll appear here."
                                 />
                             )}
                         </View>

@@ -60,18 +60,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 {/* Tagline */}
                 <Animated.View entering={FadeIn.delay(500).duration(600)} style={styles.taglineArea}>
                     <Typography variant="h2" style={styles.headline}>
-                        The internet is noisy.{'\n'}Keep what matters.
+                        Save recipes from{'\n'}anywhere, instantly.
                     </Typography>
                     <Typography variant="body" style={styles.subline}>
-                        Save links, recipes, articles, and videos — distilled into a beautiful, personal library.
+                        TikTok, Instagram, YouTube, blogs — paste any recipe link and get ingredients, nutrition, and step-by-step instructions.
                     </Typography>
                 </Animated.View>
 
                 {/* Features */}
                 <Animated.View entering={FadeIn.delay(800).duration(600)} style={styles.features}>
-                    <FeatureRow label="AI-powered summaries for any link" />
-                    <FeatureRow label="Smart recipe tools with cook mode" />
-                    <FeatureRow label="Share collections with friends" />
+                    <FeatureRow label="AI extracts ingredients & nutrition" />
+                    <FeatureRow label="Cook mode with hands-free steps" />
+                    <FeatureRow label="Share recipe collections with friends" />
                 </Animated.View>
 
                 {/* CTA */}

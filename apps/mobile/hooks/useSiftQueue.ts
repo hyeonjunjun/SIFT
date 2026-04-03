@@ -56,7 +56,7 @@ export function useSiftQueue() {
         }
 
         if (duplicateCount > 0 && duplicateCount === lines.length) {
-            showToast({ message: 'Already sifting this link', duration: 2000, type: 'error' });
+            showToast({ message: 'Already saving this recipe', duration: 2000, type: 'error' });
         }
     }, [showToast]);
 
@@ -69,9 +69,9 @@ export function useSiftQueue() {
 
         const count = urlsToProcess.length;
         if (count > 1) {
-            showToast({ message: `Sifting ${count} items...`, duration: 2000 });
+            showToast({ message: `Saving ${count} recipes...`, duration: 2000 });
         } else {
-            showToast({ message: "Sifting...", duration: 1500 });
+            showToast({ message: "Saving recipe...", duration: 1500 });
         }
 
         const tasks = await Promise.all(urlsToProcess.map(async (url) => {
@@ -86,8 +86,8 @@ export function useSiftQueue() {
                     .insert({
                         user_id: user?.id,
                         url,
-                        title: "Sifting Sift...",
-                        summary: "Synthesizing content...",
+                        title: "Saving recipe...",
+                        summary: "Extracting ingredients & details...",
                         tags: [smartTag],
                         metadata: { status: 'pending', source: domain }
                     })
@@ -121,7 +121,7 @@ export function useSiftQueue() {
 
                     const isTimeout = apiError.message?.toLowerCase().includes('time') || apiError.message?.toLowerCase().includes('deadline');
                     showToast({
-                        message: isTimeout ? "Sift timed out" : (apiError.message || "Sift failed"),
+                        message: isTimeout ? "Recipe save timed out" : (apiError.message || "Failed to save recipe"),
                         duration: 5000,
                         type: 'error',
                         action: retryCount < 3 ? { label: 'Retry', onPress: () => addToQueue(task.url) } : undefined
@@ -146,7 +146,7 @@ export function useSiftQueue() {
             if (tier !== 'unlimited' && tier !== 'admin' && remaining > 0 && remaining <= 3) {
                 setTimeout(() => {
                     showToast({
-                        message: `${remaining} sift${remaining === 1 ? '' : 's'} remaining on your plan`,
+                        message: `${remaining} recipe${remaining === 1 ? '' : 's'} remaining on your plan`,
                         duration: 4000,
                         type: 'info',
                     });

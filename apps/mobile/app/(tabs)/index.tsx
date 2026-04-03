@@ -432,7 +432,7 @@ export default function HomeScreen() {
                     <TextInput
                         ref={urlInputRef}
                         style={styles.textInput}
-                        placeholder="Paste a link to sift..."
+                        placeholder="Paste a recipe link..."
                         placeholderTextColor={COLORS.stone}
                         value={manualUrl}
                         onChangeText={setManualUrl}
@@ -440,7 +440,7 @@ export default function HomeScreen() {
                         onFocus={() => setUrlFocused(true)}
                         onBlur={() => setUrlFocused(false)}
                         returnKeyType="go"
-                        accessibilityLabel="Paste a link to sift"
+                        accessibilityLabel="Paste a recipe link"
                     />
                     <TouchableOpacity
                         onPress={handleSubmitUrl}
@@ -626,10 +626,10 @@ export default function HomeScreen() {
                     <View style={{ paddingTop: 40 }}>
                         <EmptyState
                             type={searchQuery ? 'no-results' : 'no-sifts'}
-                            title={searchQuery ? "No sifts found" : "Your library is empty"}
-                            description={searchQuery ? `We couldn't find "${searchQuery}"` : "Paste a link above or scan a photo to create your first sift."}
+                            title={searchQuery ? "No recipes found" : "Your recipe box is empty"}
+                            description={searchQuery ? `We couldn't find "${searchQuery}"` : "Paste a recipe link above or scan a photo to save your first recipe."}
                             onAction={searchQuery ? undefined : () => urlInputRef.current?.focus()}
-                            actionLabel={searchQuery ? undefined : "Paste a link"}
+                            actionLabel={searchQuery ? undefined : "Save a recipe"}
                         />
                     </View>
                 }

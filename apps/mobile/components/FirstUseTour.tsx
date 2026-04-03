@@ -23,12 +23,12 @@ const TOUR_STEPS: TourStep[] = [
     },
     {
         title: 'Share from any app',
-        description: 'Use the share sheet in Safari, Chrome, TikTok, Instagram, or YouTube to sift links directly into your library.',
+        description: 'Use the share sheet in Safari, TikTok, Instagram, or YouTube to save recipes directly.',
         position: 'center',
     },
     {
         title: 'Cook mode & collections',
-        description: 'Organize sifts into collections, share them with friends, and use cook mode for hands-free recipe walkthroughs.',
+        description: 'Organize recipes into collections, share them with friends, and use cook mode for hands-free walkthroughs.',
         position: 'bottom',
     },
 ];

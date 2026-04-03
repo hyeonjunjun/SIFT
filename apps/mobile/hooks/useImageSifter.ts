@@ -91,8 +91,8 @@ export const useImageSifter = (onSuccess?: () => void) => {
                     .insert({
                         user_id: user.id,
                         url: scanUrl,
-                        title: 'Sifting Image...',
-                        summary: 'Extracting data with AI...',
+                        title: 'Scanning image...',
+                        summary: 'Extracting recipe from photo...',
                         tags: ['Saved'],
                         metadata: { status: 'pending', source: 'Visual Scan' }
                     })

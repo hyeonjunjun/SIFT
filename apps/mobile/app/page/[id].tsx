@@ -1357,12 +1357,12 @@ export default function PageDetail() {
                             }
                         },
                         {
-                            label: 'Edit Sift',
+                            label: 'Edit',
                             icon: require('phosphor-react-native').PencilSimple,
                             onPress: () => setIsEditing(true)
                         },
                         {
-                            label: reSifting ? 'Re-Sifting...' : 'Re-Sift (Regenerate)',
+                            label: reSifting ? 'Regenerating...' : 'Regenerate',
                             icon: require('phosphor-react-native').ArrowsClockwise,
                             onPress: async () => {
                                 if (!page?.url || reSifting) return;
@@ -1372,16 +1372,16 @@ export default function PageDetail() {
                                     await safeSift(page.url, user?.id, page.id, tier);
                                     queryClient.invalidateQueries({ queryKey: ['page', id] });
                                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                    Alert.alert('Re-Sifted!', 'The summary has been regenerated.');
+                                    Alert.alert('Regenerated!', 'The recipe has been re-extracted.');
                                 } catch (e: any) {
-                                    Alert.alert('Re-Sift Failed', e.message);
+                                    Alert.alert('Regeneration Failed', e.message);
                                 } finally {
                                     setReSifting(false);
                                 }
                             }
                         },
                         {
-                            label: 'Delete Sift',
+                            label: 'Delete',
                             icon: require('phosphor-react-native').Trash,
                             isDestructive: true,
                             onPress: handleDelete
