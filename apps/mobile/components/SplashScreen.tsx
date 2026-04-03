@@ -141,7 +141,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
                     <Animated.View style={sifterStyle}>
                         <View style={styles.sifterArea}>
                             <Image
-                                source={require('../assets/sift-logo.png')}
+                                source={require('../assets/sift-icon.png')}
                                 style={styles.logo}
                                 resizeMode="contain"
                             />

@@ -4,12 +4,12 @@
     "slug": "sift",
     "version": "1.1.5",
     "orientation": "portrait",
-    "icon": "./assets/sift-logo.png",
+    "icon": "./assets/sift-icon.png",
     "scheme": "sift",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/sift-logo.png",
+      "image": "./assets/sift-icon.png",
       "resizeMode": "cover",
       "backgroundColor": "#FDFCF8"
     },
@@ -43,7 +43,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/sift-logo.png",
+        "foregroundImage": "./assets/sift-icon.png",
         "backgroundColor": "#FDFCF8"
       },
       "package": "com.hkjstudio.sift",
