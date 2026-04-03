@@ -75,76 +75,75 @@ export const useImageSifter = (onSuccess?: () => void) => {
         setLoading(true);
 
         try {
-            const processImage = async (image: SelectedImage) => {
+            // Convert all images to base64
+            const base64Images: string[] = [];
+            for (const image of selectedImages) {
                 const manipulated = await ImageManipulator.manipulateAsync(
                     image.asset.uri,
                     [{ resize: { width: 1080 } }],
                     { compress: 0.65, format: ImageManipulator.SaveFormat.JPEG, base64: true }
                 );
-
-                if (!manipulated.base64) throw new Error("Failed to generate image base64");
-
-                const scanUrl = 'image://scan-' + Date.now() + '-' + Math.random().toString(36).substring(7);
-
-                const { data: pendingData, error: pendingError } = await supabase
-                    .from('pages')
-                    .insert({
-                        user_id: user.id,
-                        url: scanUrl,
-                        title: 'Scanning image...',
-                        summary: 'Extracting recipe from photo...',
-                        tags: ['Saved'],
-                        metadata: { status: 'pending', source: 'Visual Scan' }
-                    })
-                    .select()
-                    .single();
-
-                if (pendingError) throw pendingError;
-
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
-
-                    const response = await fetch(`${API_URL}/api/sift`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            url: scanUrl,
-                            user_id: user.id,
-                            id: pendingData.id,
-                            image_base64: manipulated.base64
-                        }),
-                        signal: controller.signal,
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.message || 'Image sifting failed');
-                    }
-                } catch (fetchErr: any) {
-                    // Mark the pending record as failed so it doesn't show as skeleton forever
-                    await supabase.from('pages').update({
-                        title: 'Image Scan Failed',
-                        summary: 'Failed to process image. Tap to retry.',
-                        metadata: { status: 'failed', error: fetchErr.message || 'Processing failed', source: 'Visual Scan' }
-                    }).eq('id', pendingData.id);
-                    throw fetchErr;
+                if (manipulated.base64) {
+                    base64Images.push(manipulated.base64);
                 }
-            };
+            }
 
-            const results = await Promise.allSettled(selectedImages.map(img => processImage(img)));
+            if (base64Images.length === 0) {
+                throw new Error('Failed to process images');
+            }
 
-            const failures = results.filter(r => r.status === 'rejected');
-            if (failures.length > 0 && failures.length < selectedImages.length) {
-                Alert.alert('Partial Success', `${selectedImages.length - failures.length} of ${selectedImages.length} images sifted. ${failures.length} failed.`);
-            } else if (failures.length === selectedImages.length) {
-                throw new Error('All images failed to process.');
+            // Create ONE pending record for all images
+            const scanUrl = 'image://scan-' + Date.now() + '-' + Math.random().toString(36).substring(7);
+            const { data: pendingData, error: pendingError } = await supabase
+                .from('pages')
+                .insert({
+                    user_id: user.id,
+                    url: scanUrl,
+                    title: 'Scanning image...',
+                    summary: `Extracting recipe from ${base64Images.length} photo${base64Images.length > 1 ? 's' : ''}...`,
+                    tags: ['Saved'],
+                    metadata: { status: 'pending', source: 'Visual Scan' }
+                })
+                .select()
+                .single();
+
+            if (pendingError) throw pendingError;
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s for multi-image
+
+                // Send first image as image_base64, additional as images_base64 array
+                const response = await fetch(`${API_URL}/api/sift`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url: scanUrl,
+                        user_id: user.id,
+                        id: pendingData.id,
+                        image_base64: base64Images[0],
+                        images_base64: base64Images.length > 1 ? base64Images.slice(1) : undefined,
+                    }),
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'Image processing failed');
+                }
+            } catch (fetchErr: any) {
+                await supabase.from('pages').update({
+                    title: 'Image Scan Failed',
+                    summary: 'Failed to process image. Tap to retry.',
+                    metadata: { status: 'failed', error: fetchErr.message || 'Processing failed', source: 'Visual Scan' }
+                }).eq('id', pendingData.id);
+                throw fetchErr;
             }
 
             if (onSuccess) onSuccess();
         } catch (error: any) {
-            Alert.alert('Scan Failed', error.message || 'Something went wrong while sifting images.');
+            Alert.alert('Scan Failed', error.message || 'Something went wrong while scanning images.');
         } finally {
             setLoading(false);
             setSelectedImages([]);

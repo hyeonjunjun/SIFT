@@ -243,7 +243,7 @@ export async function POST(request: Request) {
             actorId = null; // Image scan
         }
 
-        const result = await performFullSift(url, user_id, body.id, userTier, domain, actorId, input, "Sync. ", body.image_base64, body.metadata);
+        const result = await performFullSift(url, user_id, body.id, userTier, domain, actorId, input, "Sync. ", body.image_base64, body.metadata, body.images_base64);
 
         // Fire and forget notification
         if (result && user_id) {
@@ -312,7 +312,8 @@ async function performFullSift(
     input: any,
     debugInfoSnippet: string,
     imageBase64?: string,
-    metadata?: any
+    metadata?: any,
+    imagesBase64?: string[]
 ) {
     let scrapedData: any = {};
     let ogImage: string | null = null;
@@ -396,6 +397,7 @@ async function performFullSift(
     if (genAI && (scrapedData.title || scrapedData.description || scrapedData.transcript || imageBase64)) {
         try {
             if (imageBase64 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                // Upload first image as cover
                 const buffer = Buffer.from(imageBase64, 'base64');
                 const fileName = `uploads/${Date.now()}.jpg`;
                 await supabaseAdmin.storage.from('sift-assets').upload(fileName, buffer, { contentType: 'image/jpeg' });
@@ -415,8 +417,13 @@ async function performFullSift(
             const parts: any[] = [];
 
             if (imageBase64) {
-                parts.push({ text: "Extract info from this image." });
-                parts.push({ inlineData: { mimeType: 'image/jpeg', data: imageBase64 } });
+                const allImages = [imageBase64, ...(imagesBase64 || [])];
+                parts.push({ text: allImages.length > 1
+                    ? `Extract and combine info from all ${allImages.length} images into ONE recipe. These images are parts of the same recipe.`
+                    : "Extract info from this image." });
+                for (const img of allImages) {
+                    parts.push({ inlineData: { mimeType: 'image/jpeg', data: img } });
+                }
             } else if (scrapedData.images && scrapedData.images.length > 1) {
                 parts.push({ text: JSON.stringify({ title: scrapedData.title, description: scrapedData.description }) });
                 // Fetch and inline up to 4 images for Gemini vision

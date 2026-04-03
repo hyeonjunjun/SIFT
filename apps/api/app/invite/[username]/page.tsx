@@ -39,7 +39,7 @@ export default async function InvitePage({ params }: Props) {
                 <script dangerouslySetInnerHTML={{ __html: `
                     // Try to open the app via deep link
                     var deepLink = 'sift://user/${username}';
-                    var appStoreUrl = 'https://apps.apple.com/app/sift/id6743187498';
+                    var appStoreUrl = 'https://apps.apple.com/app/sift/id6757769240';
                     var playStoreUrl = 'https://play.google.com/store/apps/details?id=com.hkjstudio.sift';
 
                     var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -62,7 +62,7 @@ export default async function InvitePage({ params }: Props) {
                 <div className="card">
                     <h1>Join @{username} on Sift</h1>
                     <p>Save recipes from TikTok, Instagram & YouTube — ingredients, nutrition, and step-by-step instructions, all in one place.</p>
-                    <a className="btn" href="https://apps.apple.com/app/sift/id6743187498">Download Sift</a>
+                    <a className="btn" href="https://apps.apple.com/app/sift/id6757769240">Download Sift</a>
                     <p className="secondary">
                         Already have the app? <a href={`sift://user/${username}`}>Open in Sift</a>
                     </p>
