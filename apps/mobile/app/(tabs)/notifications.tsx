@@ -10,7 +10,7 @@ import { SPACING, RADIUS, COLORS } from '../../lib/theme';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users, TrashSimple } from 'phosphor-react-native';
+import { Bell, CheckCircle, UserPlus, PaperPlaneTilt, FolderPlus, Users, TrashSimple, CaretLeft } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Skeleton } from '../../components/design-system/Skeleton';
@@ -460,7 +460,12 @@ export default function NotificationsScreen() {
         <ScreenWrapper edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <Typography variant="h1" style={{ fontFamily: 'PlayfairDisplay_700Bold', fontSize: 36 }}>Notifications</Typography>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s }}>
+                    <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={{ padding: 4 }}>
+                        <CaretLeft size={24} color={colors.ink} weight="bold" />
+                    </TouchableOpacity>
+                    <Typography variant="h2" style={{ fontSize: 22 }}>Notifications</Typography>
+                </View>
                 {unreadCount > 0 && (
                     <TouchableOpacity onPress={handleMarkAllRead} hitSlop={16}>
                         <Typography variant="caption" color="accent" style={{ fontWeight: '600' }}>
