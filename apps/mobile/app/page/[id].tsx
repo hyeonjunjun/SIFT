@@ -125,6 +125,7 @@ export default function PageDetail() {
     const [saving, setSaving] = useState(false);
     const [newTag, setNewTag] = useState('');
     const [editedTags, setEditedTags] = useState<string[]>([]);
+    const [editedTitle, setEditedTitle] = useState('');
     const [isShared, setIsShared] = useState(false);
     const [showDirectShare, setShowDirectShare] = useState(false);
     const [reSifting, setReSifting] = useState(false);
@@ -376,6 +377,7 @@ export default function PageDetail() {
             const fullDoc = page.content || `# ${page.title}\n\n> ${page.summary}`;
             setContent(fullDoc);
             setEditedTags(page.tags || []);
+            setEditedTitle(page.title || '');
             setUserNotes(page.metadata?.user_notes || '');
         }
     }, [page, user?.id]);
@@ -579,6 +581,7 @@ export default function PageDetail() {
             const { error } = await supabase
                 .from('pages')
                 .update({
+                    title: editedTitle.trim() || page.title,
                     content: content,
                     tags: editedTags
                 })
@@ -764,9 +767,25 @@ export default function PageDetail() {
                                         </Typography>
                                     )}
                                 </View>
-                                <Typography variant="h1" style={{ marginBottom: 12 }}>
-                                    {page?.title || 'Sifting...'}
-                                </Typography>
+                                {isEditing ? (
+                                    <TextInput
+                                        style={{
+                                            fontSize: 28,
+                                            fontFamily: 'PlayfairDisplay_700Bold',
+                                            color: colors.ink,
+                                            marginBottom: 12,
+                                            lineHeight: 34,
+                                        }}
+                                        value={editedTitle}
+                                        onChangeText={setEditedTitle}
+                                        multiline
+                                        scrollEnabled={false}
+                                    />
+                                ) : (
+                                    <Typography variant="h1" style={{ marginBottom: 12 }}>
+                                        {page?.title || 'Sifting...'}
+                                    </Typography>
+                                )}
                                 <View style={styles.sourceRow}>
                                     <Image
                                         source={{ uri: `https://www.google.com/s2/favicons?domain=${getDomain(page?.url)}` }}
@@ -864,6 +883,7 @@ export default function PageDetail() {
                                         style={[styles.bentoCard, styles.actionCard, { flex: 1, backgroundColor: colors.paper, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }]}
                                         onPress={() => {
                                             setIsEditing(false);
+                                            setEditedTitle(page.title || '');
                                             setEditedTags(page.tags || []);
                                             setContent(page.content || `# ${page.title}\n\n> ${page.summary}`);
                                         }}

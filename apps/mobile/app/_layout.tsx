@@ -2,12 +2,12 @@ import 'react-native-url-polyfill/auto';
 import "../global.css";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useShareIntent } from "expo-share-intent";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Theme, COLORS, LIGHT_COLORS, DARK_COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
-import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-native";
+import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme, DeviceEventEmitter } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
@@ -266,12 +266,18 @@ function RootLayoutNav() {
         }
     }, [session, authLoading, segments, splashDismissed]);
 
-    // Share Intent Logic
+    // Share Intent Logic — flag to prevent notification listener from hijacking
+    const shareIntentHandled = useRef(false);
     useEffect(() => {
         if (hasShareIntent && shareIntent.type === "weburl" && shareIntent.webUrl) {
             const url = shareIntent.webUrl;
+            shareIntentHandled.current = true;
             resetShareIntent();
-            router.replace(`/(tabs)/?siftUrl=${encodeURIComponent(url.trim())}`);
+            // Navigate to home tab first, then emit event to process the URL
+            router.replace('/(tabs)/');
+            setTimeout(() => {
+                DeviceEventEmitter.emit('shareIntentUrl', url.trim());
+            }, 500);
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 

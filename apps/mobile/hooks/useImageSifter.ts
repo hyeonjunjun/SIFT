@@ -101,20 +101,35 @@ export const useImageSifter = (onSuccess?: () => void) => {
 
                 if (pendingError) throw pendingError;
 
-                const response = await fetch(`${API_URL}/api/sift`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        url: scanUrl,
-                        user_id: user.id,
-                        id: pendingData.id,
-                        image_base64: manipulated.base64
-                    })
-                });
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || 'Image sifting failed');
+                    const response = await fetch(`${API_URL}/api/sift`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: scanUrl,
+                            user_id: user.id,
+                            id: pendingData.id,
+                            image_base64: manipulated.base64
+                        }),
+                        signal: controller.signal,
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.message || 'Image sifting failed');
+                    }
+                } catch (fetchErr: any) {
+                    // Mark the pending record as failed so it doesn't show as skeleton forever
+                    await supabase.from('pages').update({
+                        title: 'Image Scan Failed',
+                        summary: 'Failed to process image. Tap to retry.',
+                        metadata: { status: 'failed', error: fetchErr.message || 'Processing failed', source: 'Visual Scan' }
+                    }).eq('id', pendingData.id);
+                    throw fetchErr;
                 }
             };
 

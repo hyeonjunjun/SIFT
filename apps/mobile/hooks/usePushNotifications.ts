@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { supabase } from '../lib/supabase';
@@ -39,9 +39,19 @@ export function usePushNotifications() {
         // Listen for incoming notifications while app is foregrounded
         notificationListenerRef.current = Notifications.addNotificationReceivedListener(() => {});
 
-        // Listen for notification taps
+        // Listen for notification taps — only navigate if the notification was
+        // tapped recently (within 3 seconds). This prevents stale notifications
+        // from hijacking navigation when the app is opened via share intent.
         responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
+            const tappedAt = response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
+                ? Date.now() : 0;
+            const notifDate = response.notification.date
+                ? new Date(response.notification.date).getTime() : 0;
+            const isRecent = (Date.now() - notifDate) < 5000;
+
+            // Skip navigation for stale notifications (e.g. app opened via share sheet)
+            if (!isRecent && AppState.currentState === 'active') return;
 
             setTimeout(() => {
                 import('expo-router').then(({ router }) => {
@@ -51,11 +61,12 @@ export function usePushNotifications() {
                         router.push(`/collection/${data.collectionId}`);
                     } else if (data?.type === 'friend_request' || data?.type === 'friend_accepted') {
                         router.push('/(tabs)/social');
-                    } else {
+                    } else if (isRecent) {
+                        // Only navigate to notifications tab for actually tapped notifications
                         router.push('/(tabs)/notifications');
                     }
                 });
-            }, 100);
+            }, 300);
         });
 
         return () => {

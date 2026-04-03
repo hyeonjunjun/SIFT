@@ -120,6 +120,16 @@ export default function HomeScreen() {
         return () => sub.remove();
     }, []);
 
+    // Share Intent — receive URL from _layout.tsx and auto-sift
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('shareIntentUrl', (url: string) => {
+            if (url && typeof url === 'string') {
+                addToQueue(url);
+            }
+        });
+        return () => sub.remove();
+    }, [addToQueue]);
+
     // Clipboard Auto-Detect Banner
     const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
     const dismissedClipboardUrls = useRef<Set<string>>(new Set());
