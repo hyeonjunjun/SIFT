@@ -227,8 +227,7 @@ RCT_EXTERN_METHOD(clearUserId)
     let userId = defaults?.string(forKey: "sift_user_id") ?? ""
 
     guard !userId.isEmpty else {
-      NSLog("[ShareExt] No user_id in app group, falling back to app redirect")
-      self.redirectToHostApp(type: .weburl)
+      NSLog("[ShareExt] No user_id in app group, skipping API call")
       return
     }
 
@@ -267,25 +266,29 @@ RCT_EXTERN_METHOD(clearUserId)
                         'super.viewDidLoad()\n    view.backgroundColor = .clear\n  }'
                     );
 
-                    // Replace all redirectToHostApp(type: .weburl) with native popup + API call
+                    // Replace all redirectToHostApp(type: .weburl) with native popup
                     content = content.replace(
                         /self\.redirectToHostApp\(type: \.weburl\)/g,
-                        `// Native popup + background API call
+                        `// Always show native popup — never open the app
             let urlToSift = self.sharedWebUrl.last?.url ?? ""
-            let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
-            let hasUserId = !(defaults?.string(forKey: "sift_user_id") ?? "").isEmpty
+            self.showSavingHUD()
 
-            if hasUserId {
-              self.showSavingHUD()
+            // Try background API call if we have user_id
+            let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+            let userId = defaults?.string(forKey: "sift_user_id") ?? ""
+            if !userId.isEmpty {
               self.siftInBackground(urlToSift)
-              DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.showSuccessHUD {
-                  self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-                }
+            }
+            // Also save URL for the app to pick up on next open (backup)
+            var pending = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
+            pending.append(urlToSift)
+            defaults?.set(pending, forKey: "pendingSiftUrls")
+            defaults?.synchronize()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+              self.showSuccessHUD {
+                self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
               }
-            } else {
-              // No user_id yet — fall back to opening the app
-              self.redirectToHostApp(type: .media) // use .media to avoid infinite loop
             }`
                     );
 
