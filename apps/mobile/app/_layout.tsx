@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Theme, COLORS, LIGHT_COLORS, DARK_COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
-import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme, DeviceEventEmitter } from "react-native";
+import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme, DeviceEventEmitter, NativeModules, Platform } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
@@ -267,6 +267,19 @@ function RootLayoutNav() {
     }, [session, authLoading, segments, splashDismissed]);
 
     // Share Intent Logic — flag to prevent notification listener from hijacking
+    // Sync user_id to iOS app group for native Share Extension
+    useEffect(() => {
+        if (Platform.OS !== 'ios') return;
+        try {
+            const { SiftAppGroup } = NativeModules;
+            if (SiftAppGroup && session?.user?.id) {
+                SiftAppGroup.setUserId(session.user.id);
+            } else if (SiftAppGroup && !session?.user) {
+                SiftAppGroup.clearUserId();
+            }
+        } catch {}
+    }, [session?.user?.id]);
+
     // Share Intent Logic — route to share confirmation screen
     useEffect(() => {
         if (hasShareIntent && shareIntent.type === "weburl" && shareIntent.webUrl) {
