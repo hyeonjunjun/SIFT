@@ -4,12 +4,9 @@ import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
-    withSpring,
     withDelay,
-    withSequence,
     Easing,
     runOnJS,
-    interpolate,
 } from 'react-native-reanimated';
 import { useTheme } from '../context/ThemeContext';
 import { Typography } from './design-system/Typography';
@@ -18,107 +15,51 @@ interface SplashScreenProps {
     onFinish?: () => void;
 }
 
-// Animated sugar particle
-function SugarParticle({ delay, x, size, duration }: { delay: number; x: number; size: number; duration: number }) {
-    const { colors, isDark } = useTheme();
-    const progress = useSharedValue(0);
-    const opacity = useSharedValue(0);
-
-    useEffect(() => {
-        opacity.value = withDelay(delay, withSequence(
-            withTiming(0.8, { duration: duration * 0.3 }),
-            withTiming(0.3, { duration: duration * 0.4 }),
-            withTiming(0, { duration: duration * 0.3 }),
-        ));
-        progress.value = withDelay(delay, withTiming(1, {
-            duration,
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        }));
-    }, []);
-
-    const style = useAnimatedStyle(() => ({
-        position: 'absolute' as const,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(180,150,120,0.4)',
-        left: x,
-        top: interpolate(progress.value, [0, 1], [-5, 55]),
-        opacity: opacity.value,
-    }));
-
-    return <Animated.View style={style} />;
-}
+const EASE = Easing.bezier(0.4, 0, 0.2, 1);
 
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
     const { colors, isDark } = useTheme();
 
-    // Animation values
-    const sifterY = useSharedValue(-80);
-    const sifterOpacity = useSharedValue(0);
+    const iconOpacity = useSharedValue(0);
+    const iconScale = useSharedValue(0.92);
     const textOpacity = useSharedValue(0);
-    const textY = useSharedValue(10);
+    const textY = useSharedValue(8);
     const containerOpacity = useSharedValue(1);
-    const wholeScale = useSharedValue(1);
 
     useEffect(() => {
-        // 1. Sifter drops in from top with spring bounce (0ms)
-        sifterOpacity.value = withTiming(1, { duration: 400 });
-        sifterY.value = withSpring(0, {
-            damping: 12,
-            stiffness: 100,
-            mass: 0.8,
-        });
+        // 1. Icon gently fades in and scales up (0ms)
+        iconOpacity.value = withTiming(1, { duration: 600, easing: EASE });
+        iconScale.value = withTiming(1, { duration: 700, easing: EASE });
 
-        // 2. "sift" text fades in (800ms delay)
-        textOpacity.value = withDelay(800, withTiming(1, {
-            duration: 500,
-            easing: Easing.out(Easing.ease),
-        }));
-        textY.value = withDelay(800, withTiming(0, {
-            duration: 500,
-            easing: Easing.out(Easing.ease),
-        }));
+        // 2. "sift" text fades in below (600ms delay)
+        textOpacity.value = withDelay(600, withTiming(1, { duration: 500, easing: EASE }));
+        textY.value = withDelay(600, withTiming(0, { duration: 500, easing: EASE }));
 
-        // 3. Exit: scale up + fade out (1800ms)
+        // 3. Hold, then fade out (1600ms)
         const exitTimeout = setTimeout(() => {
-            wholeScale.value = withTiming(1.1, {
-                duration: 400,
-                easing: Easing.bezier(0.4, 0, 0.2, 1),
-            });
             containerOpacity.value = withTiming(0, {
-                duration: 400,
-                easing: Easing.bezier(0.4, 0, 0.2, 1),
+                duration: 350,
+                easing: EASE,
             }, (finished) => {
                 if (onFinish) runOnJS(onFinish)();
             });
-        }, 1800);
+        }, 1600);
 
         return () => clearTimeout(exitTimeout);
     }, []);
 
     const containerStyle = useAnimatedStyle(() => ({
         opacity: containerOpacity.value,
-        transform: [{ scale: wholeScale.value }],
     }));
 
-    const sifterStyle = useAnimatedStyle(() => ({
-        opacity: sifterOpacity.value,
-        transform: [{ translateY: sifterY.value }],
+    const iconStyle = useAnimatedStyle(() => ({
+        opacity: iconOpacity.value,
+        transform: [{ scale: iconScale.value }],
     }));
 
     const textStyle = useAnimatedStyle(() => ({
         opacity: textOpacity.value,
         transform: [{ translateY: textY.value }],
-    }));
-
-    // Generate sugar particles
-    const particles = Array.from({ length: 8 }, (_, i) => ({
-        id: i,
-        delay: 500 + i * 80,
-        x: 30 + Math.random() * 60,
-        size: 2 + Math.random() * 3,
-        duration: 600 + Math.random() * 400,
     }));
 
     return (
@@ -136,27 +77,14 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
             {/* Centered content */}
             <View style={styles.center}>
-                <View style={styles.iconContainer}>
-                    {/* Sifter (top half of icon) */}
-                    <Animated.View style={sifterStyle}>
-                        <View style={styles.sifterArea}>
-                            <Image
-                                source={require('../assets/sift-icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
-                            />
-                        </View>
-                    </Animated.View>
+                <Animated.View style={iconStyle}>
+                    <Image
+                        source={require('../assets/sift-icon.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                </Animated.View>
 
-                    {/* Sugar particles falling between sifter and croissant */}
-                    <View style={styles.particleContainer}>
-                        {particles.map(p => (
-                            <SugarParticle key={p.id} delay={p.delay} x={p.x} size={p.size} duration={p.duration} />
-                        ))}
-                    </View>
-                </View>
-
-                {/* Brand text */}
                 <Animated.View style={[styles.textContainer, textStyle]}>
                     <Typography variant="h1" style={[styles.brandText, { color: colors.ink }]}>
                         sift
@@ -173,30 +101,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    iconContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    sifterArea: {
-        alignItems: 'center',
-    },
     logo: {
-        width: 140,
-        height: 140,
-    },
-    particleContainer: {
-        position: 'absolute',
-        bottom: -10,
         width: 120,
-        height: 60,
-        overflow: 'hidden',
+        height: 120,
     },
     textContainer: {
-        marginTop: 20,
+        marginTop: 16,
     },
     brandText: {
-        fontSize: 36,
-        letterSpacing: 4,
+        fontSize: 32,
+        letterSpacing: 3,
         textTransform: 'lowercase',
     },
 });
