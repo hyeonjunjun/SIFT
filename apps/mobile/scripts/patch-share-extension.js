@@ -258,7 +258,17 @@ content = content.replace(
     `// Native branded popup — never open the app
             let urlToSift = self.sharedWebUrl.last?.url ?? ""
             self.showSavingHUD()
+
+            // Save URL as backup for main app to process
+            let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+            var pending = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
+            pending.append(urlToSift)
+            defaults?.set(pending, forKey: "pendingSiftUrls")
+            defaults?.synchronize()
+
+            // Also try direct API call if we have user_id
             self.siftInBackground(urlToSift)
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
               self.showSuccessHUD {
                 self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)

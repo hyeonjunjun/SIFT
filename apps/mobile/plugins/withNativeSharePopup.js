@@ -42,6 +42,18 @@ class SiftAppGroup: NSObject {
         defaults?.synchronize()
     }
 
+    @objc func getPendingUrls(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        let defaults = UserDefaults(suiteName: SiftAppGroup.suiteName)
+        let urls = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
+        resolve(urls)
+    }
+
+    @objc func clearPendingUrls() {
+        let defaults = UserDefaults(suiteName: SiftAppGroup.suiteName)
+        defaults?.removeObject(forKey: "pendingSiftUrls")
+        defaults?.synchronize()
+    }
+
     @objc static func requiresMainQueueSetup() -> Bool {
         return false
     }
@@ -55,6 +67,8 @@ class SiftAppGroup: NSObject {
 @interface RCT_EXTERN_MODULE(SiftAppGroup, NSObject)
 RCT_EXTERN_METHOD(setUserId:(NSString *)userId)
 RCT_EXTERN_METHOD(clearUserId)
+RCT_EXTERN_METHOD(getPendingUrls:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(clearPendingUrls)
 @end
 `, 'utf-8');
 

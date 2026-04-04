@@ -277,7 +277,7 @@ function RootLayoutNav() {
         } catch {}
     }, [session?.user?.id]);
 
-    // Share Intent Logic — route to share confirmation screen
+    // Share Intent Logic — route to share confirmation screen (fallback for when native popup isn't available)
     useEffect(() => {
         if (hasShareIntent && shareIntent.type === "weburl" && shareIntent.webUrl) {
             const url = shareIntent.webUrl;
@@ -285,6 +285,28 @@ function RootLayoutNav() {
             router.replace(`/share?url=${encodeURIComponent(url.trim())}`);
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
+
+    // Process pending URLs from native share extension on app open
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        const processPending = async () => {
+            try {
+                const { SiftAppGroup } = NativeModules;
+                if (!SiftAppGroup?.getPendingUrls) return;
+                const urls: string[] = await SiftAppGroup.getPendingUrls();
+                if (urls && urls.length > 0) {
+                    SiftAppGroup.clearPendingUrls();
+                    // Process each URL
+                    for (const url of urls) {
+                        if (url && url.startsWith('http')) {
+                            DeviceEventEmitter.emit('shareIntentUrl', url);
+                        }
+                    }
+                }
+            } catch {}
+        };
+        processPending();
+    }, [session?.user?.id]);
 
     // CRITICAL: Block rendering of potentially themed components until fonts are loaded
     // to prevent "font family not found" crashes on launch.
