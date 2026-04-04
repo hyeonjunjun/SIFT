@@ -103,7 +103,6 @@
       ],
       "expo-apple-authentication",
       "./plugins/withShareExtensionExclusions.js",
-      "./plugins/withShareExtensionPopup.js",
       "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",
