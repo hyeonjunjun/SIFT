@@ -106,7 +106,7 @@ RCT_EXTERN_METHOD(clearUserId)
     card.layer.shadowRadius = 30
     card.layer.shadowOffset = CGSize(width: 0, height: 10)
     card.translatesAutoresizingMaskIntoConstraints = false
-    card.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+    card.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
     card.alpha = 0
     backdrop.addSubview(card)
 
@@ -150,7 +150,6 @@ RCT_EXTERN_METHOD(clearUserId)
     check.tintColor = UIColor(red: 34/255, green: 197/255, blue: 94/255, alpha: 1)
     check.contentMode = .scaleAspectFit
     check.alpha = 0
-    check.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
     check.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(check)
 
@@ -180,11 +179,11 @@ RCT_EXTERN_METHOD(clearUserId)
     self.hudSpinner = spinner
     self.hudCheckmark = check
 
-    // Animate entrance
-    UIView.animate(withDuration: 0.25) {
+    // Animate entrance — gentle ease in out
+    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
       backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.35)
     }
-    UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5, options: []) {
+    UIView.animate(withDuration: 0.35, delay: 0.05, options: [.curveEaseInOut]) {
       card.transform = .identity
       card.alpha = 1
     }
@@ -200,24 +199,23 @@ RCT_EXTERN_METHOD(clearUserId)
     let generator = UINotificationFeedbackGenerator()
     generator.notificationOccurred(.success)
 
-    // Transition: spinner out, checkmark in
-    UIView.animate(withDuration: 0.2) {
+    // Transition: spinner out, checkmark in — gentle ease
+    UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseInOut]) {
       spinner.alpha = 0
     }
-    UIView.animate(withDuration: 0.4, delay: 0.1, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.8, options: []) {
+    UIView.animate(withDuration: 0.35, delay: 0.15, options: [.curveEaseInOut]) {
       check.alpha = 1
-      check.transform = .identity
     }
-    UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseOut]) {
+    UIView.animate(withDuration: 0.3, delay: 0.15, options: [.curveEaseInOut]) {
       label.text = "Recipe saved!"
       sub.alpha = 1
     }
 
     // Fade out everything after delay
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-      UIView.animate(withDuration: 0.3, animations: {
+      UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut], animations: {
         self.hudBackdrop?.alpha = 0
-        self.hudCard?.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        self.hudCard?.alpha = 0
       }) { _ in
         completion()
       }
@@ -416,8 +414,8 @@ public class ShareReceiverActivity extends Activity {
         card.setLayoutParams(cardLp);
 
         // Start scaled down for entrance animation
-        card.setScaleX(0.8f);
-        card.setScaleY(0.8f);
+        card.setScaleX(0.95f);
+        card.setScaleY(0.95f);
         card.setAlpha(0f);
         root.addView(card);
 
@@ -448,8 +446,8 @@ public class ShareReceiverActivity extends Activity {
         checkIcon.setTextSize(28);
         checkIcon.setGravity(Gravity.CENTER);
         checkIcon.setAlpha(0f);
-        checkIcon.setScaleX(0.5f);
-        checkIcon.setScaleY(0.5f);
+        checkIcon.setScaleX(1f);
+        checkIcon.setScaleY(1f);
         LinearLayout.LayoutParams checkLp = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         checkLp.bottomMargin = dp(8);
@@ -480,7 +478,7 @@ public class ShareReceiverActivity extends Activity {
 
         // Animate card entrance (spring-like)
         card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(400)
-            .setInterpolator(new android.view.animation.OvershootInterpolator(0.8f)).start();
+            .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).start();
 
         // Process in background
         if (!userId.isEmpty()) {
@@ -491,8 +489,8 @@ public class ShareReceiverActivity extends Activity {
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             // Hide spinner, show checkmark
             spinner.animate().alpha(0f).setDuration(150).start();
-            checkIcon.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(350)
-                .setInterpolator(new android.view.animation.OvershootInterpolator(1.2f)).start();
+            checkIcon.animate().alpha(1f).setDuration(350)
+                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).start();
             label.setText("Recipe saved!");
             subLabel.animate().alpha(1f).setDuration(300).start();
 
