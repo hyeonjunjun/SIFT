@@ -19,7 +19,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import * as NavigationBar from 'expo-navigation-bar';
-import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
 import { NetworkBanner } from '../components/NetworkBanner';
 import { usePushNotifications } from '../hooks/usePushNotifications';
