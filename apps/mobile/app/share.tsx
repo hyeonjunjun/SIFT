@@ -156,7 +156,7 @@ export default function ShareScreen() {
                 {/* App Icon */}
                 <Animated.View style={iconStyle}>
                     <Image
-                        source={require('../assets/sift-icon.png')}
+                        source={require('../assets/sift-icon-transparent.png')}
                         style={styles.appIcon}
                         resizeMode="contain"
                     />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ImageBackground, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ImageBackground, Platform, Image } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -54,6 +54,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: Math.max(40, insets.bottom + 24) }]}>
                 {/* Logo */}
                 <Animated.View entering={FadeIn.delay(200).duration(600)} style={styles.logoArea}>
+                    <Image
+                        source={require('../assets/sift-icon-transparent.png')}
+                        style={{ width: 80, height: 80 }}
+                        resizeMode="contain"
+                    />
                     <Typography variant="h1" style={styles.logo}>sift</Typography>
                 </Animated.View>
 

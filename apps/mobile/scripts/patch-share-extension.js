@@ -62,16 +62,16 @@ const nativeMethods = `
 
     // App icon (croissant)
     let icon = UIImageView()
-    if let bundle = Bundle.main.url(forResource: "sift-icon", withExtension: "png"),
-       let data = try? Data(contentsOf: bundle) {
-      icon.image = UIImage(data: data)
-    } else {
-      // Fallback: try loading from the share extension bundle
-      icon.image = UIImage(named: "sift-icon")
+    // Load from share extension bundle
+    let extBundle = Bundle(for: type(of: self))
+    if let imgPath = extBundle.path(forResource: "sift-icon-transparent", ofType: "png"),
+       let img = UIImage(contentsOfFile: imgPath) {
+      icon.image = img
+    } else if let img = UIImage(named: "sift-icon-transparent") {
+      icon.image = img
     }
     icon.contentMode = .scaleAspectFit
-    icon.layer.cornerRadius = 16
-    icon.clipsToBounds = true
+    // No corner radius needed — image has transparent background
     icon.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(icon)
 
@@ -265,6 +265,15 @@ content = content.replace(
 );
 
 fs.writeFileSync(SHARE_EXT_PATH, content, 'utf-8');
+
+// Copy icon to share extension bundle so it's accessible
+const iconSrc = path.join(__dirname, '..', 'assets', 'sift-icon-transparent.png');
+const shareExtDir = path.join(__dirname, '..', 'ios', 'ShareExtension');
+const iconDst = path.join(shareExtDir, 'sift-icon-transparent.png');
+if (fs.existsSync(iconSrc) && !fs.existsSync(iconDst)) {
+    fs.copyFileSync(iconSrc, iconDst);
+    console.log('[patch-share-ext] Copied icon to ShareExtension bundle');
+}
 
 const remaining = (content.match(/redirectToHostApp.*weburl/g) || []).length;
 console.log(`[patch-share-ext] Done! showSavingHUD: ${content.includes('showSavingHUD')}, redirects remaining: ${remaining}`);
