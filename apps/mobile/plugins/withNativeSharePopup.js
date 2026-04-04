@@ -1,17 +1,18 @@
 /**
  * Expo config plugin that:
- * 1. Adds a native module (SiftAppGroup) for writing user_id to shared storage
- * 2. Patches ShareViewController.swift to show native popup + call API directly
- * 3. Creates Android ShareActivity for native popup handling
+ * 1. Creates SiftAppGroup native module (iOS Swift + ObjC bridge) for writing user_id to app group
+ * 2. Adds the native module files to the Xcode project
+ * 3. Creates Android ShareReceiverActivity + SiftAppGroupModule
+ * 4. ShareViewController patching is done by scripts/patch-share-extension.js (eas-build-post-install)
  */
 const { withDangerousMod, IOSConfig, withAndroidManifest, withXcodeProject } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
 // ============================================================
-// iOS: Native module for app group UserDefaults + Share Extension popup
+// iOS: Create native module files for app group UserDefaults
 // ============================================================
-const withIOSNativeShare = (config) => {
+const withIOSNativeModule = (config) => {
     return withDangerousMod(config, [
         'ios',
         (config) => {
@@ -19,9 +20,8 @@ const withIOSNativeShare = (config) => {
             const projectName = IOSConfig.XcodeUtils.sanitizedName(config.name || 'Sift');
             const mainAppDir = path.join(projectRoot, 'ios', projectName);
 
-            // 1. Create SiftAppGroup.swift — native module to write to app group
-            const swiftPath = path.join(mainAppDir, 'SiftAppGroup.swift');
-            fs.writeFileSync(swiftPath, `
+            // SiftAppGroup.swift
+            fs.writeFileSync(path.join(mainAppDir, 'SiftAppGroup.swift'), `
 import Foundation
 import React
 
@@ -48,9 +48,8 @@ class SiftAppGroup: NSObject {
 }
 `, 'utf-8');
 
-            // 2. Create ObjC bridge
-            const bridgePath = path.join(mainAppDir, 'SiftAppGroupBridge.m');
-            fs.writeFileSync(bridgePath, `
+            // ObjC bridge
+            fs.writeFileSync(path.join(mainAppDir, 'SiftAppGroupBridge.m'), `
 #import <React/RCTBridgeModule.h>
 
 @interface RCT_EXTERN_MODULE(SiftAppGroup, NSObject)
@@ -59,260 +58,44 @@ RCT_EXTERN_METHOD(clearUserId)
 @end
 `, 'utf-8');
 
-            // 3. Ensure bridging header exists
-            const bridgingHeaderPath = path.join(mainAppDir, `${projectName}-Bridging-Header.h`);
-            if (!fs.existsSync(bridgingHeaderPath)) {
-                // Check for alternative names
-                const altPath = path.join(mainAppDir, 'Bridging-Header.h');
-                if (!fs.existsSync(altPath)) {
-                    // The bridging header should already exist from React Native setup
-                    console.log('[withNativeSharePopup] Bridging header not found, Swift files may not compile');
-                }
-            }
-
-            // Note: ShareViewController patching moved to withXcodeProject hook (runs later)
-
+            console.log('[withNativeSharePopup] Created SiftAppGroup native module files');
             return config;
         },
     ]);
 };
 
-// Patch ShareViewController.swift AFTER expo-share-intent writes it
-const withIOSSharePatch = (config) => {
+// Add native module files to Xcode project compile sources
+const withIOSXcodeFiles = (config) => {
     return withXcodeProject(config, (config) => {
-        const projectRoot = config.modRequest.projectRoot;
-        const shareExtPath = path.join(projectRoot, 'ios', 'ShareExtension', 'ShareViewController.swift');
-            if (fs.existsSync(shareExtPath)) {
-                let content = fs.readFileSync(shareExtPath, 'utf-8');
+        const project = config.modResults;
+        const projectName = IOSConfig.XcodeUtils.sanitizedName(config.name || 'Sift');
 
-                // Only patch if not already patched
-                if (!content.includes('showSavingHUD')) {
-                    // Inject HUD methods + API call method before viewDidLoad
-                    const nativeMethods = `
-  // MARK: - Native Share Popup + Background API Call
+        try {
+            // Find the main group name from the project
+            const mainGroup = project.getFirstProject().firstProject.mainGroup;
+            const groupKey = project.findPBXGroupKey({ name: projectName }) ||
+                             project.findPBXGroupKey({ path: projectName });
 
-  private var hudBackdrop: UIView?
-  private var hudCard: UIView?
-  private var hudLabel: UILabel?
-  private var hudSubLabel: UILabel?
-  private var hudSpinner: UIActivityIndicatorView?
-  private var hudCheckmark: UIImageView?
-
-  private func showSavingHUD() {
-    // Backdrop with fade-in
-    let backdrop = UIView(frame: view.bounds)
-    backdrop.backgroundColor = .clear
-    backdrop.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    view.addSubview(backdrop)
-
-    // Card with spring entrance
-    let card = UIView()
-    let cream = UIColor(red: 253/255, green: 252/255, blue: 248/255, alpha: 1)
-    let darkBg = UIColor(red: 0.12, green: 0.11, blue: 0.10, alpha: 1)
-    card.backgroundColor = UIColor { $0.userInterfaceStyle == .dark ? darkBg : cream }
-    card.layer.cornerRadius = 24
-    card.layer.shadowColor = UIColor.black.cgColor
-    card.layer.shadowOpacity = 0.2
-    card.layer.shadowRadius = 30
-    card.layer.shadowOffset = CGSize(width: 0, height: 10)
-    card.translatesAutoresizingMaskIntoConstraints = false
-    card.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-    card.alpha = 0
-    backdrop.addSubview(card)
-
-    // Brand label "sift"
-    let brand = UILabel()
-    brand.text = "sift"
-    brand.font = UIFont.systemFont(ofSize: 12, weight: .bold)
-    brand.textColor = UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.5, alpha: 1) : UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1) }
-    brand.textAlignment = .center
-    brand.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(brand)
-
-    // Spinner
-    let spinner = UIActivityIndicatorView(style: .medium)
-    spinner.startAnimating()
-    spinner.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(spinner)
-
-    // Main label
-    let inkColor = UIColor { $0.userInterfaceStyle == .dark ? .white : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1) }
-    let label = UILabel()
-    label.text = "Saving recipe..."
-    label.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
-    label.textColor = inkColor
-    label.textAlignment = .center
-    label.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(label)
-
-    // Subtitle
-    let sub = UILabel()
-    sub.text = "It'll be ready in Sift"
-    sub.font = UIFont.systemFont(ofSize: 13, weight: .regular)
-    sub.textColor = UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.5, alpha: 1) : UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1) }
-    sub.textAlignment = .center
-    sub.alpha = 0
-    sub.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(sub)
-
-    // Checkmark (hidden initially)
-    let check = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
-    check.tintColor = UIColor(red: 34/255, green: 197/255, blue: 94/255, alpha: 1)
-    check.contentMode = .scaleAspectFit
-    check.alpha = 0
-    check.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(check)
-
-    NSLayoutConstraint.activate([
-      card.centerXAnchor.constraint(equalTo: backdrop.centerXAnchor),
-      card.centerYAnchor.constraint(equalTo: backdrop.centerYAnchor),
-      card.widthAnchor.constraint(equalToConstant: 260),
-      card.heightAnchor.constraint(equalToConstant: 160),
-      brand.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      brand.topAnchor.constraint(equalTo: card.topAnchor, constant: 18),
-      spinner.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      spinner.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 16),
-      check.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      check.centerYAnchor.constraint(equalTo: spinner.centerYAnchor),
-      check.widthAnchor.constraint(equalToConstant: 32),
-      check.heightAnchor.constraint(equalToConstant: 32),
-      label.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      label.topAnchor.constraint(equalTo: spinner.bottomAnchor, constant: 12),
-      sub.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      sub.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 4),
-    ])
-
-    self.hudBackdrop = backdrop
-    self.hudCard = card
-    self.hudLabel = label
-    self.hudSubLabel = sub
-    self.hudSpinner = spinner
-    self.hudCheckmark = check
-
-    // Animate entrance — gentle ease in out
-    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
-      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.35)
-    }
-    UIView.animate(withDuration: 0.35, delay: 0.05, options: [.curveEaseInOut]) {
-      card.transform = .identity
-      card.alpha = 1
-    }
-  }
-
-  private func showSuccessHUD(completion: @escaping () -> Void) {
-    guard let label = hudLabel, let sub = hudSubLabel, let check = hudCheckmark, let spinner = hudSpinner else {
-      completion()
-      return
-    }
-
-    // Haptic feedback
-    let generator = UINotificationFeedbackGenerator()
-    generator.notificationOccurred(.success)
-
-    // Transition: spinner out, checkmark in — gentle ease
-    UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseInOut]) {
-      spinner.alpha = 0
-    }
-    UIView.animate(withDuration: 0.35, delay: 0.15, options: [.curveEaseInOut]) {
-      check.alpha = 1
-    }
-    UIView.animate(withDuration: 0.3, delay: 0.15, options: [.curveEaseInOut]) {
-      label.text = "Recipe saved!"
-      sub.alpha = 1
-    }
-
-    // Fade out everything after delay
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-      UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut], animations: {
-        self.hudBackdrop?.alpha = 0
-        self.hudCard?.alpha = 0
-      }) { _ in
-        completion()
-      }
-    }
-  }
-
-  private func siftInBackground(_ url: String) {
-    let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
-    let userId = defaults?.string(forKey: "sift_user_id") ?? ""
-
-    guard !userId.isEmpty else {
-      NSLog("[ShareExt] No user_id in app group, skipping API call")
-      return
-    }
-
-    guard let apiUrl = URL(string: "https://sift-rho.vercel.app/api/sift") else { return }
-
-    var request = URLRequest(url: apiUrl)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.timeoutInterval = 60
-
-    let body: [String: Any] = [
-      "url": url,
-      "user_id": userId,
-      "platform": "share_extension"
-    ]
-    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-    URLSession.shared.dataTask(with: request) { data, response, error in
-      if let error = error {
-        NSLog("[ShareExt] Sift failed: \\(error.localizedDescription)")
-      } else {
-        NSLog("[ShareExt] Sift succeeded for \\(url.prefix(50))")
-      }
-    }.resume()
-  }
-
-`;
-                    content = content.replace(
-                        'override func viewDidLoad()',
-                        nativeMethods + '  override func viewDidLoad()'
-                    );
-
-                    // Make view background clear
-                    content = content.replace(
-                        /super\.viewDidLoad\(\)\n\s*\}/,
-                        'super.viewDidLoad()\n    view.backgroundColor = .clear\n  }'
-                    );
-
-                    // Replace all redirectToHostApp(type: .weburl) with native popup
-                    content = content.replace(
-                        /self\.redirectToHostApp\(type: \.weburl\)/g,
-                        `// Always show native popup — never open the app
-            let urlToSift = self.sharedWebUrl.last?.url ?? ""
-            self.showSavingHUD()
-
-            // Try background API call if we have user_id
-            let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
-            let userId = defaults?.string(forKey: "sift_user_id") ?? ""
-            if !userId.isEmpty {
-              self.siftInBackground(urlToSift)
+            if (groupKey) {
+                project.addSourceFile(`SiftAppGroup.swift`, { target: project.getFirstTarget().uuid }, groupKey);
+                project.addSourceFile(`SiftAppGroupBridge.m`, { target: project.getFirstTarget().uuid }, groupKey);
+                console.log('[withNativeSharePopup] Added SiftAppGroup to Xcode compile sources');
+            } else {
+                // Fallback: add without group
+                project.addSourceFile(`${projectName}/SiftAppGroup.swift`, {});
+                project.addSourceFile(`${projectName}/SiftAppGroupBridge.m`, {});
+                console.log('[withNativeSharePopup] Added SiftAppGroup to Xcode (no group)');
             }
-            // Also save URL for the app to pick up on next open (backup)
-            var pending = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
-            pending.append(urlToSift)
-            defaults?.set(pending, forKey: "pendingSiftUrls")
-            defaults?.synchronize()
+        } catch (e) {
+            console.log('[withNativeSharePopup] Xcode source files:', e.message);
+        }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-              self.showSuccessHUD {
-                self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-              }
-            }`
-                    );
-
-                    fs.writeFileSync(shareExtPath, content, 'utf-8');
-                    console.log('[withNativeSharePopup] Patched ShareViewController.swift');
-                }
-            }
-
-            return config;
+        return config;
     });
 };
 
 // ============================================================
-// Android: Native ShareReceiverActivity with popup + background API call
+// Android: ShareReceiverActivity + SiftAppGroupModule
 // ============================================================
 const withAndroidNativeShare = (config) => {
     return withDangerousMod(config, [
@@ -322,16 +105,17 @@ const withAndroidNativeShare = (config) => {
             const pkg = config.android?.package || 'com.hkjstudio.sift';
             const pkgPath = pkg.replace(/\./g, '/');
             const javaDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'java', ...pkgPath.split('/'));
+            fs.mkdirSync(javaDir, { recursive: true });
 
-            // Create ShareReceiverActivity.java
-            const activityCode = `package ${pkg};
+            // ShareReceiverActivity.java
+            fs.writeFileSync(path.join(javaDir, 'ShareReceiverActivity.java'), `package ${pkg};
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -341,174 +125,102 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.ImageView;
-
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class ShareReceiverActivity extends Activity {
-
     private LinearLayout card;
     private ProgressBar spinner;
     private TextView label;
-    private TextView subLabel;
     private TextView checkIcon;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Transparent window with dim
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         getWindow().setDimAmount(0.35f);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
 
         Intent intent = getIntent();
-        String action = intent.getAction();
-        String type = intent.getType();
-
-        if (Intent.ACTION_SEND.equals(action) && type != null) {
-            String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
-            if (sharedText != null) {
-                String url = extractUrl(sharedText);
-                if (url != null) {
-                    showPopupAndProcess(url);
-                    return;
-                }
+        if (Intent.ACTION_SEND.equals(intent.getAction()) && intent.getType() != null) {
+            String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+            if (text != null) {
+                String url = extractUrl(text);
+                if (url != null) { showPopupAndProcess(url); return; }
             }
         }
-
         finish();
     }
 
     private String extractUrl(String text) {
-        String[] parts = text.split("\\\\s+");
-        for (String part : parts) {
-            if (part.startsWith("http://") || part.startsWith("https://")) {
-                return part;
-            }
+        for (String part : text.split("\\\\s+")) {
+            if (part.startsWith("http://") || part.startsWith("https://")) return part;
         }
-        if (text.trim().startsWith("http://") || text.trim().startsWith("https://")) {
-            return text.trim();
-        }
+        String t = text.trim();
+        if (t.startsWith("http://") || t.startsWith("https://")) return t;
         return null;
     }
 
-    private int dp(int value) {
-        return (int) (value * getResources().getDisplayMetrics().density);
-    }
+    private int dp(int v) { return (int)(v * getResources().getDisplayMetrics().density); }
 
     private void showPopupAndProcess(String url) {
         SharedPreferences prefs = getSharedPreferences("sift_app_group", MODE_PRIVATE);
         String userId = prefs.getString("sift_user_id", "");
 
-        // Root layout (centers the card)
         LinearLayout root = new LinearLayout(this);
         root.setGravity(Gravity.CENTER);
-        root.setLayoutParams(new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        root.setLayoutParams(new LinearLayout.LayoutParams(-1, -1));
         setContentView(root);
 
-        // Card
         card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER);
         card.setPadding(dp(40), dp(28), dp(40), dp(28));
-        android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
-        cardBg.setColor(Color.parseColor("#FDFCF8"));
-        cardBg.setCornerRadius(dp(24));
-        card.setBackground(cardBg);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#FBF8F1"));
+        bg.setCornerRadius(dp(24));
+        card.setBackground(bg);
         card.setElevation(dp(12));
-        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(dp(260), LinearLayout.LayoutParams.WRAP_CONTENT);
-        card.setLayoutParams(cardLp);
+        card.setScaleX(0.95f); card.setScaleY(0.95f); card.setAlpha(0f);
+        root.addView(card, new LinearLayout.LayoutParams(dp(260), LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Start scaled down for entrance animation
-        card.setScaleX(0.95f);
-        card.setScaleY(0.95f);
-        card.setAlpha(0f);
-        root.addView(card);
-
-        // Brand text "sift"
         TextView brand = new TextView(this);
-        brand.setText("sift");
-        brand.setTextSize(11);
-        brand.setTextColor(Color.parseColor("#8B8178"));
-        brand.setGravity(Gravity.CENTER);
+        brand.setText("sift"); brand.setTextSize(11); brand.setTextColor(Color.parseColor("#8B8178"));
+        brand.setGravity(Gravity.CENTER); brand.setTypeface(null, android.graphics.Typeface.BOLD);
         brand.setLetterSpacing(0.15f);
-        brand.setTypeface(null, android.graphics.Typeface.BOLD);
-        LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        brandLp.bottomMargin = dp(16);
-        brand.setLayoutParams(brandLp);
-        card.addView(brand);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(-2, -2); blp.bottomMargin = dp(16);
+        card.addView(brand, blp);
 
-        // Spinner
         spinner = new ProgressBar(this);
-        LinearLayout.LayoutParams spinnerLp = new LinearLayout.LayoutParams(dp(32), dp(32));
-        spinnerLp.bottomMargin = dp(14);
-        spinner.setLayoutParams(spinnerLp);
-        card.addView(spinner);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(dp(32), dp(32)); slp.bottomMargin = dp(14);
+        card.addView(spinner, slp);
 
-        // Checkmark (hidden)
         checkIcon = new TextView(this);
-        checkIcon.setText("\\u2705");
-        checkIcon.setTextSize(28);
-        checkIcon.setGravity(Gravity.CENTER);
+        checkIcon.setText("\\u2705"); checkIcon.setTextSize(28); checkIcon.setGravity(Gravity.CENTER);
         checkIcon.setAlpha(0f);
-        checkIcon.setScaleX(1f);
-        checkIcon.setScaleY(1f);
-        LinearLayout.LayoutParams checkLp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        checkLp.bottomMargin = dp(8);
-        checkIcon.setLayoutParams(checkLp);
-        card.addView(checkIcon);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(-2, -2); clp.bottomMargin = dp(8);
+        card.addView(checkIcon, clp);
 
-        // Label
         label = new TextView(this);
-        label.setText("Saving recipe...");
-        label.setTextSize(16);
-        label.setTextColor(Color.parseColor("#3B3231"));
-        label.setGravity(Gravity.CENTER);
-        label.setTypeface(null, android.graphics.Typeface.BOLD);
+        label.setText("Saving recipe..."); label.setTextSize(16); label.setTextColor(Color.parseColor("#3B3231"));
+        label.setGravity(Gravity.CENTER); label.setTypeface(null, android.graphics.Typeface.BOLD);
         card.addView(label);
 
-        // Sub label
-        subLabel = new TextView(this);
-        subLabel.setText("It'll be ready in Sift");
-        subLabel.setTextSize(12);
-        subLabel.setTextColor(Color.parseColor("#8B8178"));
-        subLabel.setGravity(Gravity.CENTER);
-        subLabel.setAlpha(0f);
-        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        subLp.topMargin = dp(4);
-        subLabel.setLayoutParams(subLp);
-        card.addView(subLabel);
-
-        // Animate card entrance (spring-like)
-        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(400)
+        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(350)
             .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).start();
 
-        // Process in background
-        if (!userId.isEmpty()) {
-            siftInBackground(url, userId);
-        }
+        if (!userId.isEmpty()) siftInBackground(url, userId);
 
-        // Show success after delay
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            // Hide spinner, show checkmark
             spinner.animate().alpha(0f).setDuration(150).start();
-            checkIcon.animate().alpha(1f).setDuration(350)
+            checkIcon.animate().alpha(1f).setDuration(300)
                 .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).start();
             label.setText("Recipe saved!");
-            subLabel.animate().alpha(1f).setDuration(300).start();
-
-            // Fade out and dismiss
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                card.animate().scaleX(0.9f).scaleY(0.9f).alpha(0f).setDuration(250).start();
+                card.animate().alpha(0f).setDuration(250).start();
                 new Handler(Looper.getMainLooper()).postDelayed(() -> finish(), 300);
             }, 1300);
         }, 1000);
@@ -521,36 +233,21 @@ public class ShareReceiverActivity extends Activity {
                 HttpURLConnection conn = (HttpURLConnection) apiUrl.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.setConnectTimeout(60000);
-                conn.setReadTimeout(60000);
+                conn.setConnectTimeout(60000); conn.setReadTimeout(60000);
                 conn.setDoOutput(true);
-
                 String json = "{\\"url\\":\\"" + sharedUrl.replace("\\\\", "\\\\\\\\").replace("\\"", "\\\\\\"") + "\\","
-                    + "\\"user_id\\":\\"" + userId + "\\","
-                    + "\\"platform\\":\\"share_extension\\"}";
-
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(json.getBytes(StandardCharsets.UTF_8));
-                }
-
-                int code = conn.getResponseCode();
-                android.util.Log.d("SiftShare", "API response: " + code);
+                    + "\\"user_id\\":\\"" + userId + "\\",\\"platform\\":\\"share_extension\\"}";
+                try (OutputStream os = conn.getOutputStream()) { os.write(json.getBytes(StandardCharsets.UTF_8)); }
+                conn.getResponseCode();
                 conn.disconnect();
-            } catch (Exception e) {
-                android.util.Log.e("SiftShare", "Sift failed: " + e.getMessage());
-            }
+            } catch (Exception e) { android.util.Log.e("SiftShare", "Failed: " + e.getMessage()); }
         }).start();
     }
 }
-`;
+`, 'utf-8');
 
-            // Ensure the directory exists
-            fs.mkdirSync(javaDir, { recursive: true });
-            fs.writeFileSync(path.join(javaDir, 'ShareReceiverActivity.java'), activityCode, 'utf-8');
-
-            // Create SiftAppGroupModule.java — native module to write user_id to SharedPreferences
-            const moduleCode = `package ${pkg};
-
+            // SiftAppGroupModule.java
+            fs.writeFileSync(path.join(javaDir, 'SiftAppGroupModule.java'), `package ${pkg};
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -558,64 +255,40 @@ import android.content.SharedPreferences;
 import android.content.Context;
 
 public class SiftAppGroupModule extends ReactContextBaseJavaModule {
-    private static final String PREFS_NAME = "sift_app_group";
-
-    SiftAppGroupModule(ReactApplicationContext context) {
-        super(context);
+    SiftAppGroupModule(ReactApplicationContext context) { super(context); }
+    @Override public String getName() { return "SiftAppGroup"; }
+    @ReactMethod public void setUserId(String userId) {
+        getReactApplicationContext().getSharedPreferences("sift_app_group", Context.MODE_PRIVATE)
+            .edit().putString("sift_user_id", userId).apply();
     }
-
-    @Override
-    public String getName() {
-        return "SiftAppGroup";
-    }
-
-    @ReactMethod
-    public void setUserId(String userId) {
-        SharedPreferences prefs = getReactApplicationContext()
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        prefs.edit().putString("sift_user_id", userId).apply();
-    }
-
-    @ReactMethod
-    public void clearUserId() {
-        SharedPreferences prefs = getReactApplicationContext()
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        prefs.edit().remove("sift_user_id").apply();
+    @ReactMethod public void clearUserId() {
+        getReactApplicationContext().getSharedPreferences("sift_app_group", Context.MODE_PRIVATE)
+            .edit().remove("sift_user_id").apply();
     }
 }
-`;
+`, 'utf-8');
 
-            // Create SiftAppGroupPackage.java — package to register the module
-            const packageCode = `package ${pkg};
-
+            // SiftAppGroupPackage.java
+            fs.writeFileSync(path.join(javaDir, 'SiftAppGroupPackage.java'), `package ${pkg};
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.uimanager.ViewManager;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class SiftAppGroupPackage implements ReactPackage {
-    @Override
-    public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-        List<NativeModule> modules = new ArrayList<>();
-        modules.add(new SiftAppGroupModule(reactContext));
-        return modules;
+    @Override public List<NativeModule> createNativeModules(ReactApplicationContext ctx) {
+        List<NativeModule> m = new ArrayList<>(); m.add(new SiftAppGroupModule(ctx)); return m;
     }
-
-    @Override
-    public List<ViewManager> createViewManagers(ReactApplicationContext reactContext) {
+    @Override public List<ViewManager> createViewManagers(ReactApplicationContext ctx) {
         return Collections.emptyList();
     }
 }
-`;
+`, 'utf-8');
 
-            fs.writeFileSync(path.join(javaDir, 'SiftAppGroupModule.java'), moduleCode, 'utf-8');
-            fs.writeFileSync(path.join(javaDir, 'SiftAppGroupPackage.java'), packageCode, 'utf-8');
-            console.log('[withNativeSharePopup] Created Android native module + ShareReceiverActivity');
-
+            console.log('[withNativeSharePopup] Created Android native files');
             return config;
         },
     ]);
@@ -634,45 +307,30 @@ const withAndroidPackageRegistration = (config) => {
             if (fs.existsSync(mainAppPath)) {
                 let content = fs.readFileSync(mainAppPath, 'utf-8');
                 if (!content.includes('SiftAppGroupPackage')) {
-                    // Add import
                     content = content.replace(
                         'import com.facebook.react.ReactApplication',
                         `import com.facebook.react.ReactApplication\nimport ${pkg}.SiftAppGroupPackage`
                     );
-                    // Add to packages list
                     content = content.replace(
                         /override val packages: List<ReactPackage>\s*get\(\) =\s*PackageList\(this\)\.packages\.apply\s*\{/,
                         (match) => match + '\n              add(SiftAppGroupPackage())'
                     );
                     fs.writeFileSync(mainAppPath, content, 'utf-8');
-                    console.log('[withNativeSharePopup] Registered SiftAppGroupPackage in MainApplication');
-                }
-            } else {
-                // Try .java variant
-                const javaMainAppPath = mainAppPath.replace('.kt', '.java');
-                if (fs.existsSync(javaMainAppPath)) {
-                    console.log('[withNativeSharePopup] Found Java MainApplication, manual registration may be needed');
+                    console.log('[withNativeSharePopup] Registered SiftAppGroupPackage');
                 }
             }
-
             return config;
         },
     ]);
 };
 
-// Register the ShareReceiverActivity in AndroidManifest
+// Register ShareReceiverActivity in AndroidManifest
 const withAndroidShareManifest = (config) => {
     return withAndroidManifest(config, (config) => {
         const mainApp = config.modResults.manifest.application?.[0];
         if (!mainApp) return config;
-
-        // Check if already added
         const activities = mainApp.activity || [];
-        const exists = activities.some(a =>
-            a.$?.['android:name'] === '.ShareReceiverActivity'
-        );
-
-        if (!exists) {
+        if (!activities.some(a => a.$?.['android:name'] === '.ShareReceiverActivity')) {
             activities.push({
                 $: {
                     'android:name': '.ShareReceiverActivity',
@@ -689,17 +347,16 @@ const withAndroidShareManifest = (config) => {
             });
             mainApp.activity = activities;
         }
-
         return config;
     });
 };
 
 // ============================================================
-// Combine both platforms
+// Combined
 // ============================================================
 const withNativeSharePopup = (config) => {
-    config = withIOSNativeShare(config);
-    config = withIOSSharePatch(config);
+    config = withIOSNativeModule(config);
+    config = withIOSXcodeFiles(config);
     config = withAndroidNativeShare(config);
     config = withAndroidPackageRegistration(config);
     config = withAndroidShareManifest(config);
