@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/sift-icon.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FDFCF8"
+      "backgroundColor": "#FBF8F1"
     },
     "ios": {
       "supportsTablet": false,
@@ -44,7 +44,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/sift-icon.png",
-        "backgroundColor": "#FDFCF8"
+        "backgroundColor": "#FBF8F1"
       },
       "package": "com.hkjstudio.sift",
       "googleServicesFile": "./google-services.json",
