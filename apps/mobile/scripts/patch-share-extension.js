@@ -2,9 +2,6 @@
 /**
  * Post-prebuild script that patches ShareViewController.swift
  * to show a branded native popup instead of opening the main app.
- *
- * Run after `expo prebuild`: node scripts/patch-share-extension.js
- * Also configured as eas-build-post-install hook.
  */
 const fs = require('fs');
 const path = require('path');
@@ -27,42 +24,44 @@ const nativeMethods = `
   // MARK: - Branded Native Share Popup
   private var hudBackdrop: UIView?
   private var hudCard: UIView?
+  private var hudProgressFill: UIView?
+  private var hudProgressWidth: NSLayoutConstraint?
   private var hudLabel: UILabel?
   private var hudSubLabel: UILabel?
-  private var hudSpinner: UIActivityIndicatorView?
   private var hudCheckmark: UIImageView?
   private var hudIcon: UIImageView?
 
   private func showSavingHUD() {
-    // Backdrop
+    // --- Colors ---
+    let cream = UIColor(red: 251/255, green: 248/255, blue: 241/255, alpha: 1)
+    let darkBg = UIColor(red: 0.08, green: 0.07, blue: 0.06, alpha: 1)
+    let stone = UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1)
+    let ink = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(white: 0.95, alpha: 1) : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1) }
+    let accent = UIColor(red: 207/255, green: 149/255, blue: 123/255, alpha: 1)
+    let cardBg = UIColor { tc in tc.userInterfaceStyle == .dark ? darkBg : cream }
+    let trackBg = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(white: 0.18, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.05) }
+
+    // --- Backdrop ---
     let backdrop = UIView(frame: view.bounds)
     backdrop.backgroundColor = .clear
     backdrop.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     view.addSubview(backdrop)
 
-    // Colors
-    let cream = UIColor(red: 251/255, green: 248/255, blue: 241/255, alpha: 1)
-    let darkBg = UIColor(red: 0.12, green: 0.11, blue: 0.10, alpha: 1)
-    let stoneColor = UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1)
-    let inkColor = UIColor { tc in tc.userInterfaceStyle == .dark ? .white : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1) }
-    let accentColor = UIColor(red: 207/255, green: 149/255, blue: 123/255, alpha: 1)
-
-    // Card
+    // --- Card ---
     let card = UIView()
-    card.backgroundColor = UIColor { tc in tc.userInterfaceStyle == .dark ? darkBg : cream }
+    card.backgroundColor = cardBg
     card.layer.cornerRadius = 28
     card.layer.shadowColor = UIColor.black.cgColor
-    card.layer.shadowOpacity = 0.18
-    card.layer.shadowRadius = 40
-    card.layer.shadowOffset = CGSize(width: 0, height: 12)
+    card.layer.shadowOpacity = 0.22
+    card.layer.shadowRadius = 50
+    card.layer.shadowOffset = CGSize(width: 0, height: 16)
     card.translatesAutoresizingMaskIntoConstraints = false
-    card.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+    card.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
     card.alpha = 0
     backdrop.addSubview(card)
 
-    // App icon (croissant)
+    // --- Croissant Icon (large, centerpiece) ---
     let icon = UIImageView()
-    // Load from share extension bundle
     let extBundle = Bundle(for: type(of: self))
     if let imgPath = extBundle.path(forResource: "sift-icon-transparent", ofType: "png"),
        let img = UIImage(contentsOfFile: imgPath) {
@@ -71,154 +70,157 @@ const nativeMethods = `
       icon.image = img
     }
     icon.contentMode = .scaleAspectFit
-    // No corner radius needed — image has transparent background
     icon.translatesAutoresizingMaskIntoConstraints = false
+    // Soft glow behind the icon
+    icon.layer.shadowColor = accent.cgColor
+    icon.layer.shadowOpacity = 0.3
+    icon.layer.shadowRadius = 20
+    icon.layer.shadowOffset = CGSize(width: 0, height: 4)
     card.addSubview(icon)
 
-    // Spinner (accent colored)
-    let spinner = UIActivityIndicatorView(style: .medium)
-    spinner.color = accentColor
-    spinner.startAnimating()
-    spinner.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(spinner)
-
-    // Main label
+    // --- "Saving recipe..." label ---
     let label = UILabel()
     label.text = "Saving recipe..."
-    label.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-    label.textColor = inkColor
+    label.font = UIFont.systemFont(ofSize: 17, weight: .bold)
+    label.textColor = ink
     label.textAlignment = .center
     label.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(label)
 
-    // Subtitle
+    // --- Subtitle ---
     let sub = UILabel()
     sub.text = "It'll be ready in Sift"
-    sub.font = UIFont.systemFont(ofSize: 12, weight: .regular)
-    sub.textColor = stoneColor
+    sub.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+    sub.textColor = stone
     sub.textAlignment = .center
     sub.alpha = 0
     sub.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(sub)
 
-    // Checkmark (hidden)
-    let check = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
+    // --- Checkmark (hidden) ---
+    let check = UIImageView(image: UIImage(systemName: "checkmark.circle.fill")?.withConfiguration(UIImage.SymbolConfiguration(pointSize: 24, weight: .medium)))
     check.tintColor = UIColor(red: 34/255, green: 197/255, blue: 94/255, alpha: 1)
     check.contentMode = .scaleAspectFit
     check.alpha = 0
     check.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(check)
 
-    // Progress bar track
-    let progressTrack = UIView()
-    progressTrack.backgroundColor = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(white: 0.2, alpha: 1) : UIColor(white: 0, alpha: 0.06) }
-    progressTrack.layer.cornerRadius = 2
-    progressTrack.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(progressTrack)
+    // --- Progress Bar ---
+    let track = UIView()
+    track.backgroundColor = trackBg
+    track.layer.cornerRadius = 2.5
+    track.clipsToBounds = true
+    track.translatesAutoresizingMaskIntoConstraints = false
+    card.addSubview(track)
 
-    let progressFill = UIView()
-    progressFill.backgroundColor = accentColor
-    progressFill.layer.cornerRadius = 2
-    progressFill.translatesAutoresizingMaskIntoConstraints = false
-    progressTrack.addSubview(progressFill)
+    let fill = UIView()
+    fill.backgroundColor = accent
+    fill.layer.cornerRadius = 2.5
+    fill.translatesAutoresizingMaskIntoConstraints = false
+    track.addSubview(fill)
 
-    let fillWidth = progressFill.widthAnchor.constraint(equalToConstant: 0)
-    fillWidth.isActive = true
+    let fillWidth = fill.widthAnchor.constraint(equalToConstant: 0)
 
+    // --- Layout ---
     NSLayoutConstraint.activate([
       card.centerXAnchor.constraint(equalTo: backdrop.centerXAnchor),
       card.centerYAnchor.constraint(equalTo: backdrop.centerYAnchor),
       card.widthAnchor.constraint(equalToConstant: 280),
 
+      // Icon: large, top-center
       icon.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      icon.topAnchor.constraint(equalTo: card.topAnchor, constant: 24),
-      icon.widthAnchor.constraint(equalToConstant: 56),
-      icon.heightAnchor.constraint(equalToConstant: 56),
+      icon.topAnchor.constraint(equalTo: card.topAnchor, constant: 28),
+      icon.widthAnchor.constraint(equalToConstant: 72),
+      icon.heightAnchor.constraint(equalToConstant: 72),
 
+      // Label below icon
       label.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      label.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 14),
+      label.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 16),
 
-      spinner.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -8),
-      spinner.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+      // Checkmark inline with label
+      check.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -6),
+      check.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+      check.widthAnchor.constraint(equalToConstant: 22),
+      check.heightAnchor.constraint(equalToConstant: 22),
 
-      check.centerXAnchor.constraint(equalTo: spinner.centerXAnchor),
-      check.centerYAnchor.constraint(equalTo: spinner.centerYAnchor),
-      check.widthAnchor.constraint(equalToConstant: 20),
-      check.heightAnchor.constraint(equalToConstant: 20),
-
+      // Subtitle
       sub.centerXAnchor.constraint(equalTo: card.centerXAnchor),
       sub.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 4),
 
-      progressTrack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 32),
-      progressTrack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -32),
-      progressTrack.topAnchor.constraint(equalTo: sub.bottomAnchor, constant: 16),
-      progressTrack.heightAnchor.constraint(equalToConstant: 3),
-      progressTrack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -24),
+      // Progress bar at bottom
+      track.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 36),
+      track.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -36),
+      track.topAnchor.constraint(equalTo: sub.bottomAnchor, constant: 18),
+      track.heightAnchor.constraint(equalToConstant: 4),
+      track.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -28),
 
-      progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
-      progressFill.topAnchor.constraint(equalTo: progressTrack.topAnchor),
-      progressFill.bottomAnchor.constraint(equalTo: progressTrack.bottomAnchor),
+      // Fill
+      fill.leadingAnchor.constraint(equalTo: track.leadingAnchor),
+      fill.topAnchor.constraint(equalTo: track.topAnchor),
+      fill.bottomAnchor.constraint(equalTo: track.bottomAnchor),
+      fillWidth,
     ])
 
+    // Store refs
     self.hudBackdrop = backdrop
     self.hudCard = card
+    self.hudProgressFill = fill
+    self.hudProgressWidth = fillWidth
     self.hudLabel = label
     self.hudSubLabel = sub
-    self.hudSpinner = spinner
     self.hudCheckmark = check
     self.hudIcon = icon
 
-    // Animate entrance
-    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
-      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+    // --- Entrance Animation (ease in out) ---
+    UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut]) {
+      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.4)
     }
-    UIView.animate(withDuration: 0.35, delay: 0.05, options: [.curveEaseInOut]) {
+    UIView.animate(withDuration: 0.4, delay: 0.05, options: [.curveEaseInOut]) {
       card.transform = .identity
       card.alpha = 1
     }
-    // Animate progress bar
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-      fillWidth.constant = 216 * 0.7 // 70% of track width
-      UIView.animate(withDuration: 1.8, delay: 0, options: [.curveEaseInOut]) {
-        progressTrack.layoutIfNeeded()
+
+    // --- Progress bar animation (fills to ~75% during saving) ---
+    let trackWidth: CGFloat = 280 - 72 // card width minus padding
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+      fillWidth.constant = trackWidth * 0.75
+      UIView.animate(withDuration: 2.0, delay: 0, options: [.curveEaseInOut]) {
+        track.layoutIfNeeded()
       }
     }
   }
 
   private func showSuccessHUD(completion: @escaping () -> Void) {
-    guard let label = hudLabel, let sub = hudSubLabel, let check = hudCheckmark, let spinner = hudSpinner else {
+    guard let label = hudLabel, let sub = hudSubLabel, let check = hudCheckmark,
+          let fill = hudProgressFill, let fillWidth = hudProgressWidth else {
       completion(); return
     }
 
     // Haptic
-    let generator = UINotificationFeedbackGenerator()
-    generator.notificationOccurred(.success)
+    let gen = UINotificationFeedbackGenerator()
+    gen.notificationOccurred(.success)
 
-    // Complete progress bar
-    if let track = label.superview?.subviews.compactMap({ $0.subviews.first }).first {
-      if let fillConstraint = track.constraints.first(where: { $0.firstAttribute == .width }) {
-        fillConstraint.constant = 216
-        UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
-          track.superview?.layoutIfNeeded()
-        }
-      }
+    // Complete progress bar to 100%
+    let trackWidth: CGFloat = 280 - 72
+    fillWidth.constant = trackWidth
+    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
+      fill.superview?.layoutIfNeeded()
     }
 
-    // Spinner out, checkmark in
-    UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseInOut]) {
-      spinner.alpha = 0
-    }
+    // Checkmark fades in
     UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseInOut]) {
       check.alpha = 1
     }
+
+    // Text updates
     UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseInOut]) {
       label.text = "Recipe saved!"
       sub.alpha = 1
     }
 
-    // Fade out
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-      UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut], animations: {
+    // Dismiss with fade
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+      UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut], animations: {
         self.hudBackdrop?.alpha = 0
         self.hudCard?.alpha = 0
       }) { _ in completion() }
@@ -266,7 +268,7 @@ content = content.replace(
 
 fs.writeFileSync(SHARE_EXT_PATH, content, 'utf-8');
 
-// Copy icon to share extension bundle so it's accessible
+// Copy icon to share extension bundle
 const iconSrc = path.join(__dirname, '..', 'assets', 'sift-icon-transparent.png');
 const shareExtDir = path.join(__dirname, '..', 'ios', 'ShareExtension');
 const iconDst = path.join(shareExtDir, 'sift-icon-transparent.png');
