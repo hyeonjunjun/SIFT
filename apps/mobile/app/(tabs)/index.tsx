@@ -1,4 +1,4 @@
-import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Keyboard, StyleSheet, Alert, ActivityIndicator, Platform } from "react-native";
+import { View, ScrollView, RefreshControl, TextInput, TouchableOpacity, AppState, DeviceEventEmitter, Keyboard, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useEffect, useCallback, useRef, useMemo, useState } from "react";
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -131,6 +131,7 @@ export default function HomeScreen() {
         });
         return () => sub.remove();
     }, [addToQueue]);
+
 
     // Clipboard Auto-Detect Banner
     const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
