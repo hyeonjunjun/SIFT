@@ -5,6 +5,7 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
     withDelay,
+    withRepeat,
     Easing,
     runOnJS,
 } from 'react-native-reanimated';
@@ -22,20 +23,28 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
     const iconOpacity = useSharedValue(0);
     const iconScale = useSharedValue(0.92);
+    const iconRotation = useSharedValue(0);
     const textOpacity = useSharedValue(0);
     const textY = useSharedValue(8);
     const containerOpacity = useSharedValue(1);
 
     useEffect(() => {
-        // 1. Icon gently fades in and scales up (0ms)
+        // 1. Icon fades in and scales up
         iconOpacity.value = withTiming(1, { duration: 600, easing: EASE });
         iconScale.value = withTiming(1, { duration: 700, easing: EASE });
 
-        // 2. "sift" text fades in below (600ms delay)
+        // 2. Continuous gentle rotation
+        iconRotation.value = withRepeat(
+            withTiming(360, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+            -1, // infinite
+            false
+        );
+
+        // 3. "sift" text fades in (600ms delay)
         textOpacity.value = withDelay(600, withTiming(1, { duration: 500, easing: EASE }));
         textY.value = withDelay(600, withTiming(0, { duration: 500, easing: EASE }));
 
-        // 3. Hold, then fade out (1600ms)
+        // 4. Hold, then fade out
         const exitTimeout = setTimeout(() => {
             containerOpacity.value = withTiming(0, {
                 duration: 350,
@@ -43,7 +52,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             }, (finished) => {
                 if (onFinish) runOnJS(onFinish)();
             });
-        }, 1600);
+        }, 2200);
 
         return () => clearTimeout(exitTimeout);
     }, []);
@@ -54,7 +63,10 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
     const iconStyle = useAnimatedStyle(() => ({
         opacity: iconOpacity.value,
-        transform: [{ scale: iconScale.value }],
+        transform: [
+            { scale: iconScale.value },
+            { rotate: `${iconRotation.value}deg` },
+        ],
     }));
 
     const textStyle = useAnimatedStyle(() => ({
@@ -64,10 +76,8 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
     return (
         <Animated.View style={[StyleSheet.absoluteFill, containerStyle, { zIndex: 9999 }]}>
-            {/* Canvas */}
             <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.canvas }]} />
 
-            {/* Grain texture */}
             <ImageBackground
                 source={require('../assets/noise.png')}
                 style={StyleSheet.absoluteFill}
@@ -75,7 +85,6 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
                 resizeMode="repeat"
             />
 
-            {/* Centered content */}
             <View style={styles.center}>
                 <Animated.View style={iconStyle}>
                     <Image
