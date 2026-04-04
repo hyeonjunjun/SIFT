@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sift",
     "slug": "sift",
-    "version": "1.1.5",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/sift-icon.png",
     "scheme": "sift",
@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "156",
+      "buildNumber": "157",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -48,7 +48,7 @@
       },
       "package": "com.hkjstudio.sift",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 1121,
+      "versionCode": 1200,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
