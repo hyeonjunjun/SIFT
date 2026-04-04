@@ -15,7 +15,8 @@
     "build:android": "eas build --platform android --profile production",
     "lint": "tsc --noEmit",
     "postinstall": "patch-package",
-    "eas-build-pre-install": "cp $GOOGLE_SERVICES_JSON ./google-services.json && cp $GOOGLE_SERVICE_INFO_PLIST ./GoogleService-Info.plist"
+    "eas-build-pre-install": "cp $GOOGLE_SERVICES_JSON ./google-services.json && cp $GOOGLE_SERVICE_INFO_PLIST ./GoogleService-Info.plist",
+    "eas-build-post-install": "node scripts/patch-share-extension.js"
   },
   "dependencies": {
     "@expo-google-fonts/geist-mono": "^0.4.1",

@@ -4,7 +4,7 @@
  * 2. Patches ShareViewController.swift to show native popup + call API directly
  * 3. Creates Android ShareActivity for native popup handling
  */
-const { withDangerousMod, IOSConfig, withAndroidManifest } = require('expo/config-plugins');
+const { withDangerousMod, IOSConfig, withAndroidManifest, withXcodeProject } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
@@ -70,8 +70,18 @@ RCT_EXTERN_METHOD(clearUserId)
                 }
             }
 
-            // 4. Patch ShareViewController.swift
-            const shareExtPath = path.join(projectRoot, 'ios', 'ShareExtension', 'ShareViewController.swift');
+            // Note: ShareViewController patching moved to withXcodeProject hook (runs later)
+
+            return config;
+        },
+    ]);
+};
+
+// Patch ShareViewController.swift AFTER expo-share-intent writes it
+const withIOSSharePatch = (config) => {
+    return withXcodeProject(config, (config) => {
+        const projectRoot = config.modRequest.projectRoot;
+        const shareExtPath = path.join(projectRoot, 'ios', 'ShareExtension', 'ShareViewController.swift');
             if (fs.existsSync(shareExtPath)) {
                 let content = fs.readFileSync(shareExtPath, 'utf-8');
 
@@ -298,8 +308,7 @@ RCT_EXTERN_METHOD(clearUserId)
             }
 
             return config;
-        },
-    ]);
+    });
 };
 
 // ============================================================
@@ -690,6 +699,7 @@ const withAndroidShareManifest = (config) => {
 // ============================================================
 const withNativeSharePopup = (config) => {
     config = withIOSNativeShare(config);
+    config = withIOSSharePatch(config);
     config = withAndroidNativeShare(config);
     config = withAndroidPackageRegistration(config);
     config = withAndroidShareManifest(config);
