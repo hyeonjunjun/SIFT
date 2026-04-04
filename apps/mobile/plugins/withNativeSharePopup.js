@@ -77,11 +77,10 @@ const withIOSXcodeFiles = (config) => {
                              project.findPBXGroupKey({ path: projectName });
 
             if (groupKey) {
-                project.addSourceFile(`SiftAppGroup.swift`, { target: project.getFirstTarget().uuid }, groupKey);
-                project.addSourceFile(`SiftAppGroupBridge.m`, { target: project.getFirstTarget().uuid }, groupKey);
+                project.addSourceFile(`${projectName}/SiftAppGroup.swift`, { target: project.getFirstTarget().uuid }, groupKey);
+                project.addSourceFile(`${projectName}/SiftAppGroupBridge.m`, { target: project.getFirstTarget().uuid }, groupKey);
                 console.log('[withNativeSharePopup] Added SiftAppGroup to Xcode compile sources');
             } else {
-                // Fallback: add without group
                 project.addSourceFile(`${projectName}/SiftAppGroup.swift`, {});
                 project.addSourceFile(`${projectName}/SiftAppGroupBridge.m`, {});
                 console.log('[withNativeSharePopup] Added SiftAppGroup to Xcode (no group)');
