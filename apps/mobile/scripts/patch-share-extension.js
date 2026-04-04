@@ -230,15 +230,26 @@ const nativeMethods = `
   private func siftInBackground(_ url: String) {
     let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
     let userId = defaults?.string(forKey: "sift_user_id") ?? ""
-    guard !userId.isEmpty else { return }
-    guard let apiUrl = URL(string: "https://sift-rho.vercel.app/api/sift") else { return }
-    var request = URLRequest(url: apiUrl)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.timeoutInterval = 60
-    let body: [String: Any] = ["url": url, "user_id": userId, "platform": "share_extension"]
-    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-    URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
+
+    if !userId.isEmpty {
+      // Direct API call
+      guard let apiUrl = URL(string: "https://sift-rho.vercel.app/api/sift") else { return }
+      var request = URLRequest(url: apiUrl)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.timeoutInterval = 30
+      let body: [String: Any] = ["url": url, "user_id": userId, "platform": "share_extension"]
+      request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+      URLSession.shared.dataTask(with: request) { data, response, error in
+        if let error = error {
+          NSLog("[ShareExt] API call failed: \\(error.localizedDescription)")
+        } else if let httpResp = response as? HTTPURLResponse {
+          NSLog("[ShareExt] API response: \\(httpResp.statusCode)")
+        }
+      }.resume()
+    } else {
+      NSLog("[ShareExt] No user_id — URL saved to pendingSiftUrls for app to process")
+    }
   }
 
 `;
@@ -255,18 +266,11 @@ content = content.replace(
 // Replace ALL redirectToHostApp(type: .weburl) with native popup
 content = content.replace(
     /self\.redirectToHostApp\(type: \.weburl\)/g,
-    `// Native branded popup — never open the app
+    `// Native branded popup + background processing
             let urlToSift = self.sharedWebUrl.last?.url ?? ""
             self.showSavingHUD()
 
-            // Save URL as backup for main app to process
-            let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
-            var pending = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
-            pending.append(urlToSift)
-            defaults?.set(pending, forKey: "pendingSiftUrls")
-            defaults?.synchronize()
-
-            // Also try direct API call if we have user_id
+            // Try direct API call (works if SiftAppGroup synced user_id)
             self.siftInBackground(urlToSift)
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
