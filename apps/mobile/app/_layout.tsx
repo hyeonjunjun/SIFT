@@ -267,14 +267,14 @@ function RootLayoutNav() {
     }, [session, authLoading, segments, splashDismissed]);
 
     // Share Intent Logic — flag to prevent notification listener from hijacking
-    // Sync user_id to iOS app group for native Share Extension
+    // Sync user_id to native storage for Share Extension (iOS + Android)
     useEffect(() => {
-        if (Platform.OS !== 'ios') return;
         try {
             const { SiftAppGroup } = NativeModules;
-            if (SiftAppGroup && session?.user?.id) {
+            if (!SiftAppGroup) return;
+            if (session?.user?.id) {
                 SiftAppGroup.setUserId(session.user.id);
-            } else if (SiftAppGroup && !session?.user) {
+            } else {
                 SiftAppGroup.clearUserId();
             }
         } catch {}
