@@ -81,89 +81,144 @@ RCT_EXTERN_METHOD(clearUserId)
                     const nativeMethods = `
   // MARK: - Native Share Popup + Background API Call
 
-  private var hudView: UIView?
+  private var hudBackdrop: UIView?
+  private var hudCard: UIView?
   private var hudLabel: UILabel?
-  private var hudIcon: UIImageView?
+  private var hudSubLabel: UILabel?
+  private var hudSpinner: UIActivityIndicatorView?
+  private var hudCheckmark: UIImageView?
 
   private func showSavingHUD() {
+    // Backdrop with fade-in
     let backdrop = UIView(frame: view.bounds)
-    backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+    backdrop.backgroundColor = .clear
     backdrop.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     view.addSubview(backdrop)
 
+    // Card with spring entrance
     let card = UIView()
-    card.backgroundColor = UIColor { trait in
-      trait.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : UIColor(red: 253/255, green: 252/255, blue: 248/255, alpha: 1)
-    }
-    card.layer.cornerRadius = 20
+    let cream = UIColor(red: 253/255, green: 252/255, blue: 248/255, alpha: 1)
+    let darkBg = UIColor(red: 0.12, green: 0.11, blue: 0.10, alpha: 1)
+    card.backgroundColor = UIColor { $0.userInterfaceStyle == .dark ? darkBg : cream }
+    card.layer.cornerRadius = 24
     card.layer.shadowColor = UIColor.black.cgColor
-    card.layer.shadowOpacity = 0.15
-    card.layer.shadowRadius = 20
-    card.layer.shadowOffset = CGSize(width: 0, height: 8)
+    card.layer.shadowOpacity = 0.2
+    card.layer.shadowRadius = 30
+    card.layer.shadowOffset = CGSize(width: 0, height: 10)
     card.translatesAutoresizingMaskIntoConstraints = false
+    card.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+    card.alpha = 0
     backdrop.addSubview(card)
 
+    // Brand label "sift"
+    let brand = UILabel()
+    brand.text = "sift"
+    brand.font = UIFont.systemFont(ofSize: 12, weight: .bold)
+    brand.textColor = UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.5, alpha: 1) : UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1) }
+    brand.textAlignment = .center
+    brand.translatesAutoresizingMaskIntoConstraints = false
+    card.addSubview(brand)
+
+    // Spinner
     let spinner = UIActivityIndicatorView(style: .medium)
     spinner.startAnimating()
     spinner.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(spinner)
 
+    // Main label
+    let inkColor = UIColor { $0.userInterfaceStyle == .dark ? .white : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1) }
     let label = UILabel()
     label.text = "Saving recipe..."
-    label.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-    label.textColor = UIColor { trait in
-      trait.userInterfaceStyle == .dark ? .white : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1)
-    }
+    label.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+    label.textColor = inkColor
     label.textAlignment = .center
     label.translatesAutoresizingMaskIntoConstraints = false
     card.addSubview(label)
 
-    let checkmark = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
-    checkmark.tintColor = UIColor.systemGreen
-    checkmark.contentMode = .scaleAspectFit
-    checkmark.alpha = 0
-    checkmark.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(checkmark)
+    // Subtitle
+    let sub = UILabel()
+    sub.text = "It'll be ready in Sift"
+    sub.font = UIFont.systemFont(ofSize: 13, weight: .regular)
+    sub.textColor = UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.5, alpha: 1) : UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1) }
+    sub.textAlignment = .center
+    sub.alpha = 0
+    sub.translatesAutoresizingMaskIntoConstraints = false
+    card.addSubview(sub)
+
+    // Checkmark (hidden initially)
+    let check = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
+    check.tintColor = UIColor(red: 34/255, green: 197/255, blue: 94/255, alpha: 1)
+    check.contentMode = .scaleAspectFit
+    check.alpha = 0
+    check.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+    check.translatesAutoresizingMaskIntoConstraints = false
+    card.addSubview(check)
 
     NSLayoutConstraint.activate([
       card.centerXAnchor.constraint(equalTo: backdrop.centerXAnchor),
       card.centerYAnchor.constraint(equalTo: backdrop.centerYAnchor),
-      card.widthAnchor.constraint(equalToConstant: 240),
-      card.heightAnchor.constraint(equalToConstant: 140),
+      card.widthAnchor.constraint(equalToConstant: 260),
+      card.heightAnchor.constraint(equalToConstant: 160),
+      brand.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+      brand.topAnchor.constraint(equalTo: card.topAnchor, constant: 18),
       spinner.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      spinner.topAnchor.constraint(equalTo: card.topAnchor, constant: 30),
-      checkmark.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      checkmark.topAnchor.constraint(equalTo: card.topAnchor, constant: 24),
-      checkmark.widthAnchor.constraint(equalToConstant: 36),
-      checkmark.heightAnchor.constraint(equalToConstant: 36),
+      spinner.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 16),
+      check.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+      check.centerYAnchor.constraint(equalTo: spinner.centerYAnchor),
+      check.widthAnchor.constraint(equalToConstant: 32),
+      check.heightAnchor.constraint(equalToConstant: 32),
       label.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      label.topAnchor.constraint(equalTo: spinner.bottomAnchor, constant: 14),
+      label.topAnchor.constraint(equalTo: spinner.bottomAnchor, constant: 12),
+      sub.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+      sub.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 4),
     ])
 
-    self.hudView = backdrop
+    self.hudBackdrop = backdrop
+    self.hudCard = card
     self.hudLabel = label
-    self.hudIcon = checkmark
+    self.hudSubLabel = sub
+    self.hudSpinner = spinner
+    self.hudCheckmark = check
+
+    // Animate entrance
+    UIView.animate(withDuration: 0.25) {
+      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+    }
+    UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5, options: []) {
+      card.transform = .identity
+      card.alpha = 1
+    }
   }
 
   private func showSuccessHUD(completion: @escaping () -> Void) {
-    guard let label = hudLabel, let icon = hudIcon else { completion(); return }
-    if let card = hudView?.subviews.first {
-      for subview in card.subviews {
-        if let spinner = subview as? UIActivityIndicatorView {
-          spinner.stopAnimating()
-          spinner.alpha = 0
-        }
-      }
+    guard let label = hudLabel, let sub = hudSubLabel, let check = hudCheckmark, let spinner = hudSpinner else {
+      completion()
+      return
     }
-    UIView.animate(withDuration: 0.3) {
-      icon.alpha = 1
-      icon.transform = CGAffineTransform(scaleX: 1.15, y: 1.15)
+
+    // Haptic feedback
+    let generator = UINotificationFeedbackGenerator()
+    generator.notificationOccurred(.success)
+
+    // Transition: spinner out, checkmark in
+    UIView.animate(withDuration: 0.2) {
+      spinner.alpha = 0
+    }
+    UIView.animate(withDuration: 0.4, delay: 0.1, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.8, options: []) {
+      check.alpha = 1
+      check.transform = .identity
+    }
+    UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseOut]) {
       label.text = "Recipe saved!"
-    } completion: { _ in
-      UIView.animate(withDuration: 0.15) {
-        icon.transform = .identity
-      }
-      DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+      sub.alpha = 1
+    }
+
+    // Fade out everything after delay
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+      UIView.animate(withDuration: 0.3, animations: {
+        self.hudBackdrop?.alpha = 0
+        self.hudCard?.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+      }) { _ in
         completion()
       }
     }
@@ -285,13 +340,21 @@ import java.nio.charset.StandardCharsets;
 
 public class ShareReceiverActivity extends Activity {
 
+    private LinearLayout card;
+    private ProgressBar spinner;
+    private TextView label;
+    private TextView subLabel;
+    private TextView checkIcon;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Make activity transparent
+        // Transparent window with dim
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
+        getWindow().setDimAmount(0.35f);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
 
         Intent intent = getIntent();
         String action = intent.getAction();
@@ -300,7 +363,6 @@ public class ShareReceiverActivity extends Activity {
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
             if (sharedText != null) {
-                // Extract URL from shared text
                 String url = extractUrl(sharedText);
                 if (url != null) {
                     showPopupAndProcess(url);
@@ -313,58 +375,112 @@ public class ShareReceiverActivity extends Activity {
     }
 
     private String extractUrl(String text) {
-        // Find the first URL in the shared text
         String[] parts = text.split("\\\\s+");
         for (String part : parts) {
             if (part.startsWith("http://") || part.startsWith("https://")) {
                 return part;
             }
         }
-        // If the whole text looks like a URL
         if (text.trim().startsWith("http://") || text.trim().startsWith("https://")) {
             return text.trim();
         }
         return null;
     }
 
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density);
+    }
+
     private void showPopupAndProcess(String url) {
         SharedPreferences prefs = getSharedPreferences("sift_app_group", MODE_PRIVATE);
         String userId = prefs.getString("sift_user_id", "");
 
-        // Build popup layout
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setGravity(Gravity.CENTER);
-        layout.setPadding(80, 60, 80, 60);
-        layout.setBackgroundColor(Color.parseColor("#FDFCF8"));
+        // Root layout (centers the card)
+        LinearLayout root = new LinearLayout(this);
+        root.setGravity(Gravity.CENTER);
+        root.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        setContentView(root);
 
-        ProgressBar spinner = new ProgressBar(this);
-        layout.addView(spinner);
+        // Card
+        card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER);
+        card.setPadding(dp(40), dp(28), dp(40), dp(28));
+        android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
+        cardBg.setColor(Color.parseColor("#FDFCF8"));
+        cardBg.setCornerRadius(dp(24));
+        card.setBackground(cardBg);
+        card.setElevation(dp(12));
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(dp(260), LinearLayout.LayoutParams.WRAP_CONTENT);
+        card.setLayoutParams(cardLp);
 
-        TextView label = new TextView(this);
+        // Start scaled down for entrance animation
+        card.setScaleX(0.8f);
+        card.setScaleY(0.8f);
+        card.setAlpha(0f);
+        root.addView(card);
+
+        // Brand text "sift"
+        TextView brand = new TextView(this);
+        brand.setText("sift");
+        brand.setTextSize(11);
+        brand.setTextColor(Color.parseColor("#8B8178"));
+        brand.setGravity(Gravity.CENTER);
+        brand.setLetterSpacing(0.15f);
+        brand.setTypeface(null, android.graphics.Typeface.BOLD);
+        LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        brandLp.bottomMargin = dp(16);
+        brand.setLayoutParams(brandLp);
+        card.addView(brand);
+
+        // Spinner
+        spinner = new ProgressBar(this);
+        LinearLayout.LayoutParams spinnerLp = new LinearLayout.LayoutParams(dp(32), dp(32));
+        spinnerLp.bottomMargin = dp(14);
+        spinner.setLayoutParams(spinnerLp);
+        card.addView(spinner);
+
+        // Checkmark (hidden)
+        checkIcon = new TextView(this);
+        checkIcon.setText("\\u2705");
+        checkIcon.setTextSize(28);
+        checkIcon.setGravity(Gravity.CENTER);
+        checkIcon.setAlpha(0f);
+        checkIcon.setScaleX(0.5f);
+        checkIcon.setScaleY(0.5f);
+        LinearLayout.LayoutParams checkLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        checkLp.bottomMargin = dp(8);
+        checkIcon.setLayoutParams(checkLp);
+        card.addView(checkIcon);
+
+        // Label
+        label = new TextView(this);
         label.setText("Saving recipe...");
         label.setTextSize(16);
         label.setTextColor(Color.parseColor("#3B3231"));
         label.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        lp.topMargin = 32;
-        label.setLayoutParams(lp);
-        layout.addView(label);
+        label.setTypeface(null, android.graphics.Typeface.BOLD);
+        card.addView(label);
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Light_Dialog);
-        builder.setView(layout);
-        builder.setCancelable(false);
-        AlertDialog dialog = builder.create();
+        // Sub label
+        subLabel = new TextView(this);
+        subLabel.setText("It'll be ready in Sift");
+        subLabel.setTextSize(12);
+        subLabel.setTextColor(Color.parseColor("#8B8178"));
+        subLabel.setGravity(Gravity.CENTER);
+        subLabel.setAlpha(0f);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        subLp.topMargin = dp(4);
+        subLabel.setLayoutParams(subLp);
+        card.addView(subLabel);
 
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            dialog.getWindow().setDimAmount(0.4f);
-        }
-
-        dialog.show();
+        // Animate card entrance (spring-like)
+        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(400)
+            .setInterpolator(new android.view.animation.OvershootInterpolator(0.8f)).start();
 
         // Process in background
         if (!userId.isEmpty()) {
@@ -373,15 +489,18 @@ public class ShareReceiverActivity extends Activity {
 
         // Show success after delay
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            spinner.setVisibility(android.view.View.GONE);
-            label.setText("\\u2705 Recipe saved!");
-            label.setTextSize(18);
+            // Hide spinner, show checkmark
+            spinner.animate().alpha(0f).setDuration(150).start();
+            checkIcon.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(350)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(1.2f)).start();
+            label.setText("Recipe saved!");
+            subLabel.animate().alpha(1f).setDuration(300).start();
 
-            // Dismiss after showing success
+            // Fade out and dismiss
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                dialog.dismiss();
-                finish();
-            }, 1200);
+                card.animate().scaleX(0.9f).scaleY(0.9f).alpha(0f).setDuration(250).start();
+                new Handler(Looper.getMainLooper()).postDelayed(() -> finish(), 300);
+            }, 1300);
         }, 1000);
     }
 
