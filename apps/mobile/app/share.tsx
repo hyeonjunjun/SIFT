@@ -59,13 +59,15 @@ export default function ShareScreen() {
 
     useEffect(() => {
         if (processed) return;
+        // Wait for auth to load before processing
+        if (!user?.id) return;
 
         const handleShare = async () => {
             const directUrl = params.url as string;
             const intentUrl = (hasShareIntent && shareIntent.type === 'weburl') ? shareIntent.webUrl : null;
             const targetUrl = directUrl || intentUrl;
 
-            if (!targetUrl || !user?.id) {
+            if (!targetUrl) {
                 router.replace('/(tabs)/');
                 return;
             }
