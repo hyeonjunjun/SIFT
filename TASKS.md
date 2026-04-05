@@ -11,17 +11,22 @@ Redesigning the native iOS share extension popup to be more polished and premium
 
 ## What's Done (UI Redesign)
 - [x] **Complete UI redesign of share extension popup** in `scripts/patch-share-extension.js`:
-  - [x] Larger card (320px wide, was 280px)
-  - [x] 80x80 croissant icon with enhanced accent glow (was 72px)
-  - [x] 20pt bold title "Saving recipe..." (was 17pt)
-  - [x] Domain subtitle "from instagram.com" extracted from shared URL
-  - [x] Thicker progress bar (5px, rounded 3)
-  - [x] "It'll be ready in Sift" subtitle
-  - [x] **Done button** (pill, ink bg, cream text) — appears on success
-  - [x] `hudDoneTapped()` method to dismiss immediately
-  - [x] Auto-dismiss after 3s if Done not tapped
-  - [x] Better entrance animation (scale 0.92→1.0, spring damping)
-  - [x] New properties: `hudDomainLabel`, `hudDoneButton`, `hudDismissTimer`
+  - [x] Responsive card width (`min(320, screenWidth - 48)`, was fixed 280px)
+  - [x] 80x80 croissant icon with warm accent glow (was 72px)
+  - [x] 20pt bold title with proper ellipsis character (was 17pt)
+  - [x] Domain subtitle — smart subdomain stripping (m.youtube.com → youtube.com), truncation at 30 chars
+  - [x] 5px progress bar, faster 1.2s fill to 70% (was 2.0s to 75%)
+  - [x] "It'll be ready in Sift" subtitle (13pt, matches domain visual weight)
+  - [x] **Done button** — accent bg in dark mode, ink bg in light (fixes invisible text in dark mode)
+  - [x] Button: 48pt height, 24pt corners, shadow glow, spring entrance animation
+  - [x] `hudDoneTapped()` with medium haptic feedback + scale-down exit animation
+  - [x] Auto-dismiss after 3s with matching scale-down exit
+  - [x] Spring entrance (0.88→1.0, damping 0.78, velocity 0.4) + light haptic on appear
+  - [x] Adaptive card shadow (radius 28, higher opacity in dark mode)
+  - [x] Improved stone subtitle color with better contrast in both modes
+  - [x] Accessibility labels on title, checkmark, Done button
+  - [x] Domain label with leading/trailing constraints and `truncatingMiddle` line break
+  - [x] Coordinated success choreography: progress → check+text → subtitle → button spring
   - [x] Method signature: `showSavingHUD(urlString: String = "")`
   - [x] Updated replacement regex to pass `urlString: urlToSift` to `showSavingHUD`
 

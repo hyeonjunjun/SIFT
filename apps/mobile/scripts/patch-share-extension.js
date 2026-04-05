@@ -33,6 +33,7 @@ const nativeMethods = `
   private var hudIcon: UIImageView?
   private var hudDoneButton: UIButton?
   private var hudDismissTimer: DispatchWorkItem?
+  private var hudCardWidthValue: CGFloat = 320
 
   private func showSavingHUD(urlString: String = "") {
     // --- Colors (detect SYSTEM appearance, not host app) ---
@@ -44,17 +45,36 @@ const nativeMethods = `
     }()
     let cream = UIColor(red: 251/255, green: 248/255, blue: 241/255, alpha: 1)
     let darkBg = UIColor(red: 0.08, green: 0.07, blue: 0.06, alpha: 1)
-    let stone = UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1)
+    let stone = isDark
+      ? UIColor(red: 160/255, green: 150/255, blue: 140/255, alpha: 1)
+      : UIColor(red: 115/255, green: 105/255, blue: 95/255, alpha: 1)
     let ink = isDark ? UIColor(white: 0.95, alpha: 1) : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1)
     let accent = UIColor(red: 207/255, green: 149/255, blue: 123/255, alpha: 1)
     let cardBg = isDark ? darkBg : cream
-    let trackBg = isDark ? UIColor(white: 0.18, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.05)
+    let trackBg = isDark ? UIColor(white: 0.18, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.06)
+
+    // --- Responsive card width ---
+    let screenWidth = view.bounds.width
+    let cardWidth: CGFloat = min(320, screenWidth - 48)
+    self.hudCardWidthValue = cardWidth
 
     // --- Extract domain from URL ---
     var domainText = ""
     if !urlString.isEmpty, let comps = URLComponents(string: urlString), let host = comps.host {
-      let domain = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-      domainText = "from \\(domain)"
+      var d = host
+      if d.hasPrefix("www.") { d = String(d.dropFirst(4)) }
+      // Strip deep subdomains for brevity (m.youtube.com → youtube.com)
+      let parts = d.split(separator: ".")
+      if parts.count > 2 {
+        let known = ["co", "com", "org", "net", "edu", "gov"]
+        if parts.count >= 3 && known.contains(String(parts[parts.count - 2])) {
+          d = parts.suffix(3).joined(separator: ".")
+        } else {
+          d = parts.suffix(2).joined(separator: ".")
+        }
+      }
+      if d.count > 30 { d = String(d.prefix(29)) + "\\u{2026}" }
+      domainText = "from \\(d)"
     }
 
     // --- Backdrop ---
@@ -68,11 +88,11 @@ const nativeMethods = `
     card.backgroundColor = cardBg
     card.layer.cornerRadius = 28
     card.layer.shadowColor = UIColor.black.cgColor
-    card.layer.shadowOpacity = 0.22
-    card.layer.shadowRadius = 50
-    card.layer.shadowOffset = CGSize(width: 0, height: 16)
+    card.layer.shadowOpacity = isDark ? 0.35 : 0.14
+    card.layer.shadowRadius = 28
+    card.layer.shadowOffset = CGSize(width: 0, height: 10)
     card.translatesAutoresizingMaskIntoConstraints = false
-    card.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
+    card.transform = CGAffineTransform(scaleX: 0.88, y: 0.88)
     card.alpha = 0
     backdrop.addSubview(card)
 
@@ -87,36 +107,39 @@ const nativeMethods = `
     }
     icon.contentMode = .scaleAspectFit
     icon.translatesAutoresizingMaskIntoConstraints = false
-    // Soft glow behind the icon
+    icon.isAccessibilityElement = false
+    // Warm glow behind the icon
     icon.layer.shadowColor = accent.cgColor
-    icon.layer.shadowOpacity = 0.4
-    icon.layer.shadowRadius = 24
-    icon.layer.shadowOffset = CGSize(width: 0, height: 6)
+    icon.layer.shadowOpacity = 0.3
+    icon.layer.shadowRadius = 20
+    icon.layer.shadowOffset = CGSize(width: 0, height: 4)
     card.addSubview(icon)
 
     // --- "Saving recipe..." label ---
     let label = UILabel()
-    label.text = "Saving recipe..."
+    label.text = "Saving recipe\\u{2026}"
     label.font = UIFont.systemFont(ofSize: 20, weight: .bold)
     label.textColor = ink
     label.textAlignment = .center
     label.translatesAutoresizingMaskIntoConstraints = false
+    label.accessibilityLabel = "Saving recipe"
     card.addSubview(label)
 
     // --- Domain subtitle ---
-    let domain = UILabel()
-    domain.text = domainText
-    domain.font = UIFont.systemFont(ofSize: 13, weight: .medium)
-    domain.textColor = stone
-    domain.textAlignment = .center
-    domain.alpha = domainText.isEmpty ? 0 : 1
-    domain.translatesAutoresizingMaskIntoConstraints = false
-    card.addSubview(domain)
+    let domainLbl = UILabel()
+    domainLbl.text = domainText
+    domainLbl.font = UIFont.systemFont(ofSize: 13, weight: .regular)
+    domainLbl.textColor = stone
+    domainLbl.textAlignment = .center
+    domainLbl.lineBreakMode = .byTruncatingMiddle
+    domainLbl.alpha = domainText.isEmpty ? 0 : 0.8
+    domainLbl.translatesAutoresizingMaskIntoConstraints = false
+    card.addSubview(domainLbl)
 
     // --- Subtitle ---
     let sub = UILabel()
     sub.text = "It'll be ready in Sift"
-    sub.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+    sub.font = UIFont.systemFont(ofSize: 13, weight: .medium)
     sub.textColor = stone
     sub.textAlignment = .center
     sub.alpha = 0
@@ -129,19 +152,21 @@ const nativeMethods = `
     check.contentMode = .scaleAspectFit
     check.alpha = 0
     check.translatesAutoresizingMaskIntoConstraints = false
+    check.accessibilityLabel = "Recipe saved successfully"
     card.addSubview(check)
 
     // --- Progress Bar ---
     let track = UIView()
     track.backgroundColor = trackBg
-    track.layer.cornerRadius = 3
+    track.layer.cornerRadius = 2.5
     track.clipsToBounds = true
     track.translatesAutoresizingMaskIntoConstraints = false
+    track.isAccessibilityElement = false
     card.addSubview(track)
 
     let fill = UIView()
     fill.backgroundColor = accent
-    fill.layer.cornerRadius = 3
+    fill.layer.cornerRadius = 2.5
     fill.translatesAutoresizingMaskIntoConstraints = false
     track.addSubview(fill)
 
@@ -150,12 +175,19 @@ const nativeMethods = `
     // --- Done Button (hidden, shown on success) ---
     let doneBtn = UIButton(type: .system)
     doneBtn.setTitle("Done", for: .normal)
-    doneBtn.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-    doneBtn.setTitleColor(cream, for: .normal)
-    doneBtn.backgroundColor = ink
-    doneBtn.layer.cornerRadius = 22
+    doneBtn.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+    // Fix dark mode: use accent bg in dark, ink bg in light
+    doneBtn.backgroundColor = isDark ? accent : ink
+    doneBtn.setTitleColor(isDark ? UIColor(white: 1, alpha: 1) : cream, for: .normal)
+    doneBtn.layer.cornerRadius = 24
+    doneBtn.layer.shadowColor = (isDark ? accent : ink).cgColor
+    doneBtn.layer.shadowOpacity = 0.25
+    doneBtn.layer.shadowRadius = 8
+    doneBtn.layer.shadowOffset = CGSize(width: 0, height: 3)
     doneBtn.translatesAutoresizingMaskIntoConstraints = false
     doneBtn.alpha = 0
+    doneBtn.accessibilityLabel = "Done"
+    doneBtn.accessibilityHint = "Dismiss and return to app"
     doneBtn.addTarget(self, action: #selector(hudDoneTapped), for: .touchUpInside)
     card.addSubview(doneBtn)
 
@@ -163,7 +195,7 @@ const nativeMethods = `
     NSLayoutConstraint.activate([
       card.centerXAnchor.constraint(equalTo: backdrop.centerXAnchor),
       card.centerYAnchor.constraint(equalTo: backdrop.centerYAnchor),
-      card.widthAnchor.constraint(equalToConstant: 320),
+      card.widthAnchor.constraint(equalToConstant: cardWidth),
 
       // Icon: large, top-center
       icon.centerXAnchor.constraint(equalTo: card.centerXAnchor),
@@ -174,6 +206,8 @@ const nativeMethods = `
       // Label below icon
       label.centerXAnchor.constraint(equalTo: card.centerXAnchor),
       label.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 18),
+      label.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 20),
+      label.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -20),
 
       // Checkmark inline with label
       check.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -6),
@@ -182,17 +216,19 @@ const nativeMethods = `
       check.heightAnchor.constraint(equalToConstant: 22),
 
       // Domain subtitle
-      domain.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      domain.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 4),
+      domainLbl.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+      domainLbl.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 5),
+      domainLbl.leadingAnchor.constraint(greaterThanOrEqualTo: card.leadingAnchor, constant: 24),
+      domainLbl.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -24),
 
       // Subtitle
       sub.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      sub.topAnchor.constraint(equalTo: domain.bottomAnchor, constant: 4),
+      sub.topAnchor.constraint(equalTo: domainLbl.bottomAnchor, constant: 4),
 
       // Progress bar
       track.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 36),
       track.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -36),
-      track.topAnchor.constraint(equalTo: sub.bottomAnchor, constant: 18),
+      track.topAnchor.constraint(equalTo: sub.bottomAnchor, constant: 20),
       track.heightAnchor.constraint(equalToConstant: 5),
 
       // Fill
@@ -203,9 +239,9 @@ const nativeMethods = `
 
       // Done button below progress bar
       doneBtn.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-      doneBtn.topAnchor.constraint(equalTo: track.bottomAnchor, constant: 20),
+      doneBtn.topAnchor.constraint(equalTo: track.bottomAnchor, constant: 22),
       doneBtn.widthAnchor.constraint(equalToConstant: 160),
-      doneBtn.heightAnchor.constraint(equalToConstant: 44),
+      doneBtn.heightAnchor.constraint(equalToConstant: 48),
       doneBtn.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -28),
     ])
 
@@ -216,34 +252,42 @@ const nativeMethods = `
     self.hudProgressWidth = fillWidth
     self.hudLabel = label
     self.hudSubLabel = sub
-    self.hudDomainLabel = domain
+    self.hudDomainLabel = domainLbl
     self.hudCheckmark = check
     self.hudIcon = icon
     self.hudDoneButton = doneBtn
 
-    // --- Entrance Animation (scale 0.92 → 1.0) ---
-    UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut]) {
+    // --- Entrance Animation (spring pop) ---
+    UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseOut]) {
       backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.4)
     }
-    UIView.animate(withDuration: 0.4, delay: 0.05, usingSpringWithDamping: 0.85, initialSpringVelocity: 0, options: [.curveEaseInOut]) {
+    UIView.animate(withDuration: 0.5, delay: 0.03, usingSpringWithDamping: 0.78, initialSpringVelocity: 0.4, options: []) {
       card.transform = .identity
       card.alpha = 1
     }
 
-    // --- Progress bar animation (fills to ~75% during saving) ---
-    let trackWidth: CGFloat = 320 - 72 // card width minus padding
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-      fillWidth.constant = trackWidth * 0.75
-      UIView.animate(withDuration: 2.0, delay: 0, options: [.curveEaseInOut]) {
+    // Light haptic on appearance
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+      UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    // --- Progress bar animation (fills to ~70% quickly, then slows) ---
+    let trackPadding: CGFloat = 72
+    let barMaxWidth: CGFloat = cardWidth - trackPadding
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+      fillWidth.constant = barMaxWidth * 0.7
+      UIView.animate(withDuration: 1.2, delay: 0, options: [.curveEaseOut]) {
         track.layoutIfNeeded()
       }
     }
   }
 
   @objc private func hudDoneTapped() {
+    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     self.hudDismissTimer?.cancel()
-    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut], animations: {
+    UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseIn], animations: {
       self.hudBackdrop?.alpha = 0
+      self.hudCard?.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
       self.hudCard?.alpha = 0
     }) { _ in
       self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
@@ -258,36 +302,40 @@ const nativeMethods = `
     }
 
     // Haptic
-    let gen = UINotificationFeedbackGenerator()
-    gen.notificationOccurred(.success)
+    UINotificationFeedbackGenerator().notificationOccurred(.success)
 
     // Complete progress bar to 100%
-    let trackWidth: CGFloat = 320 - 72
-    fillWidth.constant = trackWidth
-    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut]) {
+    let trackPadding: CGFloat = 72
+    let barMaxWidth: CGFloat = self.hudCardWidthValue - trackPadding
+    fillWidth.constant = barMaxWidth
+    UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseOut]) {
       fill.superview?.layoutIfNeeded()
     }
 
-    // Checkmark fades in
-    UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseInOut]) {
+    // Checkmark + text update together
+    UIView.animate(withDuration: 0.25, delay: 0.15, options: [.curveEaseOut]) {
       check.alpha = 1
-    }
-
-    // Text updates
-    UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseInOut]) {
       label.text = "Recipe saved!"
-      sub.alpha = 1
+      label.accessibilityLabel = "Recipe saved"
     }
 
-    // Show Done button
-    UIView.animate(withDuration: 0.3, delay: 0.2, options: [.curveEaseInOut]) {
+    // Subtitle fade in
+    UIView.animate(withDuration: 0.25, delay: 0.2, options: [.curveEaseOut]) {
+      sub.alpha = 1
+      self.hudDomainLabel?.alpha = 0
+    }
+
+    // Done button springs in
+    UIView.animate(withDuration: 0.4, delay: 0.25, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.3, options: []) {
       doneBtn.alpha = 1
+      doneBtn.transform = .identity
     }
 
     // Auto-dismiss after 3s if Done not tapped
     let dismissTimer = DispatchWorkItem {
-      UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut], animations: {
+      UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseIn], animations: {
         self.hudBackdrop?.alpha = 0
+        self.hudCard?.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
         self.hudCard?.alpha = 0
       }) { _ in completion() }
     }
