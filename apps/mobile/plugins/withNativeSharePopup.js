@@ -72,6 +72,16 @@ RCT_EXTERN_METHOD(clearPendingUrls)
 @end
 `, 'utf-8');
 
+            // Copy icon to ShareExtension directory for bundle inclusion
+            const shareExtDir = path.join(projectRoot, 'ios', 'ShareExtension');
+            const iconSrc = path.join(projectRoot, 'assets', 'sift-icon-transparent.png');
+            const iconDst = path.join(shareExtDir, 'sift-icon-transparent.png');
+            if (fs.existsSync(iconSrc)) {
+                fs.mkdirSync(shareExtDir, { recursive: true });
+                fs.copyFileSync(iconSrc, iconDst);
+                console.log('[withNativeSharePopup] Copied icon to ShareExtension/');
+            }
+
             console.log('[withNativeSharePopup] Created SiftAppGroup native module files');
             return config;
         },
@@ -101,6 +111,42 @@ const withIOSXcodeFiles = (config) => {
             }
         } catch (e) {
             console.log('[withNativeSharePopup] Xcode source files:', e.message);
+        }
+
+        return config;
+    });
+};
+
+// Add icon to ShareExtension target's Copy Bundle Resources
+const withShareExtensionIcon = (config) => {
+    return withXcodeProject(config, (config) => {
+        const project = config.modResults;
+
+        try {
+            // Find ShareExtension target UUID
+            const nativeTargets = project.pbxNativeTargetSection();
+            let shareExtTargetUuid = null;
+            for (const key in nativeTargets) {
+                if (typeof nativeTargets[key] === 'object' && nativeTargets[key].name === 'ShareExtension') {
+                    shareExtTargetUuid = key;
+                    break;
+                }
+            }
+
+            // Find ShareExtension group
+            const shareExtGroupKey = project.findPBXGroupKey({ name: 'ShareExtension' }) ||
+                                    project.findPBXGroupKey({ path: 'ShareExtension' });
+
+            if (shareExtTargetUuid && shareExtGroupKey) {
+                project.addResourceFile('sift-icon-transparent.png',
+                    { target: shareExtTargetUuid, lastKnownFileType: 'image.png' },
+                    shareExtGroupKey);
+                console.log('[withNativeSharePopup] Added sift-icon-transparent.png to ShareExtension bundle resources');
+            } else {
+                console.log('[withNativeSharePopup] ShareExtension target/group not found for icon, target:', shareExtTargetUuid, 'group:', shareExtGroupKey);
+            }
+        } catch (e) {
+            console.log('[withNativeSharePopup] ShareExtension icon resource error:', e.message);
         }
 
         return config;
@@ -370,6 +416,7 @@ const withAndroidShareManifest = (config) => {
 const withNativeSharePopup = (config) => {
     config = withIOSNativeModule(config);
     config = withIOSXcodeFiles(config);
+    config = withShareExtensionIcon(config);
     config = withAndroidNativeShare(config);
     config = withAndroidPackageRegistration(config);
     config = withAndroidShareManifest(config);

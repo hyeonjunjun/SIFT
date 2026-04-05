@@ -32,14 +32,20 @@ const nativeMethods = `
   private var hudIcon: UIImageView?
 
   private func showSavingHUD() {
-    // --- Colors ---
+    // --- Colors (detect SYSTEM appearance, not host app) ---
+    let isDark: Bool = {
+      if let style = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") {
+        return style.lowercased() == "dark"
+      }
+      return false
+    }()
     let cream = UIColor(red: 251/255, green: 248/255, blue: 241/255, alpha: 1)
     let darkBg = UIColor(red: 0.08, green: 0.07, blue: 0.06, alpha: 1)
     let stone = UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1)
-    let ink = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(white: 0.95, alpha: 1) : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1) }
+    let ink = isDark ? UIColor(white: 0.95, alpha: 1) : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1)
     let accent = UIColor(red: 207/255, green: 149/255, blue: 123/255, alpha: 1)
-    let cardBg = UIColor { tc in tc.userInterfaceStyle == .dark ? darkBg : cream }
-    let trackBg = UIColor { tc in tc.userInterfaceStyle == .dark ? UIColor(white: 0.18, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.05) }
+    let cardBg = isDark ? darkBg : cream
+    let trackBg = isDark ? UIColor(white: 0.18, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.05)
 
     // --- Backdrop ---
     let backdrop = UIView(frame: view.bounds)
@@ -227,29 +233,38 @@ const nativeMethods = `
     }
   }
 
-  private func siftInBackground(_ url: String) {
+  private func siftInBackground(_ url: String, completion: @escaping (Bool) -> Void) {
     let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
     let userId = defaults?.string(forKey: "sift_user_id") ?? ""
 
-    if !userId.isEmpty {
-      // Direct API call
-      guard let apiUrl = URL(string: "https://sift-rho.vercel.app/api/sift") else { return }
-      var request = URLRequest(url: apiUrl)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.timeoutInterval = 30
-      let body: [String: Any] = ["url": url, "user_id": userId, "platform": "share_extension"]
-      request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-      URLSession.shared.dataTask(with: request) { data, response, error in
-        if let error = error {
-          NSLog("[ShareExt] API call failed: \\(error.localizedDescription)")
-        } else if let httpResp = response as? HTTPURLResponse {
-          NSLog("[ShareExt] API response: \\(httpResp.statusCode)")
-        }
-      }.resume()
-    } else {
-      NSLog("[ShareExt] No user_id — URL saved to pendingSiftUrls for app to process")
+    guard !userId.isEmpty else {
+      NSLog("[ShareExt] No user_id in app group — URL saved to pendingSiftUrls for app to process")
+      completion(false)
+      return
     }
+    guard let apiUrl = URL(string: "https://sift-rho.vercel.app/api/sift") else {
+      completion(false)
+      return
+    }
+
+    NSLog("[ShareExt] Calling /api/sift for: %@", url)
+    var request = URLRequest(url: apiUrl)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.timeoutInterval = 30
+    let body: [String: Any] = ["url": url, "user_id": userId, "platform": "share_extension"]
+    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+    URLSession.shared.dataTask(with: request) { data, response, error in
+      if let error = error {
+        NSLog("[ShareExt] API call failed: %@", error.localizedDescription)
+        completion(false)
+      } else if let httpResp = response as? HTTPURLResponse {
+        NSLog("[ShareExt] API response: %d", httpResp.statusCode)
+        completion(httpResp.statusCode >= 200 && httpResp.statusCode < 300)
+      } else {
+        completion(false)
+      }
+    }.resume()
   }
 
 `;
@@ -270,17 +285,35 @@ content = content.replace(
             let urlToSift = self.sharedWebUrl.last?.url ?? ""
             self.showSavingHUD()
 
-            // Try direct API call (works if SiftAppGroup synced user_id)
-            self.siftInBackground(urlToSift)
+            // Save URL as backup for main app to process
+            let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+            var pending = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
+            pending.append(urlToSift)
+            defaults?.set(pending, forKey: "pendingSiftUrls")
+            defaults?.synchronize()
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-              self.showSuccessHUD {
-                self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+            // API call — wait for completion before showing success
+            self.siftInBackground(urlToSift) { _ in
+              DispatchQueue.main.async {
+                self.showSuccessHUD {
+                  self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+                }
               }
             }`
 );
 
 fs.writeFileSync(SHARE_EXT_PATH, content, 'utf-8');
+
+// Ensure ShareExtension Info.plist supports automatic dark/light mode
+const plistPath = path.join(__dirname, '..', 'ios', 'ShareExtension', 'ShareExtension-Info.plist');
+if (fs.existsSync(plistPath)) {
+    let plist = fs.readFileSync(plistPath, 'utf-8');
+    if (!plist.includes('UIUserInterfaceStyle')) {
+        plist = plist.replace('</dict>\n</plist>', '    <key>UIUserInterfaceStyle</key>\n    <string>Automatic</string>\n  </dict>\n</plist>');
+        fs.writeFileSync(plistPath, plist, 'utf-8');
+        console.log('[patch-share-ext] Added UIUserInterfaceStyle=Automatic to Info.plist');
+    }
+}
 
 // Copy icon to share extension bundle
 const iconSrc = path.join(__dirname, '..', 'assets', 'sift-icon-transparent.png');

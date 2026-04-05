@@ -26,7 +26,23 @@
       "Bash(npx -p typescript tsc --noEmit --project apps/api/tsconfig.json)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(vercel --version)",
+      "Bash(npm install:*)",
+      "Bash(vercel ls:*)",
+      "Bash(npx vercel:*)",
+      "Bash(curl -s -X POST https://sift-rho.vercel.app/api/sift -H 'Content-Type: application/json' -d '{\"url\": \"https://www.instagram.com/p/test123/\", \"platform\": \"test\", \"user_id\": \"test\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST https://sift-rho.vercel.app/api/sift -H 'Content-Type: application/json' -d '{\"url\": \"https://www.allrecipes.com/recipe/24002/easy-pancakes/\", \"platform\": \"test\"}')",
+      "Bash(python3 -c ':*)",
+      "Bash(find /Users/ryanjun/antigravity/SIFT/apps/mobile/app -name \"_layout.tsx\" -exec echo \"=== {} ===\" \\\\; -exec grep -l \"useLocalSearchParams\\\\|siftUrl\" {} \\\\;)",
+      "Bash(grep -n \"sift_id\\\\|Sift ID\" /Users/ryanjun/antigravity/SIFT/apps/mobile/app/user/[id].tsx)",
+      "Bash(find /Users/ryanjun/antigravity/SIFT/apps/mobile -name \"package.json\" -path \"*/node_modules/expo-share-intent/*\" -exec head -20 {} \\\\;)",
+      "Bash(git checkout:*)",
+      "Bash(kill 86192)",
+      "Bash(lsof -ti:8081)",
+      "Bash(xargs kill:*)",
+      "Bash(eas build:*)"
     ]
   }
 }
