@@ -240,25 +240,23 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
             >
                 <View style={[styles.imageWrapper, { backgroundColor: colors.subtle }]}>
                     {(item.status === 'failed' || isStale) ? (
-                        <View style={[styles.fallbackContainer, { backgroundColor: colors.danger }]}>
-                            <Typography variant="label" style={{ color: colors.paper, fontWeight: 'bold', marginBottom: 4 }}>
-                                {isStale ? "TIMED OUT" : "FAILED"}
+                        <View style={[styles.fallbackContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : colors.subtle }]}>
+                            <Typography variant="caption" color="stone" style={{ fontWeight: '600', letterSpacing: 0.5, marginBottom: 6 }}>
+                                {isStale ? "TIMED OUT" : "COULDN'T SAVE"}
                             </Typography>
-                            {item.metadata?.error && (
-                                <Typography variant="caption" style={{ color: colors.paper, opacity: 0.7, textAlign: 'center', marginBottom: SPACING.s - 2, paddingHorizontal: SPACING.m - 4 }} numberOfLines={2}>
-                                    {item.metadata.error}
-                                </Typography>
-                            )}
+                            <Typography variant="caption" color="stone" style={{ textAlign: 'center', marginBottom: SPACING.m - 4, paddingHorizontal: SPACING.m, opacity: 0.7 }} numberOfLines={1}>
+                                {getDomain(page.url) || 'this recipe'}
+                            </Typography>
                             {(!item.metadata?.retry_count || item.metadata.retry_count < 3) ? (
                                 <Pressable
                                     onPress={(e) => { e.stopPropagation(); onRetry?.(item.id, page.url); }}
-                                    style={{ backgroundColor: OVERLAYS.dark.hover, paddingHorizontal: SPACING.m, paddingVertical: SPACING.s, borderRadius: RADIUS.pill }}
+                                    style={{ backgroundColor: colors.ink, paddingHorizontal: SPACING.l, paddingVertical: SPACING.s + 2, borderRadius: RADIUS.pill }}
                                 >
-                                    <Typography variant="label" style={{ color: colors.paper }}>Retry</Typography>
+                                    <Typography variant="label" style={{ color: colors.paper, fontSize: 12 }}>Retry</Typography>
                                 </Pressable>
                             ) : (
-                                <Typography variant="caption" style={{ color: colors.paper, opacity: 0.5 }}>
-                                    Max retries reached
+                                <Typography variant="caption" color="stone" style={{ opacity: 0.5 }}>
+                                    Couldn't process this link
                                 </Typography>
                             )}
                         </View>

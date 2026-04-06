@@ -11,8 +11,9 @@ export function NetworkBanner() {
 
     useEffect(() => {
         const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-            const offline = !state.isConnected || !state.isInternetReachable;
-            setIsOffline(!!offline);
+            // isInternetReachable can be null initially — only show offline when definitively false
+            const offline = state.isConnected === false || state.isInternetReachable === false;
+            setIsOffline(offline);
         });
         return () => unsubscribe();
     }, []);

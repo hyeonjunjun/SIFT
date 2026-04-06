@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Skeleton } from './design-system/Skeleton';
-import { COLORS, RADIUS, SPACING, Theme } from '../lib/theme';
+import { RADIUS, SPACING, Theme } from '../lib/theme';
 import { useTheme } from '../context/ThemeContext';
 import { Typography } from './design-system/Typography';
 
@@ -11,7 +10,7 @@ const SIFT_STEPS = [
     'Building your recipe card...',
 ];
 
-const STEP_INTERVAL = 6000; // 6s per step
+const STEP_INTERVAL = 3500; // 3.5s per step
 
 export function SiftCardSkeleton() {
     const { colors } = useTheme();
@@ -19,7 +18,11 @@ export function SiftCardSkeleton() {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setStepIndex(prev => Math.min(prev + 1, SIFT_STEPS.length - 1));
+            setStepIndex(prev => {
+                const next = prev + 1;
+                if (next >= SIFT_STEPS.length - 1) clearInterval(interval);
+                return Math.min(next, SIFT_STEPS.length - 1);
+            });
         }, STEP_INTERVAL);
         return () => clearInterval(interval);
     }, []);
@@ -37,7 +40,7 @@ export function SiftCardSkeleton() {
                 }
             ]}
         >
-            {/* Image Placeholder */}
+            {/* Matches actual card's square aspect ratio */}
             <View style={[styles.imagePlaceholder, { backgroundColor: colors.subtle }]}>
                 <View style={styles.stepContainer}>
                     <Typography variant="caption" style={[styles.stepText, { color: colors.stone }]}>
@@ -47,12 +50,6 @@ export function SiftCardSkeleton() {
                         <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
                     </View>
                 </View>
-            </View>
-
-            <View style={styles.content}>
-                <Skeleton height={12} width={80} style={{ marginBottom: 8 }} />
-                <Skeleton height={20} width="90%" style={{ marginBottom: 6 }} />
-                <Skeleton height={20} width="70%" />
             </View>
         </View>
     );
@@ -65,9 +62,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     imagePlaceholder: {
-        height: 180,
+        aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        borderRadius: RADIUS.l,
     },
     stepContainer: {
         alignItems: 'center',
@@ -89,9 +87,5 @@ const styles = StyleSheet.create({
     progressFill: {
         height: '100%',
         borderRadius: 2,
-    },
-    content: {
-        padding: SPACING.m,
-        paddingTop: SPACING.m - 4,
     },
 });

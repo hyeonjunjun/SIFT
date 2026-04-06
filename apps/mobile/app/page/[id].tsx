@@ -266,7 +266,7 @@ export default function PageDetail() {
     }, [exitDirection]);
 
     const handleNavigate = (targetId: string, dir: 'next' | 'prev') => {
-        if (!targetId) return;
+        if (!targetId || cookModeVisible) return;
         Haptics.selectionAsync();
         setExitDirection(dir);
 
@@ -355,10 +355,15 @@ export default function PageDetail() {
             }
 
             if (error) {
-                const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
-                const cached = await AsyncStorage.getItem(`@page_${id}`);
-                if (cached) {
-                    return JSON.parse(cached);
+                // PGRST116 = "not found" — page was deleted, don't serve stale cache
+                const isNotFound = error.code === 'PGRST116' || error.message?.includes('not found');
+                if (!isNotFound) {
+                    // Network/server error — try local cache
+                    try {
+                        const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+                        const cached = await AsyncStorage.getItem(`@page_${id}`);
+                        if (cached) return JSON.parse(cached);
+                    } catch { /* corrupt cache — fall through to throw */ }
                 }
                 throw error;
             }
@@ -397,6 +402,20 @@ export default function PageDetail() {
                 },
                 (payload) => {
                     queryClient.resetQueries({ queryKey: ['page', id] });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'pages',
+                    filter: `id=eq.${id}`,
+                },
+                () => {
+                    // Page was deleted — navigate back
+                    queryClient.removeQueries({ queryKey: ['page', id] });
+                    router.back();
                 }
             )
             .subscribe();
@@ -465,10 +484,12 @@ export default function PageDetail() {
                 </View>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
                     <Typography variant="h2" style={{ marginBottom: 16, textAlign: 'center' }}>
-                        Unable to Load Sift
+                        {page === null && !error ? 'Recipe Not Found' : 'Unable to Load Recipe'}
                     </Typography>
-                    <Typography variant="body" color="stone" style={{ textAlign: 'center', marginBottom: 32 }}>
-                        {error ? `Error: ${(error as any)?.message || 'Unknown error'}` : 'This sift could not be found.'}
+                    <Typography variant="body" color="stone" style={{ textAlign: 'center', marginBottom: 32, lineHeight: 22 }}>
+                        {page === null && !error
+                            ? 'This recipe may have been deleted or moved.'
+                            : 'Something went wrong loading this recipe. Check your connection and try again.'}
                     </Typography>
                     <TouchableOpacity
                         onPress={() => refetch()}
@@ -476,7 +497,7 @@ export default function PageDetail() {
                             backgroundColor: colors.ink,
                             paddingHorizontal: 24,
                             paddingVertical: 12,
-                            borderRadius: 12,
+                            borderRadius: 20,
                         }}
                     >
                         <Typography variant="label" style={{ color: colors.paper }}>

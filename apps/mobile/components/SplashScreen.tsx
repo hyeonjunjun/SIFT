@@ -66,7 +66,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         transform: [
             { scale: iconScale.value },
             { rotate: `${iconRotation.value}deg` },
-        ],
+        ] as any,
     }));
 
     const textStyle = useAnimatedStyle(() => ({

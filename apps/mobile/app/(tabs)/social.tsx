@@ -28,14 +28,6 @@ interface Sift {
     metadata: any;
 }
 
-interface Share {
-    id: string;
-    sender_id: string;
-    sift: Sift;
-    sender: { display_name: string; avatar_url: string };
-    created_at: string;
-}
-
 export default function SocialScreen() {
     const { colors, theme } = useTheme();
     const isDark = theme === 'dark';

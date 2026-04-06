@@ -182,15 +182,19 @@ export default function CollectionScreen() {
     const handleAddSifts = async (selectedIds: string[]) => {
         if (!id) return;
         try {
-            const updates = selectedIds.map(siftId => ({
-                id: siftId,
-                folder_id: id
-            }));
+            // Verify collection still exists before updating
+            const { data: folderCheck, error: folderCheckError } = await supabase
+                .from('folders')
+                .select('id')
+                .eq('id', id)
+                .single();
 
-            // Batch update using upsert or loop (Sift doesn't support batch update easily via client lib sometimes, 
-            // but we can try updating pages where ID in list)
+            if (folderCheckError || !folderCheck) {
+                showToast({ message: "This collection no longer exists.", type: 'error' });
+                router.back();
+                return;
+            }
 
-            // Using a loop for safety as batch update on single table requires different syntax usually
             const { error } = await supabase
                 .from('pages')
                 .update({ folder_id: id })

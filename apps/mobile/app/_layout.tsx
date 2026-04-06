@@ -33,7 +33,62 @@ const queryClient = new QueryClient({
     },
 });
 
-// Basic Error Boundary
+// Theme-aware Error Boundary
+function ErrorFallback({ onReset }: { onReset: () => void }) {
+    const scheme = useColorScheme();
+    const c = scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+
+    return (
+        <View style={{ flex: 1, backgroundColor: c.canvas }}>
+            <ImageBackground
+                source={require("../assets/noise.png")}
+                style={StyleSheet.absoluteFill}
+                imageStyle={{ opacity: scheme === 'dark' ? 0.08 : 0.04 }}
+                resizeMode="repeat"
+            >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+                    <Text style={{
+                        fontSize: 32,
+                        fontFamily: 'PlayfairDisplay_700Bold',
+                        color: c.ink,
+                        marginBottom: 12,
+                        textAlign: 'center'
+                    }}>
+                        Something went wrong.
+                    </Text>
+                    <Text style={{
+                        fontSize: 16,
+                        fontFamily: 'Satoshi-Regular',
+                        textAlign: 'center',
+                        color: c.stone,
+                        marginBottom: 24,
+                        lineHeight: 24
+                    }}>
+                        An unexpected error occurred. Tap below to continue.
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={onReset}
+                        style={{
+                            backgroundColor: c.ink,
+                            paddingVertical: 16,
+                            paddingHorizontal: 32,
+                            borderRadius: 40,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 10,
+                            elevation: 3
+                        }}
+                    >
+                        <Text style={{ color: c.paper, fontWeight: '600', fontSize: 16, letterSpacing: 0.5 }}>Go Back</Text>
+                    </TouchableOpacity>
+                </View>
+            </ImageBackground>
+        </View>
+    );
+}
+
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
     constructor(props: any) {
         super(props);
@@ -49,55 +104,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
     render() {
         if (this.state.hasError) {
-            return (
-                <View style={{ flex: 1, backgroundColor: LIGHT_COLORS.canvas }}>
-                    <ImageBackground
-                        source={require("../assets/noise.png")}
-                        style={StyleSheet.absoluteFill}
-                        imageStyle={{ opacity: 0.04 }}
-                        resizeMode="repeat"
-                    >
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-                            <Text style={{
-                                fontSize: 32,
-                                fontFamily: 'PlayfairDisplay_700Bold',
-                                color: LIGHT_COLORS.ink,
-                                marginBottom: 12,
-                                textAlign: 'center'
-                            }}>
-                                Something went wrong.
-                            </Text>
-                            <Text style={{
-                                fontSize: 16,
-                                fontFamily: 'Satoshi-Regular',
-                                textAlign: 'center',
-                                color: LIGHT_COLORS.stone,
-                                marginBottom: 24,
-                                lineHeight: 24
-                            }}>
-                                An unexpected error occurred. Tap below to continue.
-                            </Text>
-
-                            <TouchableOpacity
-                                onPress={() => this.setState({ hasError: false, error: null })}
-                                style={{
-                                    backgroundColor: LIGHT_COLORS.ink,
-                                    paddingVertical: 16,
-                                    paddingHorizontal: 32,
-                                    borderRadius: 40,
-                                    shadowColor: "#000",
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.1,
-                                    shadowRadius: 10,
-                                    elevation: 3
-                                }}
-                            >
-                                <Text style={{ color: LIGHT_COLORS.paper, fontWeight: '600', fontSize: 16, letterSpacing: 0.5 }}>Go Back</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ImageBackground>
-                </View>
-            );
+            return <ErrorFallback onReset={() => this.setState({ hasError: false, error: null })} />;
         }
         return this.props.children;
     }
@@ -273,6 +280,7 @@ function RootLayoutNav() {
             const { SiftAppGroup } = NativeModules;
             if (SiftAppGroup) {
                 SiftAppGroup.setUserId(session.user.id);
+                SiftAppGroup.syncIcon?.();
             }
         } catch {}
     }, [session?.user?.id]);

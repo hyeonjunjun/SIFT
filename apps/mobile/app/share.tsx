@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Image, Platform, BackHandler } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, StyleSheet, Image, Platform, BackHandler, Pressable } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
-    withDelay,
     withSpring,
     withSequence,
     Easing,
@@ -17,7 +16,7 @@ import { Typography } from '../components/design-system/Typography';
 import { supabase } from '../lib/supabase';
 import { safeSift } from '../lib/sift-api';
 import { getDomain, getSmartTag } from '../lib/utils';
-import { CheckCircle } from 'phosphor-react-native';
+import { CheckCircle, WarningCircle, ArrowCounterClockwise } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 
 type ShareState = 'saving' | 'success' | 'error';
@@ -32,6 +31,26 @@ export default function ShareScreen() {
     const [state, setState] = useState<ShareState>('saving');
     const [recipeTitle, setRecipeTitle] = useState('');
     const [processed, setProcessed] = useState(false);
+    const [targetUrl, setTargetUrl] = useState<string | null>(null);
+    const mountedRef = useRef(true);
+    const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    // Safe timeout that tracks for cleanup
+    const safeTimeout = useCallback((fn: () => void, ms: number) => {
+        const id = setTimeout(() => {
+            if (mountedRef.current) fn();
+        }, ms);
+        timersRef.current.push(id);
+        return id;
+    }, []);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false;
+            timersRef.current.forEach(clearTimeout);
+        };
+    }, []);
 
     // Animations
     const iconScale = useSharedValue(0.8);
@@ -57,81 +76,123 @@ export default function ShareScreen() {
         return () => sub.remove();
     }, []);
 
+    // Shared logic for creating pending record + firing sift (with dedup check)
+    // Returns true if a new record was created, false if dedup matched
+    const createAndSift = useCallback(async (url: string): Promise<boolean> => {
+        // Dedup: check if this URL was already saved in the last 60 seconds
+        const { data: existing } = await supabase
+            .from('pages')
+            .select('id')
+            .eq('user_id', user!.id)
+            .eq('url', url)
+            .gte('created_at', new Date(Date.now() - 60000).toISOString())
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            return false; // Already saved recently
+        }
+
+        const smartTag = getSmartTag(url);
+        const domain = getDomain(url);
+        const { data: pendingData, error: pendingError } = await supabase
+            .from('pages')
+            .insert({
+                user_id: user!.id,
+                url,
+                title: 'Saving recipe...',
+                summary: 'Extracting ingredients & details...',
+                tags: [smartTag],
+                metadata: { status: 'pending', source: domain }
+            })
+            .select()
+            .single();
+
+        if (pendingError) throw pendingError;
+
+        // Process in background — don't await, let it finish after we dismiss
+        safeSift(url, user!.id, pendingData.id, tier).catch(() => {});
+        return true;
+    }, [user?.id, tier]);
+
+    // Animate from saving → success → auto-dismiss
+    const animateSuccess = useCallback(() => {
+        progressWidth.value = withTiming(1, { duration: 300 });
+        statusOpacity.value = withTiming(0, { duration: 200 });
+
+        safeTimeout(() => {
+            setState('success');
+            statusOpacity.value = withTiming(1, { duration: 300 });
+            checkScale.value = withSequence(
+                withSpring(1.2, { damping: 8, stiffness: 200 }),
+                withSpring(1, { damping: 12 }),
+            );
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }, 250);
+
+        safeTimeout(() => {
+            router.replace('/(tabs)/');
+        }, 2800);
+    }, [safeTimeout]);
+
+    // Initial share processing
     useEffect(() => {
         if (processed) return;
-        // Wait for auth to load before processing
         if (!user?.id) return;
 
         const handleShare = async () => {
             const directUrl = params.url as string;
             const intentUrl = (hasShareIntent && shareIntent.type === 'weburl') ? shareIntent.webUrl : null;
-            const targetUrl = directUrl || intentUrl;
+            const url = directUrl || intentUrl;
 
-            if (!targetUrl) {
+            if (!url) {
                 router.replace('/(tabs)/');
                 return;
             }
 
             resetShareIntent();
             setProcessed(true);
-
-            const domain = getDomain(targetUrl);
-            setRecipeTitle(domain);
+            setTargetUrl(url);
+            setRecipeTitle(getDomain(url));
 
             try {
-                // Create pending record
-                const smartTag = getSmartTag(targetUrl);
-                const { data: pendingData, error: pendingError } = await supabase
-                    .from('pages')
-                    .insert({
-                        user_id: user.id,
-                        url: targetUrl,
-                        title: 'Saving recipe...',
-                        summary: 'Extracting ingredients & details...',
-                        tags: [smartTag],
-                        metadata: { status: 'pending', source: domain }
-                    })
-                    .select()
-                    .single();
-
-                if (pendingError) throw pendingError;
-
-                // Process in background — don't await, let it finish after we dismiss
-                safeSift(targetUrl, user.id, pendingData.id, tier).catch(() => {});
-
-                // Show success after a short delay (API is processing in background)
-                await new Promise(r => setTimeout(r, 1200));
-
-                // Animate to success state
-                progressWidth.value = withTiming(1, { duration: 300 });
-                statusOpacity.value = withTiming(0, { duration: 200 });
-
-                setTimeout(() => {
-                    setState('success');
-                    statusOpacity.value = withTiming(1, { duration: 300 });
-                    checkScale.value = withSequence(
-                        withSpring(1.2, { damping: 8, stiffness: 200 }),
-                        withSpring(1, { damping: 12 }),
-                    );
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                }, 250);
-
-                // Auto-dismiss after 2s
-                setTimeout(() => {
-                    router.replace('/(tabs)/');
-                }, 2800);
-
+                const isNew = await createAndSift(url);
+                if (isNew) {
+                    await new Promise<void>(r => safeTimeout(r, 1200));
+                }
+                if (!mountedRef.current) return;
+                animateSuccess();
             } catch (e: any) {
+                if (!mountedRef.current) return;
                 setState('error');
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                setTimeout(() => {
-                    router.replace('/(tabs)/');
-                }, 2000);
             }
         };
 
         handleShare();
-    }, [params, hasShareIntent, shareIntent, user?.id, processed]);
+    }, [params, hasShareIntent, shareIntent, user?.id, processed, tier, createAndSift, animateSuccess, safeTimeout]);
+
+    const handleRetry = useCallback(() => {
+        if (!targetUrl || !user?.id) return;
+        setState('saving');
+        progressWidth.value = withTiming(0, { duration: 0 });
+        progressWidth.value = withTiming(0.7, { duration: 2000, easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
+        statusOpacity.value = withTiming(1, { duration: 200 });
+
+        (async () => {
+            try {
+                const isNew = await createAndSift(targetUrl);
+                if (isNew) {
+                    await new Promise<void>(r => safeTimeout(r, 1200));
+                }
+                if (!mountedRef.current) return;
+                animateSuccess();
+            } catch {
+                if (!mountedRef.current) return;
+                setState('error');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }
+        })();
+    }, [targetUrl, user?.id, createAndSift, animateSuccess, safeTimeout]);
 
     const iconStyle = useAnimatedStyle(() => ({
         opacity: iconOpacity.value,
@@ -151,8 +212,11 @@ export default function ShareScreen() {
     }));
 
     return (
-        <View style={[styles.container, { backgroundColor: 'rgba(0,0,0,0.4)' }]}>
-            <View style={[styles.card, { backgroundColor: colors.canvas }]}>
+        <Pressable
+            style={[styles.container, { backgroundColor: 'rgba(0,0,0,0.4)' }]}
+            onPress={state === 'success' || state === 'error' ? () => router.replace('/(tabs)/') : undefined}
+        >
+            <Pressable style={[styles.card, { backgroundColor: colors.canvas }]} onPress={(e) => e.stopPropagation()}>
                 {/* App Icon */}
                 <Animated.View style={iconStyle}>
                     <Image
@@ -196,17 +260,30 @@ export default function ShareScreen() {
 
                     {state === 'error' && (
                         <>
-                            <Typography variant="bodyMedium" style={{ fontSize: 16, textAlign: 'center' }}>
-                                Couldn't save this link
+                            <WarningCircle size={36} color={colors.danger} weight="fill" />
+                            <Typography variant="bodyMedium" style={{ fontSize: 16, marginTop: 8, textAlign: 'center' }}>
+                                Couldn't save this recipe
                             </Typography>
-                            <Typography variant="caption" color="stone" style={{ marginTop: 4, textAlign: 'center' }}>
-                                Try again from the app
-                            </Typography>
+                            <Pressable
+                                onPress={handleRetry}
+                                style={[styles.retryButton, { backgroundColor: colors.ink }]}
+                                hitSlop={8}
+                            >
+                                <ArrowCounterClockwise size={16} color={colors.paper} weight="bold" />
+                                <Typography variant="label" style={{ color: colors.paper, marginLeft: 6 }}>
+                                    Retry
+                                </Typography>
+                            </Pressable>
+                            <Pressable onPress={() => router.replace('/(tabs)/')} hitSlop={8}>
+                                <Typography variant="caption" color="stone" style={{ marginTop: 8, textAlign: 'center' }}>
+                                    Dismiss
+                                </Typography>
+                            </Pressable>
                         </>
                     )}
                 </Animated.View>
-            </View>
-        </View>
+            </Pressable>
+        </Pressable>
     );
 }
 
@@ -247,5 +324,13 @@ const styles = StyleSheet.create({
     progressFill: {
         height: '100%',
         borderRadius: 2,
+    },
+    retryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 20,
+        marginTop: 12,
     },
 });
