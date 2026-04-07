@@ -229,12 +229,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import org.json.JSONObject;
 
 public class ShareReceiverActivity extends Activity {
     private static final String TAG = "SiftShare";
@@ -250,7 +245,6 @@ public class ShareReceiverActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean dismissed = false;
 
-    private interface SiftCallback { void onResult(boolean success); }
 
     // Theme colors
     private int colCanvas, colCard, colInk, colStone, colAccent, colTrack, colBtnBg, colBtnText;
@@ -405,7 +399,7 @@ public class ShareReceiverActivity extends Activity {
         String urlPath = extractPath(url);
         int screenH = getResources().getDisplayMetrics().heightPixels;
         int screenW = getResources().getDisplayMetrics().widthPixels;
-        int sheetHeight = (int)(screenH * 0.82);
+        int sheetHeight = (int)(screenH * 0.85);
         int hPad = dp(24);
 
         // --- Root FrameLayout ---
@@ -464,7 +458,7 @@ public class ShareReceiverActivity extends Activity {
             iconFallback.setGravity(Gravity.CENTER);
             iconWidget = iconFallback;
         }
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(96), dp(96));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
         iconLp.gravity = Gravity.CENTER_HORIZONTAL;
         iconLp.bottomMargin = dp(8);
         sheet.addView(iconWidget, iconLp);
@@ -645,29 +639,15 @@ public class ShareReceiverActivity extends Activity {
             // Only allow dismiss tap after animation
         });
 
-        // --- Fire API call + show success/error based on result ---
-        if (!userId.isEmpty()) {
-            siftInBackground(url, userId, new SiftCallback() {
-                @Override public void onResult(boolean success) {
-                    handler.post(() -> {
-                        if (success) {
-                            showSuccess(trackWidth);
-                        } else {
-                            showError();
-                        }
-                    });
-                }
-            });
-        } else {
-            // No user ID (logged out) — show logged-out message, still save URL for later
-            showLoggedOut();
-        }
-
-        // Save URL as backup (Android-only — processed by siftInBackground, not read by RN)
+        // Save URL for main app to sift on next open (no API call from extension)
         String pendingKey = "pendingSiftUrls";
         String existing = prefs.getString(pendingKey, "");
         String updated = existing.isEmpty() ? url : existing + "," + url;
         prefs.edit().putString(pendingKey, updated).apply();
+        Log.d(TAG, "Saved URL to pendingSiftUrls: " + url);
+
+        // Show success after brief delay
+        handler.postDelayed(() -> showSuccess(trackWidth), 1200);
     }
 
     private void showSuccess(int trackWidth) {
@@ -705,40 +685,6 @@ public class ShareReceiverActivity extends Activity {
         }, 3000);
     }
 
-    private void showError() {
-        if (dismissed) return;
-        if (progressAnimator != null) progressAnimator.cancel();
-        statusLabel.setText("Couldn't save this recipe");
-        statusLabel.setTextSize(18);
-        subLabel.setText("Try sharing again from the app");
-        subLabel.animate().alpha(1f).setDuration(300).start();
-
-        // Allow dismiss
-        backdrop.setOnClickListener(v -> dismissSheet());
-
-        // Auto-dismiss after 3s
-        handler.postDelayed(() -> {
-            if (!dismissed) dismissSheet();
-        }, 3000);
-    }
-
-    private void showLoggedOut() {
-        if (dismissed) return;
-        if (progressAnimator != null) progressAnimator.cancel();
-        statusLabel.setText("Open Sift to log in first");
-        statusLabel.setTextSize(18);
-        subLabel.setText("Your link has been saved for later");
-        subLabel.animate().alpha(1f).setDuration(300).start();
-
-        // Allow dismiss
-        backdrop.setOnClickListener(v -> dismissSheet());
-
-        // Auto-dismiss after 3s
-        handler.postDelayed(() -> {
-            if (!dismissed) dismissSheet();
-        }, 3000);
-    }
-
     private void dismissSheet() {
         if (dismissed) return;
         dismissed = true;
@@ -766,39 +712,6 @@ public class ShareReceiverActivity extends Activity {
             }
         });
         backdropAnim.start();
-    }
-
-    private void siftInBackground(String sharedUrl, String userId, SiftCallback callback) {
-        new Thread(() -> {
-            boolean success = false;
-            try {
-                JSONObject body = new JSONObject();
-                body.put("url", sharedUrl);
-                body.put("user_id", userId);
-                body.put("platform", "share_extension");
-
-                URL apiUrl = new URL("https://sift-rho.vercel.app/api/sift");
-                HttpURLConnection conn = (HttpURLConnection) apiUrl.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setConnectTimeout(30000);
-                conn.setReadTimeout(30000);
-                conn.setDoOutput(true);
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(body.toString().getBytes(StandardCharsets.UTF_8));
-                }
-                int code = conn.getResponseCode();
-                success = (code >= 200 && code < 300);
-                Log.d(TAG, "API response: " + code);
-                conn.disconnect();
-            } catch (Exception e) {
-                Log.e(TAG, "API call failed: " + e.getMessage());
-            }
-            final boolean result = success;
-            if (!isFinishing() && !dismissed) {
-                callback.onResult(result);
-            }
-        }).start();
     }
 
     @Override

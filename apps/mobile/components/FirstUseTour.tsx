@@ -83,10 +83,10 @@ export function FirstUseTour() {
                     <X size={18} color={COLORS.stone} />
                 </TouchableOpacity>
 
-                <Typography variant="h3" style={styles.title}>
+                <Typography variant="h3" style={[styles.title, { color: '#443732' }]}>
                     {currentStep.title}
                 </Typography>
-                <Typography variant="body" color="stone" style={styles.description}>
+                <Typography variant="body" style={[styles.description, { color: '#8B8178' }]}>
                     {currentStep.description}
                 </Typography>
 

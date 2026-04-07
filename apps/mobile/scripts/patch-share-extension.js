@@ -84,7 +84,7 @@ const nativeMethods = `
 
     let sheetBottom = sheet.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: 600)
     let screenH = UIScreen.main.bounds.height
-    let sheetHeight = screenH * 0.82
+    let sheetHeight = screenH * 0.85
 
     NSLayoutConstraint.activate([
       sheet.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor),
@@ -100,33 +100,57 @@ const nativeMethods = `
     handle.translatesAutoresizingMaskIntoConstraints = false
     sheet.addSubview(handle)
 
-    // --- Croissant Icon ---
+    // --- App Icon (croissant) ---
     let icon = UIImageView()
-    // Try extension bundle
     let extBundle = Bundle(for: type(of: self))
-    if let imgPath = extBundle.path(forResource: "sift-icon-transparent", ofType: "png"),
+    let iconName = "sift-icon-transparent"
+
+    // Method 1: Direct path in extension bundle
+    let directPath = extBundle.bundlePath + "/\\(iconName).png"
+    if FileManager.default.fileExists(atPath: directPath),
+       let img = UIImage(contentsOfFile: directPath) {
+      icon.image = img
+      NSLog("[ShareExt] Icon loaded from direct path")
+    }
+    // Method 2: Bundle resource API (forResource:ofType:)
+    if icon.image == nil,
+       let imgPath = extBundle.path(forResource: iconName, ofType: "png"),
        let img = UIImage(contentsOfFile: imgPath) {
       icon.image = img
-    } else if let img = UIImage(named: "sift-icon-transparent") {
-      icon.image = img
+      NSLog("[ShareExt] Icon loaded from bundle resource")
     }
-    // Fallback: shared app group container
+    // Method 3: UIImage(named:) which searches all bundles
+    if icon.image == nil, let img = UIImage(named: iconName, in: extBundle, compatibleWith: nil) {
+      icon.image = img
+      NSLog("[ShareExt] Icon loaded via UIImage(named:in:)")
+    }
+    // Method 4: Shared app group container (synced by main app)
     if icon.image == nil {
       if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) {
-        let iconPath = groupURL.appendingPathComponent("sift-icon-transparent.png").path
+        let iconPath = groupURL.appendingPathComponent("\\(iconName).png").path
         if let img = UIImage(contentsOfFile: iconPath) {
           icon.image = img
+          NSLog("[ShareExt] Icon loaded from app group container")
         }
       }
     }
-    // Fallback: containing app bundle
+    // Method 5: Main app's bundle (parent of extension)
     if icon.image == nil {
-      let appBundleURL = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
-      if let appBundle = Bundle(url: appBundleURL),
-         let imgPath = appBundle.path(forResource: "sift-icon-transparent", ofType: "png"),
-         let img = UIImage(contentsOfFile: imgPath) {
-        icon.image = img
+      if let appBundlePath = extBundle.bundlePath.components(separatedBy: ".app/").first {
+        let mainBundlePath = appBundlePath + ".app/\\(iconName).png"
+        if let img = UIImage(contentsOfFile: mainBundlePath) {
+          icon.image = img
+          NSLog("[ShareExt] Icon loaded from main app bundle")
+        }
       }
+    }
+    // Method 6: SF Symbol fallback
+    if icon.image == nil {
+      icon.image = UIImage(systemName: "fork.knife.circle.fill")?.withConfiguration(
+        UIImage.SymbolConfiguration(pointSize: 52, weight: .light)
+      )
+      icon.tintColor = accent
+      NSLog("[ShareExt] Icon fallback to SF Symbol — bundle contents: %@", (try? FileManager.default.contentsOfDirectory(atPath: extBundle.bundlePath)) ?? [])
     }
     icon.contentMode = .scaleAspectFit
     icon.translatesAutoresizingMaskIntoConstraints = false
@@ -234,16 +258,16 @@ const nativeMethods = `
       handle.heightAnchor.constraint(equalToConstant: 5),
 
       icon.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
-      icon.topAnchor.constraint(equalTo: handle.bottomAnchor, constant: 28),
-      icon.widthAnchor.constraint(equalToConstant: 96),
-      icon.heightAnchor.constraint(equalToConstant: 96),
+      icon.topAnchor.constraint(equalTo: handle.bottomAnchor, constant: 20),
+      icon.widthAnchor.constraint(equalToConstant: 72),
+      icon.heightAnchor.constraint(equalToConstant: 72),
 
       brand.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
-      brand.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 8),
+      brand.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 6),
 
       urlCard.leadingAnchor.constraint(equalTo: sheet.leadingAnchor, constant: hPad),
       urlCard.trailingAnchor.constraint(equalTo: sheet.trailingAnchor, constant: -hPad),
-      urlCard.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 28),
+      urlCard.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 20),
 
       linkIcon.leadingAnchor.constraint(equalTo: urlCard.leadingAnchor, constant: 16),
       linkIcon.topAnchor.constraint(equalTo: urlCard.topAnchor, constant: 16),
@@ -261,7 +285,7 @@ const nativeMethods = `
 
       // Status — label centered, checkmark appears to its left
       label.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
-      label.topAnchor.constraint(equalTo: urlCard.bottomAnchor, constant: 32),
+      label.topAnchor.constraint(equalTo: urlCard.bottomAnchor, constant: 24),
 
       check.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -8),
       check.centerYAnchor.constraint(equalTo: label.centerYAnchor),
@@ -284,9 +308,9 @@ const nativeMethods = `
       doneBtn.leadingAnchor.constraint(equalTo: sheet.leadingAnchor, constant: hPad),
       doneBtn.trailingAnchor.constraint(equalTo: sheet.trailingAnchor, constant: -hPad),
       doneBtn.heightAnchor.constraint(equalToConstant: 54),
-      doneBtn.bottomAnchor.constraint(equalTo: sheet.bottomAnchor, constant: -52),
+      doneBtn.bottomAnchor.constraint(equalTo: sheet.bottomAnchor, constant: -40),
 
-      doneBtn.topAnchor.constraint(greaterThanOrEqualTo: sub.bottomAnchor, constant: 40),
+      doneBtn.topAnchor.constraint(greaterThanOrEqualTo: sub.bottomAnchor, constant: 24),
     ])
 
     backdrop.layoutIfNeeded()
@@ -374,40 +398,6 @@ const nativeMethods = `
     }
   }
 
-  private func siftInBackground(_ url: String, completion: @escaping (Bool) -> Void) {
-    let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
-    let userId = defaults?.string(forKey: "sift_user_id") ?? ""
-
-    guard !userId.isEmpty else {
-      NSLog("[ShareExt] No user_id in app group — URL saved to pendingSiftUrls for app to process")
-      completion(false)
-      return
-    }
-    guard let apiUrl = URL(string: "https://sift-rho.vercel.app/api/sift") else {
-      completion(false)
-      return
-    }
-
-    NSLog("[ShareExt] Calling /api/sift for: %@", url)
-    var request = URLRequest(url: apiUrl)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.timeoutInterval = 30
-    let body: [String: Any] = ["url": url, "user_id": userId, "platform": "share_extension"]
-    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-    URLSession.shared.dataTask(with: request) { data, response, error in
-      if let error = error {
-        NSLog("[ShareExt] API call failed: %@", error.localizedDescription)
-        completion(false)
-      } else if let httpResp = response as? HTTPURLResponse {
-        NSLog("[ShareExt] API response: %d", httpResp.statusCode)
-        completion(httpResp.statusCode >= 200 && httpResp.statusCode < 300)
-      } else {
-        completion(false)
-      }
-    }.resume()
-  }
-
 `;
 
 // Inject methods before viewDidLoad
@@ -422,55 +412,22 @@ content = content.replace(
 // Replace ALL redirectToHostApp(type: .weburl) with native popup
 content = content.replace(
     /self\.redirectToHostApp\(type: \.weburl\)/g,
-    `// Native branded popup + background processing
+    `// Native branded popup — save URL for main app to process
             let urlToSift = self.sharedWebUrl.last?.url ?? ""
             self.showSavingHUD(urlString: urlToSift)
 
-            // Save URL as backup for main app to process
+            // Save URL to shared container for main app to sift on next open
             let defaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
             var pending = defaults?.stringArray(forKey: "pendingSiftUrls") ?? []
             pending.append(urlToSift)
             defaults?.set(pending, forKey: "pendingSiftUrls")
             defaults?.synchronize()
+            NSLog("[ShareExt] Saved URL to pendingSiftUrls: %@", urlToSift)
 
-            // Check if user is logged in
-            let userId = defaults?.string(forKey: "sift_user_id") ?? ""
-            if userId.isEmpty {
-              // Not logged in — stop progress bar and show message
-              DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.hudProgressFill?.layer.removeAllAnimations()
-                self.hudLabel?.text = "Open Sift to log in first"
-                self.hudLabel?.font = UIFont.systemFont(ofSize: 18, weight: .bold)
-                self.hudSubLabel?.text = "Your link has been saved for later"
-                UIView.animate(withDuration: 0.3) { self.hudSubLabel?.alpha = 1 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                  self.dismissSheet {
-                    self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-                  }
-                }
-              }
-            } else {
-              // API call — show success or error based on result
-              self.siftInBackground(urlToSift) { [weak self] success in
-                DispatchQueue.main.async {
-                  guard let self = self else { return }
-                  if success {
-                    self.showSuccessHUD {
-                      self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-                    }
-                  } else {
-                    self.hudProgressFill?.layer.removeAllAnimations()
-                    self.hudLabel?.text = "Couldn't save this recipe"
-                    self.hudLabel?.font = UIFont.systemFont(ofSize: 18, weight: .bold)
-                    self.hudSubLabel?.text = "Try sharing again from the app"
-                    UIView.animate(withDuration: 0.3) { self.hudSubLabel?.alpha = 1 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                      self.dismissSheet {
-                        self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-                      }
-                    }
-                  }
-                }
+            // Show success after brief delay, then auto-dismiss
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+              self.showSuccessHUD {
+                self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
               }
             }`
 );

@@ -42,7 +42,18 @@
       "Bash(kill 86192)",
       "Bash(lsof -ti:8081)",
       "Bash(xargs kill:*)",
-      "Bash(eas build:*)"
+      "Bash(eas build:*)",
+      "Bash(eas submit:*)",
+      "Bash(echo \"TS:$?\")",
+      "Bash(node -e \"require\\('./plugins/withNativeSharePopup.js'\\)\")",
+      "Bash(echo \"PLUGIN:$?\")",
+      "Bash(node -c ./scripts/patch-share-extension.js)",
+      "Bash(echo \"PATCH:$?\")",
+      "Bash(echo \"---PLUGIN: $?\")",
+      "Bash(echo \"---PATCH: $?\")",
+      "Bash(identify /Users/ryanjun/antigravity/SIFT/apps/mobile/assets/sift-icon-transparent.png)",
+      "Bash(sips -g all /Users/ryanjun/antigravity/SIFT/apps/mobile/assets/sift-icon-transparent.png)",
+      "Bash(node -e ':*)"
     ]
   }
 }

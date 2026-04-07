@@ -14,7 +14,7 @@ import { AuthProvider, useAuth } from "../lib/auth";
 import { Typography } from "../components/design-system/Typography";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { PersonalizationProvider } from "../context/PersonalizationContext";
-import { ToastProvider } from "../context/ToastContext";
+import { ToastProvider, useToast } from "../context/ToastContext";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
@@ -130,6 +130,7 @@ try {
 function RootLayoutNav() {
     const { session, loading: authLoading } = useAuth();
     const segments = useSegments();
+    const { showToast } = useToast();
     const router = useRouter();
     const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
     const { colors, isDark } = useTheme();
@@ -304,11 +305,21 @@ function RootLayoutNav() {
                 const urls: string[] = await SiftAppGroup.getPendingUrls();
                 if (urls && urls.length > 0) {
                     SiftAppGroup.clearPendingUrls();
-                    // Process each URL
-                    for (const url of urls) {
-                        if (url && url.startsWith('http')) {
-                            DeviceEventEmitter.emit('shareIntentUrl', url);
-                        }
+                    const validUrls = urls.filter(url => url && url.startsWith('http'));
+                    if (validUrls.length === 0) return;
+
+                    // Show toast telling user their shared links are being processed
+                    showToast({
+                        message: validUrls.length === 1
+                            ? 'Sifting your shared recipe...'
+                            : `Sifting ${validUrls.length} shared recipes...`,
+                        type: 'info',
+                        duration: 3000,
+                    });
+
+                    // Route each URL through the sift queue on the home screen
+                    for (const url of validUrls) {
+                        DeviceEventEmitter.emit('shareIntentUrl', url);
                     }
                 }
             } catch {}

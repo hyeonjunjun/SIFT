@@ -174,7 +174,7 @@ export default function ShareScreen() {
     const handleRetry = useCallback(() => {
         if (!targetUrl || !user?.id) return;
         setState('saving');
-        progressWidth.value = withTiming(0, { duration: 0 });
+        progressWidth.value = 0;
         progressWidth.value = withTiming(0.7, { duration: 2000, easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
         statusOpacity.value = withTiming(1, { duration: 200 });
 

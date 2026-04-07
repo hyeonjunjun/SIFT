@@ -190,8 +190,13 @@ export default function CollectionScreen() {
                 .single();
 
             if (folderCheckError || !folderCheck) {
-                showToast({ message: "This collection no longer exists.", type: 'error' });
-                router.back();
+                const isNotFound = folderCheckError?.code === 'PGRST116';
+                if (isNotFound) {
+                    showToast({ message: "This collection no longer exists.", type: 'error' });
+                    router.back();
+                } else {
+                    showToast({ message: "Couldn't verify collection. Check your connection.", type: 'error' });
+                }
                 return;
             }
 
