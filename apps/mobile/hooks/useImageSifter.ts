@@ -17,7 +17,7 @@ export interface SelectedImage {
 
 export const useImageSifter = (onSuccess?: () => void) => {
     const { user } = useAuth();
-    const { maxImagesPerSift, isOverLimit } = useSubscription();
+    const { maxImagesPerSift, isOverLimit, tier } = useSubscription();
     const [loading, setLoading] = useState(false);
     const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
     const [previewVisible, setPreviewVisible] = useState(false);
@@ -121,6 +121,7 @@ export const useImageSifter = (onSuccess?: () => void) => {
                         url: scanUrl,
                         user_id: user.id,
                         id: pendingData.id,
+                        user_tier: tier,
                         image_base64: base64Images[0],
                         images_base64: base64Images.length > 1 ? base64Images.slice(1) : undefined,
                     }),

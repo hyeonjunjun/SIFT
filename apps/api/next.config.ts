@@ -9,9 +9,19 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**', // Allow all for now since sifts can come from anywhere, but we can tighten later
+        hostname: '**',
       }
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [
+          { key: 'Content-Type', value: 'application/json' },
+        ],
+      },
+    ];
   },
 };
 

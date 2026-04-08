@@ -22,6 +22,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import Purchases from 'react-native-purchases';
 import { NetworkBanner } from '../components/NetworkBanner';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import * as Notifications from 'expo-notifications';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -310,13 +311,21 @@ function RootLayoutNav() {
                     const validUrls = urls.filter(url => url && url.startsWith('http'));
                     if (validUrls.length === 0) return;
 
-                    showToast({
-                        message: validUrls.length === 1
-                            ? 'Sifting your shared recipe...'
-                            : `Sifting ${validUrls.length} shared recipes...`,
-                        type: 'info',
-                        duration: 3000,
-                    });
+                    const msg = validUrls.length === 1
+                        ? 'Sifting your shared recipe...'
+                        : `Sifting ${validUrls.length} shared recipes...`;
+
+                    showToast({ message: msg, type: 'info', duration: 4000 });
+
+                    // Local notification as confirmation (visible even if app is backgrounded)
+                    Notifications.scheduleNotificationAsync({
+                        content: {
+                            title: 'Sift',
+                            body: msg,
+                            sound: false,
+                        },
+                        trigger: null, // immediate
+                    }).catch(() => {});
 
                     // Delay to ensure home tab listener is registered
                     setTimeout(() => {

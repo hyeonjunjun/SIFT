@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["8DA3BAGA32.com.hkjstudio.sift"],
+        "paths": ["/invite/*"]
+      }
+    ]
+  }
+}

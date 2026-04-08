@@ -201,6 +201,7 @@ export async function POST(request: Request) {
         }
 
         // 3. URL DEDUPLICATION — return cached result if same user sifted this URL recently
+        // Only dedup if the existing record has real AI-processed data (smart_data with ingredients)
         if (url && user_id && !body.id) {
             const { data: existing } = await supabaseAdmin
                 .from('pages')
@@ -212,7 +213,7 @@ export async function POST(request: Request) {
                 .limit(1)
                 .single();
 
-            if (existing) {
+            if (existing && existing.metadata?.smart_data?.ingredients?.length > 0) {
                 console.log(`[SIFT] Dedup hit — returning existing sift for ${url}`);
                 return NextResponse.json({
                     status: 'success',
@@ -405,14 +406,6 @@ async function performFullSift(
                 ogImage = publicUrl;
             }
 
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash',
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                },
-                systemInstruction: SYSTEM_PROMPT,
-            });
-
             // Build content parts for Gemini
             const parts: any[] = [];
 
@@ -442,16 +435,28 @@ async function performFullSift(
             }
 
             let ai: any = {};
-            for (let aiAttempt = 1; aiAttempt <= 2; aiAttempt++) {
-                try {
-                    const result = await model.generateContent(parts);
-                    const responseText = result.response.text();
-                    ai = JSON.parse(responseText);
-                    break; // Success
-                } catch (parseErr: any) {
-                    currentDebug += `AI attempt ${aiAttempt} failed: ${parseErr.message}. `;
-                    if (aiAttempt < 2) await new Promise(r => setTimeout(r, 1500));
+            const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+            for (const modelName of modelsToTry) {
+                let succeeded = false;
+                for (let aiAttempt = 1; aiAttempt <= 2; aiAttempt++) {
+                    try {
+                        const currentModel = genAI!.getGenerativeModel({
+                            model: modelName,
+                            generationConfig: { responseMimeType: 'application/json' },
+                            systemInstruction: SYSTEM_PROMPT,
+                        });
+                        const result = await currentModel.generateContent(parts);
+                        const responseText = result.response.text();
+                        ai = JSON.parse(responseText);
+                        currentDebug += `AI success: ${modelName} attempt ${aiAttempt}. `;
+                        succeeded = true;
+                        break;
+                    } catch (parseErr: any) {
+                        currentDebug += `${modelName} attempt ${aiAttempt} failed: ${parseErr.message}. `;
+                        if (aiAttempt < 2) await new Promise(r => setTimeout(r, 1500));
+                    }
                 }
+                if (succeeded) break;
             }
 
             finalTitle = ai.title || finalTitle;
@@ -471,12 +476,6 @@ async function performFullSift(
             if (looksLikeRecipe && !hasIngredients) {
                 currentDebug += 'Recipe detected but smart_data missing — re-extracting. ';
                 try {
-                    // Use a CLEAN model instance without the main system prompt
-                    const reModel = genAI!.getGenerativeModel({
-                        model: 'gemini-2.5-flash',
-                        generationConfig: { responseMimeType: 'application/json' },
-                    });
-
                     const sourceText = scrapedData.description || finalSummary || '';
                     const reExtractPrompt = `You are a recipe data extractor. Given this recipe content, return ONLY valid JSON with structured recipe data. Do NOT include anything else.
 
@@ -504,12 +503,25 @@ RULES:
 - ALWAYS estimate nutrition_per_serving based on the ingredients
 - servings must be an integer`;
 
-                    const reResult = await reModel.generateContent([{ text: reExtractPrompt }]);
-                    const reText = reResult.response.text();
-                    const reData = JSON.parse(reText);
-                    if (reData.ingredients && Array.isArray(reData.ingredients) && reData.ingredients.length > 0) {
+                    // Try multiple models for re-extraction too
+                    let reData: any = null;
+                    for (const reModelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+                        try {
+                            const reModel = genAI!.getGenerativeModel({
+                                model: reModelName,
+                                generationConfig: { responseMimeType: 'application/json' },
+                            });
+                            const reResult = await reModel.generateContent([{ text: reExtractPrompt }]);
+                            reData = JSON.parse(reResult.response.text());
+                            currentDebug += `Re-extraction success: ${reModelName}. `;
+                            break;
+                        } catch (reErr: any) {
+                            currentDebug += `Re-extraction ${reModelName} failed: ${reErr.message}. `;
+                        }
+                    }
+                    if (reData?.ingredients && Array.isArray(reData.ingredients) && reData.ingredients.length > 0) {
                         smartData = { ...smartData, ...reData };
-                        currentDebug += `Re-extraction got ${reData.ingredients.length} ingredients. `;
+                        currentDebug += `Got ${reData.ingredients.length} ingredients. `;
                     }
                 } catch (reErr: any) {
                     currentDebug += `Re-extraction failed: ${reErr.message}. `;
@@ -548,11 +560,14 @@ RULES:
     }
 
     // 5. UPDATE
-    // If AI produced nothing useful and we only have bare fallback data, mark as needing retry
-    const hasGoodData = finalSummary && finalSummary !== "Synthesizing..." && finalSummary !== "No summary generated.";
-    const finalStatus = hasGoodData ? 'completed' : 'completed'; // Still mark completed but ensure summary is usable
+    // Check if AI actually processed the content (summary should contain markdown headers for recipes)
+    const aiProcessed = currentDebug.includes('AI success');
+    const hasGoodData = aiProcessed && finalSummary && finalSummary !== "Synthesizing..." && finalSummary !== "No summary generated.";
+    const finalStatus = hasGoodData ? 'completed' : (scrapedData.title ? 'completed' : 'failed');
     if (!hasGoodData && scrapedData.description) {
+        // AI failed — use description but flag it in debug
         finalSummary = scrapedData.description;
+        if (!aiProcessed) currentDebug += 'WARNING: AI skipped or failed — raw scraper data used. ';
     }
 
     const recordData = {

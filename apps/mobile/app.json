@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "162",
+      "buildNumber": "163",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -26,6 +26,9 @@
           "group.com.hkjstudio.sift"
         ]
       },
+      "associatedDomains": [
+        "applinks:sift-rho.vercel.app"
+      ],
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleURLTypes": [
@@ -59,6 +62,21 @@
           "data": [
             {
               "scheme": "sift"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "sift-rho.vercel.app",
+              "pathPrefix": "/invite"
             }
           ],
           "category": [

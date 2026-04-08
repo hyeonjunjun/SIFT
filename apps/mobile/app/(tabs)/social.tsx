@@ -711,17 +711,11 @@ export default function SocialScreen() {
                             {/* Messages List */}
                             <FlatList
                                 style={{ flex: 1 }}
-                                data={conversationTimeline}
+                                data={[...conversationTimeline].reverse()}
                                 keyExtractor={(item) => item.id}
-                                inverted={false}
+                                inverted={true}
                                 contentContainerStyle={chatStyles.messagesList}
                                 showsVerticalScrollIndicator={false}
-                                ref={(ref) => {
-                                    // Auto-scroll to bottom
-                                    if (ref && conversationTimeline.length > 0) {
-                                        setTimeout(() => ref.scrollToEnd?.({ animated: false }), 100);
-                                    }
-                                }}
                                 ListEmptyComponent={
                                     <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
                                         <ChatCircleText size={48} color={colors.stone} weight="thin" />
