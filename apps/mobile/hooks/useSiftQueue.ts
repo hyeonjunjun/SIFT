@@ -51,6 +51,7 @@ export function useSiftQueue() {
                 duplicateCount++;
                 continue;
             }
+            processingUrls.current.add(url);
             setQueue(prev => [...prev, url]);
             lastCheckedUrl.current = url;
         }
@@ -75,9 +76,6 @@ export function useSiftQueue() {
         }
 
         const tasks = await Promise.all(urlsToProcess.map(async (url) => {
-            if (processingUrls.current.has(url)) return null;
-            processingUrls.current.add(url);
-
             try {
                 const domain = getDomain(url);
                 const smartTag = getSmartTag(url);

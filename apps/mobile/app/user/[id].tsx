@@ -19,49 +19,54 @@ export default function UserProfileScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
 
+    // Deep links pass username (sift://user/johndoe), in-app navigation passes UUID
+    const isUuid = typeof id === 'string' && /^[0-9a-f]{8}-/.test(id);
+
     const { data: profile, isLoading, isError } = useQuery({
         queryKey: ['profile', id],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', id)
+                .eq(isUuid ? 'id' : 'username', id)
                 .single();
             if (error) throw error;
             return data;
         },
         enabled: !!id,
-        staleTime: 1000 * 60 * 10, // 10 minutes cache
+        staleTime: 1000 * 60 * 10,
         retry: 2,
     });
 
+    const profileId = profile?.id;
+
     const { data: friendship } = useQuery({
-        queryKey: ['friendship', user?.id, id],
+        queryKey: ['friendship', user?.id, profileId],
         queryFn: async () => {
-            if (!user?.id || !id) return null;
+            if (!user?.id || !profileId) return null;
             const { data, error } = await supabase
                 .from('friendships')
                 .select('*')
-                .or(`and(user_id.eq.${user.id},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${user.id})`)
+                .or(`and(user_id.eq.${user.id},friend_id.eq.${profileId}),and(user_id.eq.${profileId},friend_id.eq.${user.id})`)
                 .single();
             if (error && error.code !== 'PGRST116') throw error;
             return data;
         },
-        enabled: !!user?.id && !!id,
-        staleTime: 1000 * 60 * 5, // 5 minutes cache
+        enabled: !!user?.id && !!profileId,
+        staleTime: 1000 * 60 * 5,
         retry: 2,
     });
 
     const sendFriendRequest = async () => {
-        if (!user?.id || !id) return;
+        if (!user?.id || !profileId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             const { error } = await supabase
                 .from('friendships')
-                .insert([{ user_id: user.id, friend_id: id as string, status: 'pending' }]);
+                .insert([{ user_id: user.id, friend_id: profileId, status: 'pending' }]);
             if (error) throw error;
             Alert.alert("Sent", "Friend request sent!");
-            queryClient.invalidateQueries({ queryKey: ['friendship', user.id, id] });
+            queryClient.invalidateQueries({ queryKey: ['friendship', user.id, profileId] });
         } catch (e: any) {
             Alert.alert("Error", e.message);
         }
@@ -120,7 +125,7 @@ export default function UserProfileScreen() {
                 )}
 
                 <View style={styles.actionSection}>
-                    {id === user?.id ? (
+                    {profileId === user?.id ? (
                         <Typography variant="label" color="stone">This is you</Typography>
                     ) : friendship ? (
                         <View style={[styles.statusBadge, { backgroundColor: colors.subtle }]}>

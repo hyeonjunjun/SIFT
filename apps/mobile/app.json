@@ -9,15 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/sift-icon.png",
-      "resizeMode": "cover",
       "backgroundColor": "#FBF8F1"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hkjstudio.sift",
       "usesAppleSignIn": true,
-      "buildNumber": "159",
+      "buildNumber": "160",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
@@ -48,7 +46,7 @@
       },
       "package": "com.hkjstudio.sift",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 1202,
+      "versionCode": 1203,
       "allowBackup": false,
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",

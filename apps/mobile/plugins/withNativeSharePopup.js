@@ -57,10 +57,13 @@ class SiftAppGroup: NSObject {
     @objc func syncIcon() {
         guard let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SiftAppGroup.suiteName) else { return }
         let dst = groupURL.appendingPathComponent("sift-icon-transparent.png")
-        if FileManager.default.fileExists(atPath: dst.path) { return }
+        // Always re-copy to ensure latest icon is in shared container
         if let src = Bundle.main.path(forResource: "sift-icon-transparent", ofType: "png") {
+            try? FileManager.default.removeItem(atPath: dst.path)
             try? FileManager.default.copyItem(atPath: src, toPath: dst.path)
-            NSLog("[SiftAppGroup] Copied icon to shared container")
+            NSLog("[SiftAppGroup] Synced icon to shared container")
+        } else {
+            NSLog("[SiftAppGroup] Icon not found in main bundle")
         }
     }
 
@@ -158,10 +161,19 @@ const withShareExtensionIcon = (config) => {
                                     project.findPBXGroupKey({ path: 'ShareExtension' });
 
             if (shareExtTargetUuid && shareExtGroupKey) {
-                project.addResourceFile('sift-icon-transparent.png',
-                    { target: shareExtTargetUuid, lastKnownFileType: 'image.png' },
-                    shareExtGroupKey);
-                console.log('[withNativeSharePopup] Added sift-icon-transparent.png to ShareExtension bundle resources');
+                // Check if already added
+                const buildFiles = project.pbxBuildFileSection();
+                const alreadyAdded = Object.values(buildFiles).some(
+                    f => typeof f === 'object' && f.fileRef_comment === 'sift-icon-transparent.png'
+                );
+                if (!alreadyAdded) {
+                    project.addResourceFile('sift-icon-transparent.png',
+                        { target: shareExtTargetUuid, lastKnownFileType: 'image.png' },
+                        shareExtGroupKey);
+                    console.log('[withNativeSharePopup] Added sift-icon-transparent.png to ShareExtension bundle resources');
+                } else {
+                    console.log('[withNativeSharePopup] sift-icon-transparent.png already in ShareExtension resources');
+                }
             } else {
                 console.log('[withNativeSharePopup] ShareExtension target/group not found for icon, target:', shareExtTargetUuid, 'group:', shareExtGroupKey);
             }
@@ -442,6 +454,10 @@ public class ShareReceiverActivity extends Activity {
         handleLp.bottomMargin = dp(28);
         sheet.addView(handle, handleLp);
 
+        // --- Top spacer to vertically center content ---
+        View topSpacer = new View(this);
+        sheet.addView(topSpacer, new LinearLayout.LayoutParams(-1, 0, 1f));
+
         // --- App Icon (96x96 with accent shadow) ---
         int iconResId = getResources().getIdentifier("sift_icon_transparent", "drawable", getPackageName());
         View iconWidget;
@@ -458,7 +474,7 @@ public class ShareReceiverActivity extends Activity {
             iconFallback.setGravity(Gravity.CENTER);
             iconWidget = iconFallback;
         }
-        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(72), dp(72));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(96), dp(96));
         iconLp.gravity = Gravity.CENTER_HORIZONTAL;
         iconLp.bottomMargin = dp(8);
         sheet.addView(iconWidget, iconLp);
@@ -734,19 +750,46 @@ public class ShareReceiverActivity extends Activity {
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.Arguments;
 import android.content.SharedPreferences;
 import android.content.Context;
 
 public class SiftAppGroupModule extends ReactContextBaseJavaModule {
     SiftAppGroupModule(ReactApplicationContext context) { super(context); }
     @Override public String getName() { return "SiftAppGroup"; }
+
     @ReactMethod public void setUserId(String userId) {
         getReactApplicationContext().getSharedPreferences("sift_app_group", Context.MODE_PRIVATE)
             .edit().putString("sift_user_id", userId).apply();
     }
+
     @ReactMethod public void clearUserId() {
         getReactApplicationContext().getSharedPreferences("sift_app_group", Context.MODE_PRIVATE)
             .edit().remove("sift_user_id").apply();
+    }
+
+    @ReactMethod public void getPendingUrls(Promise promise) {
+        SharedPreferences prefs = getReactApplicationContext()
+            .getSharedPreferences("sift_app_group", Context.MODE_PRIVATE);
+        String raw = prefs.getString("pendingSiftUrls", "");
+        WritableArray arr = Arguments.createArray();
+        if (!raw.isEmpty()) {
+            for (String url : raw.split(",")) {
+                if (!url.isEmpty()) arr.pushString(url);
+            }
+        }
+        promise.resolve(arr);
+    }
+
+    @ReactMethod public void clearPendingUrls() {
+        getReactApplicationContext().getSharedPreferences("sift_app_group", Context.MODE_PRIVATE)
+            .edit().remove("pendingSiftUrls").apply();
+    }
+
+    @ReactMethod public void syncIcon() {
+        // No-op on Android — icon loaded from drawable resources
     }
 }
 `, 'utf-8');

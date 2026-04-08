@@ -296,8 +296,9 @@ function RootLayoutNav() {
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 
     // Process pending URLs from native share extension on app open
+    // Must wait for splashDismissed so home tab is mounted and listening
     useEffect(() => {
-        if (!session?.user?.id) return;
+        if (!session?.user?.id || !splashDismissed) return;
         const processPending = async () => {
             try {
                 const { SiftAppGroup } = NativeModules;
@@ -317,15 +318,22 @@ function RootLayoutNav() {
                         duration: 3000,
                     });
 
-                    // Route each URL through the sift queue on the home screen
-                    for (const url of validUrls) {
-                        DeviceEventEmitter.emit('shareIntentUrl', url);
-                    }
+                    // Emit with retries — home tab listener may not be registered yet
+                    const emitWithRetry = (attempts: number) => {
+                        setTimeout(() => {
+                            for (const url of validUrls) {
+                                DeviceEventEmitter.emit('shareIntentUrl', url);
+                            }
+                        }, attempts === 0 ? 1000 : 3000);
+                    };
+                    emitWithRetry(0);
+                    // Safety retry in case first emit was too early
+                    emitWithRetry(1);
                 }
             } catch {}
         };
         processPending();
-    }, [session?.user?.id]);
+    }, [session?.user?.id, splashDismissed]);
 
     // CRITICAL: Block rendering of potentially themed components until fonts are loaded
     // to prevent "font family not found" crashes on launch.

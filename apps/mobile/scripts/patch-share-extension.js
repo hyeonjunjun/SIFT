@@ -249,25 +249,50 @@ const nativeMethods = `
     doneBtn.addTarget(self, action: #selector(hudDoneTapped), for: .touchUpInside)
     sheet.addSubview(doneBtn)
 
+    // --- Content wrapper to center everything vertically ---
+    let contentStack = UIView()
+    contentStack.translatesAutoresizingMaskIntoConstraints = false
+    sheet.addSubview(contentStack)
+
+    // Move elements into content stack
+    icon.removeFromSuperview(); contentStack.addSubview(icon)
+    brand.removeFromSuperview(); contentStack.addSubview(brand)
+    urlCard.removeFromSuperview(); contentStack.addSubview(urlCard)
+    label.removeFromSuperview(); contentStack.addSubview(label)
+    check.removeFromSuperview(); contentStack.addSubview(check)
+    track.removeFromSuperview(); contentStack.addSubview(track)
+    sub.removeFromSuperview(); contentStack.addSubview(sub)
+
     // --- Layout ---
     let hPad: CGFloat = 24
     NSLayoutConstraint.activate([
+      // Handle stays at top of sheet
       handle.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
       handle.topAnchor.constraint(equalTo: sheet.topAnchor, constant: 10),
       handle.widthAnchor.constraint(equalToConstant: 40),
       handle.heightAnchor.constraint(equalToConstant: 5),
 
-      icon.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
-      icon.topAnchor.constraint(equalTo: handle.bottomAnchor, constant: 20),
-      icon.widthAnchor.constraint(equalToConstant: 72),
-      icon.heightAnchor.constraint(equalToConstant: 72),
+      // Content stack centered between handle and done button
+      contentStack.leadingAnchor.constraint(equalTo: sheet.leadingAnchor),
+      contentStack.trailingAnchor.constraint(equalTo: sheet.trailingAnchor),
+      contentStack.topAnchor.constraint(greaterThanOrEqualTo: handle.bottomAnchor, constant: 16),
+      contentStack.bottomAnchor.constraint(lessThanOrEqualTo: doneBtn.topAnchor, constant: -24),
+      contentStack.centerYAnchor.constraint(equalTo: sheet.centerYAnchor, constant: -20),
 
-      brand.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
-      brand.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 6),
+      // Icon — big and centered
+      icon.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
+      icon.topAnchor.constraint(equalTo: contentStack.topAnchor),
+      icon.widthAnchor.constraint(equalToConstant: 96),
+      icon.heightAnchor.constraint(equalToConstant: 96),
 
-      urlCard.leadingAnchor.constraint(equalTo: sheet.leadingAnchor, constant: hPad),
-      urlCard.trailingAnchor.constraint(equalTo: sheet.trailingAnchor, constant: -hPad),
-      urlCard.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 20),
+      // Brand name
+      brand.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
+      brand.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 8),
+
+      // URL card
+      urlCard.leadingAnchor.constraint(equalTo: contentStack.leadingAnchor, constant: hPad),
+      urlCard.trailingAnchor.constraint(equalTo: contentStack.trailingAnchor, constant: -hPad),
+      urlCard.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 28),
 
       linkIcon.leadingAnchor.constraint(equalTo: urlCard.leadingAnchor, constant: 16),
       linkIcon.topAnchor.constraint(equalTo: urlCard.topAnchor, constant: 16),
@@ -283,34 +308,37 @@ const nativeMethods = `
       pathLabel.topAnchor.constraint(equalTo: domainLabel.bottomAnchor, constant: 4),
       pathLabel.bottomAnchor.constraint(equalTo: urlCard.bottomAnchor, constant: -16),
 
-      // Status — label centered, checkmark appears to its left
-      label.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
-      label.topAnchor.constraint(equalTo: urlCard.bottomAnchor, constant: 24),
+      // Status label centered
+      label.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
+      label.topAnchor.constraint(equalTo: urlCard.bottomAnchor, constant: 28),
 
+      // Checkmark to the left of label
       check.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -8),
       check.centerYAnchor.constraint(equalTo: label.centerYAnchor),
       check.widthAnchor.constraint(equalToConstant: 28),
       check.heightAnchor.constraint(equalToConstant: 28),
 
-      track.leadingAnchor.constraint(equalTo: sheet.leadingAnchor, constant: hPad),
-      track.trailingAnchor.constraint(equalTo: sheet.trailingAnchor, constant: -hPad),
+      // Progress bar
+      track.leadingAnchor.constraint(equalTo: contentStack.leadingAnchor, constant: hPad),
+      track.trailingAnchor.constraint(equalTo: contentStack.trailingAnchor, constant: -hPad),
       track.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 20),
-      track.heightAnchor.constraint(equalToConstant: 6),
+      track.heightAnchor.constraint(equalToConstant: 4),
 
       fill.leadingAnchor.constraint(equalTo: track.leadingAnchor),
       fill.topAnchor.constraint(equalTo: track.topAnchor),
       fill.bottomAnchor.constraint(equalTo: track.bottomAnchor),
       fillWidth,
 
-      sub.centerXAnchor.constraint(equalTo: sheet.centerXAnchor),
+      // Subtitle
+      sub.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
       sub.topAnchor.constraint(equalTo: track.bottomAnchor, constant: 14),
+      sub.bottomAnchor.constraint(equalTo: contentStack.bottomAnchor),
 
+      // Done button pinned to bottom
       doneBtn.leadingAnchor.constraint(equalTo: sheet.leadingAnchor, constant: hPad),
       doneBtn.trailingAnchor.constraint(equalTo: sheet.trailingAnchor, constant: -hPad),
       doneBtn.heightAnchor.constraint(equalToConstant: 54),
-      doneBtn.bottomAnchor.constraint(equalTo: sheet.bottomAnchor, constant: -40),
-
-      doneBtn.topAnchor.constraint(greaterThanOrEqualTo: sub.bottomAnchor, constant: 24),
+      doneBtn.bottomAnchor.constraint(equalTo: sheet.bottomAnchor, constant: -44),
     ])
 
     backdrop.layoutIfNeeded()

@@ -29,7 +29,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
     const containerOpacity = useSharedValue(1);
 
     useEffect(() => {
-        // 1. Icon fades in and scales up
+        // 1. Icon fades in and scales up with a little bounce
         iconOpacity.value = withTiming(1, { duration: 600, easing: EASE });
         iconScale.value = withTiming(1, { duration: 700, easing: EASE });
 

@@ -24,7 +24,7 @@ export default async function InvitePage({ params }: Props) {
     return (
         <html>
             <head>
-                <meta name="apple-itunes-app" content="app-id=YOUR_APP_ID, app-argument=sift://user/{username}" />
+                <meta name="apple-itunes-app" content={`app-id=6757769240, app-argument=sift://user/${username}`} />
                 <style dangerouslySetInnerHTML={{ __html: `
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #FDFCF8; color: #3B3231; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
