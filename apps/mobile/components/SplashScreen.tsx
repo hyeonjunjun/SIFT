@@ -9,7 +9,9 @@ import Animated, {
     Easing,
     runOnJS,
 } from 'react-native-reanimated';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { useTheme } from '../context/ThemeContext';
+import { LIGHT_COLORS } from '../lib/theme';
 import { Typography } from './design-system/Typography';
 
 interface SplashScreenProps {
@@ -29,6 +31,9 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
     const containerOpacity = useSharedValue(1);
 
     useEffect(() => {
+        // Hide native splash immediately so this animated version is visible
+        ExpoSplashScreen.hideAsync().catch(() => {});
+
         // 1. Icon fades in and scales up with a little bounce
         iconOpacity.value = withTiming(1, { duration: 600, easing: EASE });
         iconScale.value = withTiming(1, { duration: 700, easing: EASE });
@@ -76,12 +81,13 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
     return (
         <Animated.View style={[StyleSheet.absoluteFill, containerStyle, { zIndex: 9999 }]}>
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.canvas }]} />
+            {/* Always use cream background for splash — matches native splash screen */}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: LIGHT_COLORS.canvas }]} />
 
             <ImageBackground
                 source={require('../assets/noise.png')}
                 style={StyleSheet.absoluteFill}
-                imageStyle={{ opacity: isDark ? 0.08 : 0.04 }}
+                imageStyle={{ opacity: 0.04 }}
                 resizeMode="repeat"
             />
 
@@ -95,7 +101,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
                 </Animated.View>
 
                 <Animated.View style={[styles.textContainer, textStyle]}>
-                    <Typography variant="h1" style={[styles.brandText, { color: colors.ink }]}>
+                    <Typography variant="h1" style={[styles.brandText, { color: LIGHT_COLORS.ink }]}>
                         sift
                     </Typography>
                 </Animated.View>

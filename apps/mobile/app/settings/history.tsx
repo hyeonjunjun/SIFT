@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, SectionList, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, SectionList, Pressable } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { CaretLeft, MagnifyingGlass, X, ClockCounterClockwise } from 'phosphor-react-native';
 import { Image } from 'expo-image';
@@ -8,6 +8,7 @@ import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useTheme } from '../../context/ThemeContext';
+import { CroissantSpinner } from '../../components/design-system/CroissantSpinner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useQuery } from '@tanstack/react-query';
@@ -193,7 +194,7 @@ export default function HistoryScreen() {
                 ListEmptyComponent={() => (
                     <View style={styles.emptyState}>
                         {isLoading && fetchStatus === 'fetching' ? (
-                            <ActivityIndicator size="large" color={colors.ink} style={{ marginBottom: SPACING.m }} />
+                            <CroissantSpinner size={48} style={{ marginBottom: SPACING.m }} />
                         ) : (
                             <>
                                 <ClockCounterClockwise size={48} color={COLORS.stone} weight="thin" />

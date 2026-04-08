@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Switch, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { CaretLeft, BellSimple, PaperPlaneTilt, UserPlus, FolderPlus, Sparkle, ShieldCheck, CheckCircle } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
@@ -8,6 +8,7 @@ import { COLORS, SPACING, RADIUS } from '../../lib/theme';
 import { useTheme } from '../../context/ThemeContext';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { useNotificationPreferences, NotificationPreferences } from '../../hooks/useNotificationPreferences';
+import { CroissantSpinner } from '../../components/design-system/CroissantSpinner';
 
 interface AlertRowProps {
     icon: React.ReactNode;
@@ -60,7 +61,7 @@ export default function AlertsScreen() {
                     <View style={{ width: 28 }} />
                 </View>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <ActivityIndicator color={colors.stone} />
+                    <CroissantSpinner size={40} />
                 </View>
             </ScreenWrapper>
         );

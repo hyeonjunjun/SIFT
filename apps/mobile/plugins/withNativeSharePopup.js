@@ -55,16 +55,28 @@ class SiftAppGroup: NSObject {
     }
 
     @objc func syncIcon() {
-        guard let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SiftAppGroup.suiteName) else { return }
+        guard let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SiftAppGroup.suiteName) else {
+            NSLog("[SiftAppGroup] App group container not available")
+            return
+        }
         let dst = groupURL.appendingPathComponent("sift-icon-transparent.png")
-        // Always re-copy to ensure latest icon is in shared container
+        // Try Bundle.main resource lookup
         if let src = Bundle.main.path(forResource: "sift-icon-transparent", ofType: "png") {
             try? FileManager.default.removeItem(atPath: dst.path)
             try? FileManager.default.copyItem(atPath: src, toPath: dst.path)
-            NSLog("[SiftAppGroup] Synced icon to shared container")
-        } else {
-            NSLog("[SiftAppGroup] Icon not found in main bundle")
+            NSLog("[SiftAppGroup] Synced icon from bundle resource")
+            return
         }
+        // Try direct path in main bundle
+        let directPath = Bundle.main.bundlePath + "/sift-icon-transparent.png"
+        if FileManager.default.fileExists(atPath: directPath) {
+            try? FileManager.default.removeItem(atPath: dst.path)
+            try? FileManager.default.copyItem(atPath: directPath, toPath: dst.path)
+            NSLog("[SiftAppGroup] Synced icon from direct bundle path")
+            return
+        }
+        NSLog("[SiftAppGroup] Icon not found — bundle contents sample: %@",
+            (try? FileManager.default.contentsOfDirectory(atPath: Bundle.main.bundlePath).filter { $0.contains("sift") }) ?? [])
     }
 
     @objc static func requiresMainQueueSetup() -> Bool {

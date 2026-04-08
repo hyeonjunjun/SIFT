@@ -102,55 +102,42 @@ const nativeMethods = `
 
     // --- App Icon (croissant) ---
     let icon = UIImageView()
-    let extBundle = Bundle(for: type(of: self))
     let iconName = "sift-icon-transparent"
 
-    // Method 1: Direct path in extension bundle
-    let directPath = extBundle.bundlePath + "/\\(iconName).png"
-    if FileManager.default.fileExists(atPath: directPath),
-       let img = UIImage(contentsOfFile: directPath) {
-      icon.image = img
-      NSLog("[ShareExt] Icon loaded from direct path")
-    }
-    // Method 2: Bundle resource API (forResource:ofType:)
-    if icon.image == nil,
-       let imgPath = extBundle.path(forResource: iconName, ofType: "png"),
-       let img = UIImage(contentsOfFile: imgPath) {
-      icon.image = img
-      NSLog("[ShareExt] Icon loaded from bundle resource")
-    }
-    // Method 3: UIImage(named:) which searches all bundles
-    if icon.image == nil, let img = UIImage(named: iconName, in: extBundle, compatibleWith: nil) {
-      icon.image = img
-      NSLog("[ShareExt] Icon loaded via UIImage(named:in:)")
-    }
-    // Method 4: Shared app group container (synced by main app)
-    if icon.image == nil {
-      if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) {
-        let iconPath = groupURL.appendingPathComponent("\\(iconName).png").path
-        if let img = UIImage(contentsOfFile: iconPath) {
-          icon.image = img
-          NSLog("[ShareExt] Icon loaded from app group container")
-        }
+    // Primary: App group container (synced by main app on every launch via syncIcon())
+    if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) {
+      let iconPath = groupURL.appendingPathComponent("\\(iconName).png").path
+      if let img = UIImage(contentsOfFile: iconPath) {
+        icon.image = img
+        NSLog("[ShareExt] Icon loaded from app group container")
       }
     }
-    // Method 5: Main app's bundle (parent of extension)
+    // Fallback: Try extension bundle and main app bundle
     if icon.image == nil {
-      if let appBundlePath = extBundle.bundlePath.components(separatedBy: ".app/").first {
-        let mainBundlePath = appBundlePath + ".app/\\(iconName).png"
-        if let img = UIImage(contentsOfFile: mainBundlePath) {
+      let extBundle = Bundle(for: type(of: self))
+      // Extension bundle direct path
+      if let img = UIImage(contentsOfFile: extBundle.bundlePath + "/\\(iconName).png") {
+        icon.image = img
+        NSLog("[ShareExt] Icon loaded from extension bundle")
+      }
+      // Main app bundle (parent of .appex)
+      if icon.image == nil,
+         let appPath = extBundle.bundlePath.components(separatedBy: ".app/").first {
+        if let img = UIImage(contentsOfFile: appPath + ".app/\\(iconName).png") {
           icon.image = img
           NSLog("[ShareExt] Icon loaded from main app bundle")
         }
       }
     }
-    // Method 6: SF Symbol fallback
+    // Final fallback: SF Symbol
     if icon.image == nil {
       icon.image = UIImage(systemName: "fork.knife.circle.fill")?.withConfiguration(
         UIImage.SymbolConfiguration(pointSize: 52, weight: .light)
       )
       icon.tintColor = accent
-      NSLog("[ShareExt] Icon fallback to SF Symbol — bundle contents: %@", (try? FileManager.default.contentsOfDirectory(atPath: extBundle.bundlePath)) ?? [])
+      NSLog("[ShareExt] Icon fallback — app group contents: %@",
+        (try? FileManager.default.contentsOfDirectory(
+          atPath: FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)?.path ?? "")) ?? [])
     }
     icon.contentMode = .scaleAspectFit
     icon.translatesAutoresizingMaskIntoConstraints = false

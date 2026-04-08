@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as React from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { CaretLeft, UserPlus, Check, X } from 'phosphor-react-native';
 import { Typography } from '../../components/design-system/Typography';
 import { COLORS, SPACING, RADIUS, Theme } from '../../lib/theme';
@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { CroissantSpinner } from '../../components/design-system/CroissantSpinner';
 
 export default function UserProfileScreen() {
     const { id } = useLocalSearchParams();
@@ -75,7 +76,7 @@ export default function UserProfileScreen() {
     if (isLoading) {
         return (
             <ScreenWrapper edges={['top']}>
-                <View style={styles.centered}><ActivityIndicator color={colors.ink} /></View>
+                <View style={styles.centered}><CroissantSpinner size={48} /></View>
             </ScreenWrapper>
         );
     }

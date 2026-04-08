@@ -53,7 +53,11 @@
       "Bash(echo \"---PATCH: $?\")",
       "Bash(identify /Users/ryanjun/antigravity/SIFT/apps/mobile/assets/sift-icon-transparent.png)",
       "Bash(sips -g all /Users/ryanjun/antigravity/SIFT/apps/mobile/assets/sift-icon-transparent.png)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(eas build:list --limit 3 --non-interactive)",
+      "Bash(eas build:view 3ee03f94-7500-49a4-ae03-4c9051af07a1 --non-interactive)",
+      "Bash(eas build:view 3ee03f94-7500-49a4-ae03-4c9051af07a1)",
+      "Bash(grep -r \"isLoading\\\\|loading\" components/modals/*.tsx --include=\"*.tsx\")"
     ]
   }
 }

@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Theme, COLORS, LIGHT_COLORS, DARK_COLORS } from "../lib/theme";
 import * as SplashScreenIs from "expo-splash-screen";
 import * as SecureStore from 'expo-secure-store';
-import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme, DeviceEventEmitter, NativeModules, Platform } from "react-native";
+import { View, ImageBackground, StyleSheet, TouchableOpacity, Text, useColorScheme, DeviceEventEmitter, NativeModules, Platform, AppState } from "react-native";
 import SplashScreen from "../components/SplashScreen";
 import Onboarding from "../components/Onboarding";
 import { AuthProvider, useAuth } from "../lib/auth";
@@ -295,10 +295,11 @@ function RootLayoutNav() {
         }
     }, [hasShareIntent, shareIntent, resetShareIntent]);
 
-    // Process pending URLs from native share extension on app open
+    // Process pending URLs from native share extension on app open AND app foreground
     // Must wait for splashDismissed so home tab is mounted and listening
     useEffect(() => {
         if (!session?.user?.id || !splashDismissed) return;
+
         const processPending = async () => {
             try {
                 const { SiftAppGroup } = NativeModules;
@@ -309,7 +310,6 @@ function RootLayoutNav() {
                     const validUrls = urls.filter(url => url && url.startsWith('http'));
                     if (validUrls.length === 0) return;
 
-                    // Show toast telling user their shared links are being processed
                     showToast({
                         message: validUrls.length === 1
                             ? 'Sifting your shared recipe...'
@@ -318,21 +318,26 @@ function RootLayoutNav() {
                         duration: 3000,
                     });
 
-                    // Emit with retries — home tab listener may not be registered yet
-                    const emitWithRetry = (attempts: number) => {
-                        setTimeout(() => {
-                            for (const url of validUrls) {
-                                DeviceEventEmitter.emit('shareIntentUrl', url);
-                            }
-                        }, attempts === 0 ? 1000 : 3000);
-                    };
-                    emitWithRetry(0);
-                    // Safety retry in case first emit was too early
-                    emitWithRetry(1);
+                    // Delay to ensure home tab listener is registered
+                    setTimeout(() => {
+                        for (const url of validUrls) {
+                            DeviceEventEmitter.emit('shareIntentUrl', url);
+                        }
+                    }, 1000);
                 }
             } catch {}
         };
+
+        // Process on initial mount
         processPending();
+
+        // Also process when app returns from background (warm start)
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') {
+                processPending();
+            }
+        });
+        return () => sub.remove();
     }, [session?.user?.id, splashDismissed]);
 
     // CRITICAL: Block rendering of potentially themed components until fonts are loaded
