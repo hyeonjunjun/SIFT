@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { API_URL } from './config';
 
-type PushType = 'sift_shared' | 'friend_request' | 'friend_accepted' | 'collection_invite' | 'collection_sift_added' | 'sift_complete';
+type PushType = 'sift_shared' | 'friend_request' | 'friend_accepted' | 'collection_invite' | 'collection_sift_added' | 'sift_complete' | 'meal_shared';
 
 const TYPE_TO_PREF: Record<PushType, string> = {
     sift_shared: 'sift_shared',
@@ -10,6 +10,7 @@ const TYPE_TO_PREF: Record<PushType, string> = {
     collection_invite: 'collection_activity',
     collection_sift_added: 'collection_activity',
     sift_complete: 'sift_complete',
+    meal_shared: 'meal_activity',
 };
 
 interface PushParams {
@@ -21,6 +22,7 @@ interface PushParams {
     messageContent?: string;
     collectionName?: string;
     collectionId?: string;
+    recipeTitle?: string;
 }
 
 /**

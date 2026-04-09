@@ -19,7 +19,7 @@ export function CroissantSpinner({ size = 48, speed = 2400, style }: CroissantSp
 
     useEffect(() => {
         rotation.value = withRepeat(
-            withTiming(360, { duration: speed, easing: Easing.inOut(Easing.ease) }),
+            withTiming(360, { duration: speed, easing: Easing.linear }),
             -1,
             false
         );

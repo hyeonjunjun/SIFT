@@ -5,6 +5,24 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+
+// Generate embedded icon base64 (96x96 croissant)
+let ICON_BASE64 = '';
+const iconSrcPath = path.join(__dirname, '..', 'assets', 'sift-icon-transparent.png');
+if (fs.existsSync(iconSrcPath)) {
+    try {
+        // Resize to 96x96 and encode as base64
+        const tmpIcon = path.join('/tmp', 'sift-icon-share-96.png');
+        execSync(`sips -z 96 96 "${iconSrcPath}" --out "${tmpIcon}" 2>/dev/null`);
+        ICON_BASE64 = fs.readFileSync(tmpIcon).toString('base64');
+        console.log(`[patch-share-ext] Embedded icon base64: ${ICON_BASE64.length} chars`);
+    } catch (e) {
+        // Fallback: use original (larger but works)
+        ICON_BASE64 = fs.readFileSync(iconSrcPath).toString('base64');
+        console.log(`[patch-share-ext] Embedded full icon base64: ${ICON_BASE64.length} chars`);
+    }
+}
 
 const SHARE_EXT_PATH = path.join(__dirname, '..', 'ios', 'ShareExtension', 'ShareViewController.swift');
 
@@ -22,6 +40,7 @@ if (content.includes('showSavingHUD')) {
 
 const nativeMethods = `
   // MARK: - Branded Native Share Page
+  private var hudIsDark: Bool = false
   private var hudBackdrop: UIView?
   private var hudCard: UIView?
   private var hudProgressFill: UIView?
@@ -57,6 +76,7 @@ const nativeMethods = `
     let stone = UIColor(red: 139/255, green: 129/255, blue: 120/255, alpha: 1)
     let ink = isDark ? UIColor(white: 0.95, alpha: 1) : UIColor(red: 59/255, green: 50/255, blue: 49/255, alpha: 1)
     let accent = UIColor(red: 207/255, green: 149/255, blue: 123/255, alpha: 1)
+    self.hudIsDark = isDark
     let sheetBg = isDark ? darkBg : cream
     let urlCardBg = isDark ? darkCard : UIColor(red: 0, green: 0, blue: 0, alpha: 0.04)
     let trackBg = isDark ? UIColor(white: 0.22, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.06)
@@ -100,59 +120,35 @@ const nativeMethods = `
     handle.translatesAutoresizingMaskIntoConstraints = false
     sheet.addSubview(handle)
 
-    // --- App Icon (croissant) ---
-    let icon = UIImageView()
-    let iconName = "sift-icon-transparent"
+    // --- Icon Container (soft circle with accent glow) ---
+    let iconContainer = UIView()
+    iconContainer.translatesAutoresizingMaskIntoConstraints = false
+    iconContainer.backgroundColor = isDark ? UIColor(white: 0.18, alpha: 1) : UIColor(red: 0, green: 0, blue: 0, alpha: 0.03)
+    iconContainer.layer.cornerRadius = 56
+    iconContainer.layer.shadowColor = accent.cgColor
+    iconContainer.layer.shadowOpacity = isDark ? 0.3 : 0.15
+    iconContainer.layer.shadowRadius = 24
+    iconContainer.layer.shadowOffset = CGSize(width: 0, height: 6)
+    sheet.addSubview(iconContainer)
 
-    // Primary: App group container (synced by main app on every launch via syncIcon())
-    if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier) {
-      let iconPath = groupURL.appendingPathComponent("\\(iconName).png").path
-      if let img = UIImage(contentsOfFile: iconPath) {
-        icon.image = img
-        NSLog("[ShareExt] Icon loaded from app group container")
-      }
-    }
-    // Fallback: Try extension bundle and main app bundle
-    if icon.image == nil {
-      let extBundle = Bundle(for: type(of: self))
-      // Extension bundle direct path
-      if let img = UIImage(contentsOfFile: extBundle.bundlePath + "/\\(iconName).png") {
-        icon.image = img
-        NSLog("[ShareExt] Icon loaded from extension bundle")
-      }
-      // Main app bundle (parent of .appex)
-      if icon.image == nil,
-         let appPath = extBundle.bundlePath.components(separatedBy: ".app/").first {
-        if let img = UIImage(contentsOfFile: appPath + ".app/\\(iconName).png") {
-          icon.image = img
-          NSLog("[ShareExt] Icon loaded from main app bundle")
-        }
-      }
-    }
-    // Final fallback: SF Symbol
-    if icon.image == nil {
-      icon.image = UIImage(systemName: "fork.knife.circle.fill")?.withConfiguration(
-        UIImage.SymbolConfiguration(pointSize: 52, weight: .light)
-      )
-      icon.tintColor = accent
-      NSLog("[ShareExt] Icon fallback — app group contents: %@",
-        (try? FileManager.default.contentsOfDirectory(
-          atPath: FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: self.hostAppGroupIdentifier)?.path ?? "")) ?? [])
+    // --- App Icon (croissant — embedded as base64) ---
+    let icon = UIImageView()
+    let iconB64 = "SIFT_ICON_BASE64_PLACEHOLDER"
+    if let data = Data(base64Encoded: iconB64), let img = UIImage(data: data) {
+      icon.image = img
     }
     icon.contentMode = .scaleAspectFit
     icon.translatesAutoresizingMaskIntoConstraints = false
-    icon.layer.shadowColor = accent.cgColor
-    icon.layer.shadowOpacity = 0.25
-    icon.layer.shadowRadius = 18
-    icon.layer.shadowOffset = CGSize(width: 0, height: 4)
-    sheet.addSubview(icon)
+    icon.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+    iconContainer.addSubview(icon)
 
     // --- Brand Name ---
     let brand = UILabel()
     brand.text = "sift"
-    brand.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-    brand.textColor = stone
+    brand.font = UIFont(name: "Georgia-Bold", size: 18) ?? UIFont.systemFont(ofSize: 18, weight: .bold)
+    brand.textColor = ink
     brand.textAlignment = .center
+    brand.alpha = 0.85
     brand.translatesAutoresizingMaskIntoConstraints = false
     sheet.addSubview(brand)
 
@@ -160,6 +156,10 @@ const nativeMethods = `
     let urlCard = UIView()
     urlCard.backgroundColor = urlCardBg
     urlCard.layer.cornerRadius = 16
+    if !isDark {
+      urlCard.layer.borderWidth = 1
+      urlCard.layer.borderColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.06).cgColor
+    }
     urlCard.translatesAutoresizingMaskIntoConstraints = false
     sheet.addSubview(urlCard)
 
@@ -193,7 +193,7 @@ const nativeMethods = `
 
     let label = UILabel()
     label.text = "Saving recipe..."
-    label.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+    label.font = UIFont(name: "Georgia-Bold", size: 22) ?? UIFont.systemFont(ofSize: 22, weight: .bold)
     label.textColor = ink
     label.textAlignment = .center
     label.translatesAutoresizingMaskIntoConstraints = false
@@ -202,14 +202,14 @@ const nativeMethods = `
     // --- Progress Bar ---
     let track = UIView()
     track.backgroundColor = trackBg
-    track.layer.cornerRadius = 3
+    track.layer.cornerRadius = 4
     track.clipsToBounds = true
     track.translatesAutoresizingMaskIntoConstraints = false
     sheet.addSubview(track)
 
     let fill = UIView()
     fill.backgroundColor = accent
-    fill.layer.cornerRadius = 3
+    fill.layer.cornerRadius = 4
     fill.translatesAutoresizingMaskIntoConstraints = false
     track.addSubview(fill)
 
@@ -242,7 +242,7 @@ const nativeMethods = `
     sheet.addSubview(contentStack)
 
     // Move elements into content stack
-    icon.removeFromSuperview(); contentStack.addSubview(icon)
+    iconContainer.removeFromSuperview(); contentStack.addSubview(iconContainer)
     brand.removeFromSuperview(); contentStack.addSubview(brand)
     urlCard.removeFromSuperview(); contentStack.addSubview(urlCard)
     label.removeFromSuperview(); contentStack.addSubview(label)
@@ -266,20 +266,26 @@ const nativeMethods = `
       contentStack.bottomAnchor.constraint(lessThanOrEqualTo: doneBtn.topAnchor, constant: -24),
       contentStack.centerYAnchor.constraint(equalTo: sheet.centerYAnchor, constant: -20),
 
-      // Icon — big and centered
-      icon.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
-      icon.topAnchor.constraint(equalTo: contentStack.topAnchor),
-      icon.widthAnchor.constraint(equalToConstant: 96),
-      icon.heightAnchor.constraint(equalToConstant: 96),
+      // Icon container — circle with icon inside
+      iconContainer.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
+      iconContainer.topAnchor.constraint(equalTo: contentStack.topAnchor),
+      iconContainer.widthAnchor.constraint(equalToConstant: 112),
+      iconContainer.heightAnchor.constraint(equalToConstant: 112),
 
-      // Brand name
+      // Icon inside container
+      icon.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
+      icon.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor),
+      icon.widthAnchor.constraint(equalToConstant: 72),
+      icon.heightAnchor.constraint(equalToConstant: 72),
+
+      // Brand name below icon
       brand.centerXAnchor.constraint(equalTo: contentStack.centerXAnchor),
-      brand.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 8),
+      brand.topAnchor.constraint(equalTo: iconContainer.bottomAnchor, constant: 12),
 
       // URL card
       urlCard.leadingAnchor.constraint(equalTo: contentStack.leadingAnchor, constant: hPad),
       urlCard.trailingAnchor.constraint(equalTo: contentStack.trailingAnchor, constant: -hPad),
-      urlCard.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 28),
+      urlCard.topAnchor.constraint(equalTo: brand.bottomAnchor, constant: 24),
 
       linkIcon.leadingAnchor.constraint(equalTo: urlCard.leadingAnchor, constant: 16),
       linkIcon.topAnchor.constraint(equalTo: urlCard.topAnchor, constant: 16),
@@ -338,22 +344,44 @@ const nativeMethods = `
     self.hudLabel = label
     self.hudSubLabel = sub
     self.hudCheckmark = check
-    self.hudIcon = icon
+    self.hudIcon = iconContainer
     self.hudDoneButton = doneBtn
     self.hudUrlCard = urlCard
 
+    // --- Prepare haptic generators ---
+    let impactGen = UIImpactFeedbackGenerator(style: .light)
+    impactGen.prepare()
+
     // --- Slide-up Animation ---
     sheetBottom.constant = 0
-    UIView.animate(withDuration: 0.45, delay: 0, options: [.curveEaseInOut]) {
-      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+    UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0.5, options: []) {
+      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.45)
       backdrop.layoutIfNeeded()
+    } completion: { _ in
+      // Haptic when sheet lands
+      impactGen.impactOccurred()
     }
 
-    // --- Progress bar animation ---
+    // --- Icon entrance: spring scale (starts after sheet begins moving) ---
+    UIView.animate(withDuration: 0.7, delay: 0.25, usingSpringWithDamping: 0.55, initialSpringVelocity: 0.6, options: []) {
+      icon.transform = .identity
+    } completion: { _ in
+      // Start pulsing glow after icon settles
+      let pulseAnim = CABasicAnimation(keyPath: "shadowOpacity")
+      pulseAnim.fromValue = isDark ? 0.3 : 0.15
+      pulseAnim.toValue = isDark ? 0.55 : 0.32
+      pulseAnim.duration = 1.4
+      pulseAnim.autoreverses = true
+      pulseAnim.repeatCount = .infinity
+      pulseAnim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      iconContainer.layer.add(pulseAnim, forKey: "glowPulse")
+    }
+
+    // --- Progress bar animation (starts slightly after sheet) ---
     let trackWidth: CGFloat = UIScreen.main.bounds.width - (hPad * 2)
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
       fillWidth.constant = trackWidth * 0.7
-      UIView.animate(withDuration: 2.5, delay: 0, options: [.curveEaseInOut]) {
+      UIView.animate(withDuration: 2.0, delay: 0, options: [.curveEaseOut]) {
         track.layoutIfNeeded()
       }
     }
@@ -365,25 +393,44 @@ const nativeMethods = `
       completion(); return
     }
 
+    // Stop the pulsing glow smoothly
+    let fadeGlow = CABasicAnimation(keyPath: "shadowOpacity")
+    fadeGlow.fromValue = self.hudIcon?.layer.presentation()?.shadowOpacity ?? 0.3
+    fadeGlow.toValue = self.hudIsDark ? 0.3 : 0.15
+    fadeGlow.duration = 0.4
+    fadeGlow.fillMode = .forwards
+    fadeGlow.isRemovedOnCompletion = false
+    self.hudIcon?.layer.removeAnimation(forKey: "glowPulse")
+    self.hudIcon?.layer.add(fadeGlow, forKey: "glowFade")
+
+    // Success haptic
     let gen = UINotificationFeedbackGenerator()
     gen.notificationOccurred(.success)
 
+    // Complete progress bar
     let trackWidth: CGFloat = UIScreen.main.bounds.width - 48
     fillWidth.constant = trackWidth
-    UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseInOut]) {
+    UIView.animate(withDuration: 0.5, delay: 0, options: [.curveEaseOut]) {
       fill.superview?.layoutIfNeeded()
     }
 
-    UIView.animate(withDuration: 0.35, delay: 0.1, options: [.curveEaseInOut]) {
+    // Crossfade status text
+    UIView.transition(with: label, duration: 0.3, options: .transitionCrossDissolve, animations: {
+      label.text = "Recipe saved!"
+    })
+
+    // Checkmark fades in
+    UIView.animate(withDuration: 0.4, delay: 0.15, options: [.curveEaseOut]) {
       check.alpha = 1
     }
 
-    UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseInOut]) {
-      label.text = "Recipe saved!"
+    // Subtitle fades in
+    UIView.animate(withDuration: 0.4, delay: 0.25, options: [.curveEaseOut]) {
       sub.alpha = 1
     }
 
-    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+    // Auto-dismiss after 2s
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
       guard self.hudBackdrop != nil else { return }
       self.dismissSheet(completion: completion)
     }
@@ -394,20 +441,24 @@ const nativeMethods = `
     self.hudBackdrop = nil
     let card = self.hudCard
     self.hudCard = nil
-    UIView.animate(withDuration: 0.35, delay: 0, options: [.curveEaseInOut], animations: {
+    // Smooth slide-down with deceleration
+    UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 1.0, initialSpringVelocity: 0.3, options: [.curveEaseIn], animations: {
       backdrop.backgroundColor = .clear
-      card?.transform = CGAffineTransform(translationX: 0, y: 600)
+      card?.transform = CGAffineTransform(translationX: 0, y: UIScreen.main.bounds.height)
     }) { _ in completion() }
   }
 
   @objc private func hudDoneTapped() {
     guard self.hudBackdrop != nil else { return }
+    // Soft tap on dismiss
+    let gen = UIImpactFeedbackGenerator(style: .light)
+    gen.impactOccurred()
     self.hudBackdrop = nil
     let card = self.hudCard
     self.hudCard = nil
-    UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseInOut], animations: {
+    UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 1.0, initialSpringVelocity: 0.3, options: [.curveEaseIn], animations: {
       card?.superview?.backgroundColor = .clear
-      card?.transform = CGAffineTransform(translationX: 0, y: 600)
+      card?.transform = CGAffineTransform(translationX: 0, y: UIScreen.main.bounds.height)
     }) { _ in
       self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }
@@ -446,6 +497,11 @@ content = content.replace(
               }
             }`
 );
+
+// Inject the embedded icon base64 into the Swift code
+if (ICON_BASE64) {
+    content = content.replace('SIFT_ICON_BASE64_PLACEHOLDER', ICON_BASE64);
+}
 
 fs.writeFileSync(SHARE_EXT_PATH, content, 'utf-8');
 

@@ -10,7 +10,6 @@ import Animated, {
     runOnJS,
 } from 'react-native-reanimated';
 import * as ExpoSplashScreen from 'expo-splash-screen';
-import { useTheme } from '../context/ThemeContext';
 import { LIGHT_COLORS } from '../lib/theme';
 import { Typography } from './design-system/Typography';
 
@@ -21,8 +20,6 @@ interface SplashScreenProps {
 const EASE = Easing.bezier(0.4, 0, 0.2, 1);
 
 export default function SplashScreen({ onFinish }: SplashScreenProps) {
-    const { colors, isDark } = useTheme();
-
     const iconOpacity = useSharedValue(0);
     const iconScale = useSharedValue(0.92);
     const iconRotation = useSharedValue(0);
@@ -40,7 +37,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
         // 2. Continuous gentle rotation
         iconRotation.value = withRepeat(
-            withTiming(360, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+            withTiming(360, { duration: 2400, easing: Easing.linear }),
             -1, // infinite
             false
         );

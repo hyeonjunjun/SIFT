@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
 
-        const { receiverId, actorName, type, siftTitle, messageContent, siftId, collectionName, collectionId } = body;
+        const { receiverId, actorName, type, siftTitle, messageContent, siftId, collectionName, collectionId, recipeTitle } = body;
 
         if (!receiverId || !type) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -20,6 +20,7 @@ export async function POST(req: Request) {
             collection_invite: 'collection_activity',
             collection_sift_added: 'collection_activity',
             sift_complete: 'sift_complete',
+            meal_shared: 'meal_activity',
         };
 
         const prefKey = prefMap[type];
@@ -75,6 +76,10 @@ export async function POST(req: Request) {
             case 'sift_complete':
                 title = 'Your sift is ready';
                 notificationBody = siftTitle || 'Tap to read';
+                break;
+            case 'meal_shared':
+                title = `${actorName} shared a meal with you`;
+                notificationBody = recipeTitle || 'A recipe was added to your meal plan';
                 break;
             default:
                 title = `New activity from ${actorName}`;

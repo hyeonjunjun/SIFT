@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as React from 'react';
 import { useEffect, useState, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     TextInput,
     TouchableOpacity,
@@ -132,11 +133,39 @@ export default function PageDetail() {
     const [scrollProgress, setScrollProgress] = useState(0);
     const [uploadingCover, setUploadingCover] = useState(false);
     const [servingMultiplier, setServingMultiplier] = useState(1);
+
+    // Persist serving multiplier
+    useEffect(() => {
+        if (id) {
+            AsyncStorage.getItem(`@serving_${id}`).then(val => {
+                if (val) setServingMultiplier(parseFloat(val));
+            }).catch(() => {});
+        }
+    }, [id]);
+    useEffect(() => {
+        if (id && servingMultiplier !== 1) {
+            AsyncStorage.setItem(`@serving_${id}`, String(servingMultiplier)).catch(() => {});
+        }
+    }, [id, servingMultiplier]);
     const [cookModeVisible, setCookModeVisible] = useState(false);
     const [userNotes, setUserNotes] = useState('');
     const [isEditingNotes, setIsEditingNotes] = useState(false);
     const [savingNotes, setSavingNotes] = useState(false);
     const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
+
+    // Persist checked ingredients
+    useEffect(() => {
+        if (id) {
+            AsyncStorage.getItem(`@checked_${id}`).then(val => {
+                if (val) setCheckedIngredients(new Set(JSON.parse(val)));
+            }).catch(() => {});
+        }
+    }, [id]);
+    useEffect(() => {
+        if (id && checkedIngredients.size > 0) {
+            AsyncStorage.setItem(`@checked_${id}`, JSON.stringify([...checkedIngredients])).catch(() => {});
+        }
+    }, [id, checkedIngredients]);
     const [groceryMode, setGroceryMode] = useState(false);
 
     // Pre-request media library permissions so gallery opens instantly
@@ -684,6 +713,17 @@ export default function PageDetail() {
                                 <CaretLeft size={28} color={colors.ink} />
                             </TouchableOpacity>
                             <View style={{ flex: 1 }} />
+                            {page?.metadata?.smart_data?.ingredients?.length > 0 && (
+                                <TouchableOpacity
+                                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setCookModeVisible(true); }}
+                                    style={styles.navButton}
+                                    hitSlop={16}
+                                    accessibilityLabel="Start cook mode"
+                                    accessibilityRole="button"
+                                >
+                                    <CookingPot size={24} color={colors.ink} />
+                                </TouchableOpacity>
+                            )}
                             <TouchableOpacity onPress={handleMoreOptions} style={styles.navButton} hitSlop={16} accessibilityLabel="More options" accessibilityRole="button">
                                 <DotsThree size={28} color={colors.ink} />
                             </TouchableOpacity>
