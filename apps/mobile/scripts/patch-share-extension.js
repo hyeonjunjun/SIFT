@@ -48,7 +48,7 @@ const nativeMethods = `
   private var hudLabel: UILabel?
   private var hudSubLabel: UILabel?
   private var hudCheckmark: UIImageView?
-  private var hudIcon: UIImageView?
+  private var hudIcon: UIView?
   private var hudDoneButton: UIButton?
   private var hudUrlCard: UIView?
 
@@ -83,35 +83,9 @@ const nativeMethods = `
     let btnBg = ink
     let btnText = isDark ? darkBg : cream
 
-    // --- Backdrop ---
-    let backdrop = UIView(frame: view.bounds)
-    backdrop.backgroundColor = .clear
-    backdrop.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    view.addSubview(backdrop)
-
-    // --- Bottom Sheet ---
-    let sheet = UIView()
+    // --- Use the extension's own view as our canvas (no inner sheet) ---
+    let sheet = view!
     sheet.backgroundColor = sheetBg
-    sheet.layer.cornerRadius = 24
-    sheet.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-    sheet.layer.shadowColor = UIColor.black.cgColor
-    sheet.layer.shadowOpacity = 0.15
-    sheet.layer.shadowRadius = 30
-    sheet.layer.shadowOffset = CGSize(width: 0, height: -8)
-    sheet.translatesAutoresizingMaskIntoConstraints = false
-    sheet.clipsToBounds = false
-    backdrop.addSubview(sheet)
-
-    let sheetBottom = sheet.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: 600)
-    let screenH = UIScreen.main.bounds.height
-    let sheetHeight = screenH * 0.85
-
-    NSLayoutConstraint.activate([
-      sheet.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor),
-      sheet.trailingAnchor.constraint(equalTo: backdrop.trailingAnchor),
-      sheet.heightAnchor.constraint(equalToConstant: sheetHeight),
-      sheetBottom,
-    ])
 
     // --- Drag Handle ---
     let handle = UIView()
@@ -334,10 +308,10 @@ const nativeMethods = `
       doneBtn.bottomAnchor.constraint(equalTo: sheet.bottomAnchor, constant: -44),
     ])
 
-    backdrop.layoutIfNeeded()
+    sheet.layoutIfNeeded()
 
     // Store refs
-    self.hudBackdrop = backdrop
+    self.hudBackdrop = sheet
     self.hudCard = sheet
     self.hudProgressFill = fill
     self.hudProgressWidth = fillWidth
@@ -348,19 +322,9 @@ const nativeMethods = `
     self.hudDoneButton = doneBtn
     self.hudUrlCard = urlCard
 
-    // --- Prepare haptic generators ---
+    // --- Haptic on appear ---
     let impactGen = UIImpactFeedbackGenerator(style: .light)
-    impactGen.prepare()
-
-    // --- Slide-up Animation ---
-    sheetBottom.constant = 0
-    UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0.5, options: []) {
-      backdrop.backgroundColor = UIColor.black.withAlphaComponent(0.45)
-      backdrop.layoutIfNeeded()
-    } completion: { _ in
-      // Haptic when sheet lands
-      impactGen.impactOccurred()
-    }
+    impactGen.impactOccurred()
 
     // --- Icon entrance: spring scale (starts after sheet begins moving) ---
     UIView.animate(withDuration: 0.7, delay: 0.25, usingSpringWithDamping: 0.55, initialSpringVelocity: 0.6, options: []) {
@@ -437,31 +401,18 @@ const nativeMethods = `
   }
 
   private func dismissSheet(completion: @escaping () -> Void) {
-    guard let backdrop = self.hudBackdrop else { return }
+    guard self.hudBackdrop != nil else { return }
     self.hudBackdrop = nil
-    let card = self.hudCard
-    self.hudCard = nil
-    // Smooth slide-down with deceleration
-    UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 1.0, initialSpringVelocity: 0.3, options: [.curveEaseIn], animations: {
-      backdrop.backgroundColor = .clear
-      card?.transform = CGAffineTransform(translationX: 0, y: UIScreen.main.bounds.height)
-    }) { _ in completion() }
+    // Let iOS handle the sheet dismiss animation
+    completion()
   }
 
   @objc private func hudDoneTapped() {
     guard self.hudBackdrop != nil else { return }
-    // Soft tap on dismiss
     let gen = UIImpactFeedbackGenerator(style: .light)
     gen.impactOccurred()
     self.hudBackdrop = nil
-    let card = self.hudCard
-    self.hudCard = nil
-    UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 1.0, initialSpringVelocity: 0.3, options: [.curveEaseIn], animations: {
-      card?.superview?.backgroundColor = .clear
-      card?.transform = CGAffineTransform(translationX: 0, y: UIScreen.main.bounds.height)
-    }) { _ in
-      self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-    }
+    self.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
   }
 
 `;
@@ -469,11 +420,8 @@ const nativeMethods = `
 // Inject methods before viewDidLoad
 content = content.replace('override func viewDidLoad()', nativeMethods + '  override func viewDidLoad()');
 
-// Make view background clear
-content = content.replace(
-    /super\.viewDidLoad\(\)\n\s*\}/,
-    'super.viewDidLoad()\n    view.backgroundColor = .clear\n  }'
-);
+// Keep default view background (iOS manages the sheet chrome)
+// No background override needed since showSavingHUD sets sheetBg
 
 // Replace ALL redirectToHostApp(type: .weburl) with native popup
 content = content.replace(
