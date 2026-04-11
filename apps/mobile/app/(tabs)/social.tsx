@@ -1038,7 +1038,7 @@ function FriendItem({ friendship, currentUserId, colors, onAccept, onDecline, on
 }
 
 const styles = StyleSheet.create({
-    header: { paddingHorizontal: 20, marginTop: SPACING.m, marginBottom: 20 },
+    header: { paddingHorizontal: 24, marginTop: SPACING.m, marginBottom: 20 },
     smallCapsLabel: { marginBottom: 4 },
     serifTitle: {
         fontSize: 36,
@@ -1079,9 +1079,9 @@ const styles = StyleSheet.create({
     miniAvatar: { width: 32, height: 32, borderRadius: 16 },
     mediumAvatar: { width: 48, height: 48, borderRadius: 24 },
     tinyAvatar: { width: 20, height: 20, borderRadius: 10 },
-    tabsContainer: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 8, marginBottom: 20, gap: 24 },
+    tabsContainer: { flexDirection: 'row', paddingHorizontal: 24, marginTop: 8, marginBottom: 20, gap: 24 },
     tab: { paddingBottom: 8 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 160 },
+    scrollContent: { paddingHorizontal: 24, paddingBottom: 160 },
     card: { padding: 20, borderRadius: RADIUS.m, borderWidth: StyleSheet.hairlineWidth, marginBottom: 16, ...Theme.shadows.soft },
     cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     cardBody: { marginBottom: 16 },
@@ -1113,12 +1113,12 @@ const chatStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 16,
-        paddingHorizontal: 20,
+        paddingHorizontal: 24,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     messagesList: {
         paddingVertical: 16,
-        paddingHorizontal: 20,
+        paddingHorizontal: 24,
     },
     bubble: {
         maxWidth: '78%',

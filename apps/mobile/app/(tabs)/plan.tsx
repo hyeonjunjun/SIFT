@@ -20,6 +20,7 @@ import { GroceryList } from '../../components/plan/GroceryList';
 import { MealReminderPicker } from '../../components/plan/MealReminderPicker';
 import { ViewToggle } from '../../components/plan/ViewToggle';
 import { MealOptionsSheet } from '../../components/plan/MealOptionsSheet';
+import { MealTimePicker } from '../../components/plan/MealTimePicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- Types ---
@@ -103,8 +104,13 @@ export default function PlanScreen() {
     const [copySourceDate, setCopySourceDate] = useState<string | null>(null);
     const [mealTypes, setMealTypes] = useState<string[]>(DEFAULT_MEAL_TYPES);
     const [weekStartsMonday, setWeekStartsMonday] = useState(false);
+    const [multiSelectMode, setMultiSelectMode] = useState(false);
+    const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+    const [mealTimes, setMealTimes] = useState<Record<string, string>>({}); // mealId → "HH:mm"
     const [optionsVisible, setOptionsVisible] = useState(false);
     const [optionsMeal, setOptionsMeal] = useState<MealPlanEntry | null>(null);
+    const [timePickerVisible, setTimePickerVisible] = useState(false);
+    const [timePickerMeal, setTimePickerMeal] = useState<MealPlanEntry | null>(null);
 
     // Load preferences
     React.useEffect(() => {
@@ -210,10 +216,18 @@ export default function PlanScreen() {
         for (const m of dayMeals) {
             if (grouped[m.meal_type]) grouped[m.meal_type].push(m);
             else {
-                // Unknown meal type — add to end
                 if (!grouped[m.meal_type]) grouped[m.meal_type] = [];
                 grouped[m.meal_type].push(m);
             }
+        }
+        // Sort each meal type's items by time (HH:mm), then by created_at
+        for (const type in grouped) {
+            grouped[type].sort((a, b) => {
+                const aTime = a.reminder_time && a.reminder_time.includes(':') ? a.reminder_time : '99:99';
+                const bTime = b.reminder_time && b.reminder_time.includes(':') ? b.reminder_time : '99:99';
+                if (aTime !== bTime) return aTime.localeCompare(bTime);
+                return a.created_at.localeCompare(b.created_at);
+            });
         }
         return grouped;
     }, [dayMeals, mealTypes]);
@@ -234,19 +248,46 @@ export default function PlanScreen() {
     const handlePickerSave = async (selectedPageIds: string[]) => {
         if (!user?.id || selectedPageIds.length === 0) return;
         try {
-            const inserts = selectedPageIds.map(pageId => ({
-                user_id: user.id,
-                page_id: pageId,
-                date: selectedDateKey,
-                meal_type: pickerMealType,
-            }));
+            // If in multi-select mode, insert for every selected date
+            const targetDates = multiSelectMode && selectedDates.size > 0
+                ? [...selectedDates]
+                : [selectedDateKey];
+
+            const inserts: any[] = [];
+            for (const date of targetDates) {
+                for (const pageId of selectedPageIds) {
+                    inserts.push({
+                        user_id: user.id,
+                        page_id: pageId,
+                        date,
+                        meal_type: pickerMealType,
+                    });
+                }
+            }
             const { error } = await supabase.from('meal_plans').insert(inserts);
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Exit multi-select mode after batch insert
+            if (multiSelectMode) {
+                setMultiSelectMode(false);
+                setSelectedDates(new Set());
+            }
             queryClient.invalidateQueries({ queryKey: ['meal_plans', user.id] });
         } catch (e: any) {
             Alert.alert('Error', e.message);
         }
+    };
+
+    const toggleDateSelection = (date: Date) => {
+        const key = formatDateKey(date);
+        Haptics.selectionAsync();
+        setSelectedDates(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
     };
 
     const handleMoveMeal = async (mealPlanId: string, newMealType: string) => {
@@ -452,6 +493,75 @@ export default function PlanScreen() {
         setOptionsVisible(true);
     };
 
+    const handleReorderMeal = async (meal: MealPlanEntry, direction: 'up' | 'down') => {
+        if (!user?.id) return;
+        const sameTypeMeals = (mealsByType[meal.meal_type] || []);
+        const idx = sameTypeMeals.findIndex(m => m.id === meal.id);
+        if (idx === -1) return;
+        const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (targetIdx < 0 || targetIdx >= sameTypeMeals.length) return;
+
+        const other = sameTypeMeals[targetIdx];
+        try {
+            // Swap created_at to swap order (since we sort by time, then created_at)
+            const { error: e1 } = await supabase
+                .from('meal_plans')
+                .update({ created_at: other.created_at })
+                .eq('id', meal.id);
+            if (e1) throw e1;
+            const { error: e2 } = await supabase
+                .from('meal_plans')
+                .update({ created_at: meal.created_at })
+                .eq('id', other.id);
+            if (e2) throw e2;
+            Haptics.selectionAsync();
+            queryClient.invalidateQueries({ queryKey: ['meal_plans', user.id] });
+        } catch (e: any) {
+            Alert.alert('Error', e.message);
+        }
+    };
+
+    const handleSaveMealTime = async (time: string | null) => {
+        if (!timePickerMeal || !user?.id) return;
+        try {
+            await supabase.from('meal_plans').update({ reminder_time: time }).eq('id', timePickerMeal.id);
+            // Cancel any old notification for this meal
+            await Notifications.cancelScheduledNotificationAsync(timePickerMeal.id).catch(() => {});
+
+            // Schedule a new notification 30 min before the meal time
+            if (time) {
+                const [h, m] = time.split(':').map(Number);
+                const mealDate = new Date(timePickerMeal.date + 'T00:00:00');
+                mealDate.setHours(h, m - 30, 0, 0);
+                if (mealDate > new Date()) {
+                    await Notifications.scheduleNotificationAsync({
+                        content: {
+                            title: `Time to cook: ${timePickerMeal.page?.title || 'Your meal'}`,
+                            body: `Starting in 30 minutes`,
+                            sound: true,
+                        },
+                        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: mealDate },
+                        identifier: timePickerMeal.id,
+                    });
+                }
+            }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            queryClient.invalidateQueries({ queryKey: ['meal_plans', user.id] });
+        } catch (e: any) {
+            Alert.alert('Error', e.message);
+        }
+    };
+
+    // Helper to format time for display
+    const formatMealTime = (time?: string | null): string | null => {
+        if (!time || !time.includes(':')) return null;
+        const [h, m] = time.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return null;
+        const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const period = h >= 12 ? 'PM' : 'AM';
+        return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+    };
+
     const handleRemoveMeal = async (mealPlanId: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
@@ -649,17 +759,31 @@ export default function PlanScreen() {
                         <View style={styles.dayRow}>
                             {weekDates.map((date, i) => {
                                 const key = formatDateKey(date);
-                                const isSelected = key === selectedDateKey;
+                                const isCurrentDay = key === selectedDateKey && !multiSelectMode;
+                                const isMultiSelected = multiSelectMode && selectedDates.has(key);
+                                const isSelected = isCurrentDay || isMultiSelected;
                                 const today = isToday(date);
                                 const hasMeals = (mealCountByDate[key] || 0) > 0;
                                 return (
                                     <TouchableOpacity
                                         key={key}
-                                        onPress={() => { Haptics.selectionAsync(); setSelectedDate(date); }}
+                                        onPress={() => {
+                                            if (multiSelectMode) toggleDateSelection(date);
+                                            else { Haptics.selectionAsync(); setSelectedDate(date); }
+                                        }}
+                                        onLongPress={() => {
+                                            if (!multiSelectMode) {
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                setMultiSelectMode(true);
+                                                setSelectedDates(new Set([key]));
+                                            }
+                                        }}
+                                        delayLongPress={350}
                                         style={[
                                             styles.dayCell,
-                                            isSelected && { backgroundColor: colors.ink },
-                                            today && !isSelected && { borderWidth: 1.5, borderColor: colors.ink },
+                                            isSelected && { backgroundColor: colors.ink, borderColor: colors.ink },
+                                            today && !isSelected && { borderColor: colors.ink },
+                                            isMultiSelected && { backgroundColor: colors.accent, borderColor: colors.accent },
                                         ]}
                                     >
                                         <Typography variant="caption" style={[styles.dayLabel, { color: isSelected ? colors.paper : colors.stone }]}>
@@ -681,6 +805,32 @@ export default function PlanScreen() {
 
             {/* Macro Summary */}
             <MacroSummary meals={dayMeals} />
+
+            {/* Multi-select banner */}
+            {multiSelectMode && (
+                <View style={[styles.multiSelectBanner, { backgroundColor: colors.accent + '15', borderColor: colors.accent }]}>
+                    <Typography variant="caption" style={{ color: colors.accent, flex: 1, fontWeight: '600' }}>
+                        {selectedDates.size === 0
+                            ? 'Tap days to select, then add a meal'
+                            : `${selectedDates.size} ${selectedDates.size === 1 ? 'day' : 'days'} selected`}
+                    </Typography>
+                    {selectedDates.size > 0 && (
+                        <TouchableOpacity
+                            onPress={() => { setPickerMealType('Dinner'); setPickerVisible(true); }}
+                            style={[styles.bannerBtn, { backgroundColor: colors.accent }]}
+                        >
+                            <Typography variant="caption" style={{ color: colors.paper, fontWeight: '600' }}>Add Meal</Typography>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                        onPress={() => { setMultiSelectMode(false); setSelectedDates(new Set()); }}
+                        style={{ marginLeft: 8 }}
+                        hitSlop={8}
+                    >
+                        <Typography variant="caption" color="stone">Cancel</Typography>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* Copy indicator */}
             {copySourceDate && (
@@ -730,7 +880,12 @@ export default function PlanScreen() {
                                                 <ArrowsClockwise size={12} color={colors.accent} weight="bold" />
                                             )}
                                         </View>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                            {formatMealTime(meal.reminder_time) && (
+                                                <Typography variant="caption" style={{ fontSize: 11, color: colors.accent, fontWeight: '600' }}>
+                                                    {formatMealTime(meal.reminder_time)}
+                                                </Typography>
+                                            )}
                                             {meal.page?.metadata?.smart_data?.total_time && (
                                                 <Typography variant="caption" color="stone" style={{ fontSize: 11 }}>
                                                     {meal.page.metadata.smart_data.total_time}
@@ -744,7 +899,7 @@ export default function PlanScreen() {
                                         </View>
                                     </View>
                                     <TouchableOpacity
-                                        onPress={() => { setReminderMeal(meal); setReminderVisible(true); }}
+                                        onPress={() => { setTimePickerMeal(meal); setTimePickerVisible(true); }}
                                         hitSlop={8}
                                         style={{ padding: 6 }}
                                     >
@@ -810,11 +965,26 @@ export default function PlanScreen() {
                 mealTitle={reminderMeal?.page?.title || 'Meal'}
             />
 
+            <MealTimePicker
+                visible={timePickerVisible}
+                onClose={() => { setTimePickerVisible(false); setTimePickerMeal(null); }}
+                onSelect={handleSaveMealTime}
+                currentTime={timePickerMeal?.reminder_time}
+                mealTitle={timePickerMeal?.page?.title || 'Meal'}
+                mealType={timePickerMeal?.meal_type || 'Dinner'}
+            />
+
             <MealOptionsSheet
                 visible={optionsVisible}
                 onClose={() => { setOptionsVisible(false); setOptionsMeal(null); }}
                 meal={optionsMeal}
                 mealTypes={mealTypes}
+                canMoveUp={!!(optionsMeal && (mealsByType[optionsMeal.meal_type] || []).findIndex(m => m.id === optionsMeal.id) > 0)}
+                canMoveDown={!!(optionsMeal && (() => {
+                    const list = mealsByType[optionsMeal.meal_type] || [];
+                    const idx = list.findIndex(m => m.id === optionsMeal.id);
+                    return idx >= 0 && idx < list.length - 1;
+                })())}
                 onViewRecipe={() => optionsMeal?.page?.id && router.push(`/page/${optionsMeal.page.id}`)}
                 onStartCooking={() => optionsMeal?.page?.id && router.push(`/page/${optionsMeal.page.id}`)}
                 onMoveTo={(newType) => optionsMeal && handleMoveMeal(optionsMeal.id, newType)}
@@ -828,6 +998,9 @@ export default function PlanScreen() {
                 onDeleteFutureInstances={() => optionsMeal && handleDeleteFutureInstances(optionsMeal)}
                 onDeletePastInstances={() => optionsMeal && handleDeletePastInstances(optionsMeal)}
                 onCopyToDay={() => optionsMeal && handleCopyMealToDay(optionsMeal)}
+                onSetTime={() => { if (optionsMeal) { setTimePickerMeal(optionsMeal); setTimePickerVisible(true); } }}
+                onMoveUp={() => optionsMeal && handleReorderMeal(optionsMeal, 'up')}
+                onMoveDown={() => optionsMeal && handleReorderMeal(optionsMeal, 'down')}
             />
         </ScreenWrapper>
     );
@@ -837,14 +1010,14 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: SPACING.s,
-        paddingBottom: SPACING.s,
+        paddingHorizontal: SPACING.l,
+        paddingTop: SPACING.m,
+        paddingBottom: SPACING.m,
     },
     headerBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -852,22 +1025,24 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        marginBottom: SPACING.m,
+        paddingHorizontal: SPACING.l,
+        marginBottom: SPACING.l,
     },
     dayRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        marginBottom: SPACING.m,
+        paddingHorizontal: SPACING.l,
+        marginBottom: SPACING.l,
     },
     dayCell: {
         alignItems: 'center',
         justifyContent: 'center',
-        width: 44,
-        height: 64,
+        width: 48,
+        height: 72,
         borderRadius: RADIUS.l,
-        gap: 4,
+        gap: 6,
+        borderWidth: 1.5,
+        borderColor: 'transparent',
     },
     dayLabel: {
         fontSize: 10,
@@ -886,48 +1061,64 @@ const styles = StyleSheet.create({
     copyBanner: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: 20,
-        marginBottom: SPACING.s,
-        padding: SPACING.s,
-        borderRadius: RADIUS.s,
+        marginHorizontal: SPACING.l,
+        marginBottom: SPACING.m,
+        padding: SPACING.m,
+        borderRadius: RADIUS.m,
+    },
+    multiSelectBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: SPACING.l,
+        marginBottom: SPACING.m,
+        paddingVertical: SPACING.s + 2,
+        paddingHorizontal: SPACING.m,
+        borderRadius: RADIUS.m,
+        borderWidth: 1,
+    },
+    bannerBtn: {
+        paddingVertical: 6,
+        paddingHorizontal: SPACING.m,
+        borderRadius: RADIUS.pill,
     },
     scrollContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: SPACING.l,
     },
     mealSection: {
-        marginBottom: SPACING.l,
+        marginBottom: SPACING.xl,
     },
     mealHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: SPACING.s,
+        marginBottom: SPACING.m,
+        paddingHorizontal: 4,
     },
     mealCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: SPACING.s,
+        padding: SPACING.m - 2,
         borderRadius: RADIUS.m,
         borderWidth: 1,
-        marginBottom: SPACING.xs,
+        marginBottom: SPACING.s,
     },
     mealImage: {
-        width: 48,
-        height: 48,
+        width: 56,
+        height: 56,
         borderRadius: RADIUS.s,
     },
     mealInfo: {
         flex: 1,
-        marginLeft: SPACING.s,
+        marginLeft: SPACING.m,
     },
     removeButton: {
-        padding: 8,
+        padding: SPACING.s,
     },
     emptySlot: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 16,
+        paddingVertical: SPACING.l - 4,
         borderRadius: RADIUS.m,
         borderWidth: 1,
         borderStyle: 'dashed',

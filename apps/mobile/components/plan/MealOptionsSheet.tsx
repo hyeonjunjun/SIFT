@@ -6,6 +6,7 @@ import { SPACING, RADIUS, Theme } from '../../lib/theme';
 import {
     ArrowsClockwise, ArrowRight, Bell, BellSlash, Trash, Users,
     CalendarX, CalendarCheck, Copy, X, CookingPot, ArrowSquareOut,
+    ArrowUp, ArrowDown, Clock,
 } from 'phosphor-react-native';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -45,6 +46,11 @@ interface MealOptionsSheetProps {
     onDeleteFutureInstances: () => void;
     onDeletePastInstances: () => void;
     onCopyToDay: () => void;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
+    onSetTime: () => void;
+    canMoveUp: boolean;
+    canMoveDown: boolean;
 }
 
 export function MealOptionsSheet({
@@ -52,7 +58,7 @@ export function MealOptionsSheet({
     onViewRecipe, onStartCooking, onMoveTo, onSetReminder, onRemoveReminder,
     onShareWithFriend, onToggleRecurring, onStopRepeating,
     onDeleteThis, onDeleteAllInstances, onDeleteFutureInstances, onDeletePastInstances,
-    onCopyToDay,
+    onCopyToDay, onMoveUp, onMoveDown, onSetTime, canMoveUp, canMoveDown,
 }: MealOptionsSheetProps) {
     const { colors, isDark } = useTheme();
 
@@ -145,6 +151,29 @@ export function MealOptionsSheet({
                                 label="Copy to Another Day"
                                 onPress={onCopyToDay}
                             />
+                        </Section>
+
+                        {/* Time and reorder */}
+                        <Section>
+                            <Option
+                                icon={<Clock size={20} color={colors.ink} />}
+                                label="Set Time"
+                                onPress={onSetTime}
+                            />
+                            {canMoveUp && (
+                                <Option
+                                    icon={<ArrowUp size={20} color={colors.ink} />}
+                                    label="Move Up"
+                                    onPress={onMoveUp}
+                                />
+                            )}
+                            {canMoveDown && (
+                                <Option
+                                    icon={<ArrowDown size={20} color={colors.ink} />}
+                                    label="Move Down"
+                                    onPress={onMoveDown}
+                                />
+                            )}
                         </Section>
 
                         {/* Move to */}
