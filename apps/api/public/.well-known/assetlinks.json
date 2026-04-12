@@ -4,7 +4,10 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.hkjstudio.sift",
-      "sha256_cert_fingerprints": []
+      "sha256_cert_fingerprints": [
+        "70:54:C3:8D:E6:E3:E2:AD:84:BB:CA:9D:A4:5F:CC:6B:53:62:94:EA:EF:8E:A9:86:62:D0:FC:58:3D:C2:0E:B5",
+        "4E:91:FF:DE:49:21:C4:C7:98:84:16:01:63:DC:C9:4D:0B:CC:03:74:60:9F:AB:2F:D1:33:BA:FA:DB:AB:DE:C4"
+      ]
     }
   }
 ]

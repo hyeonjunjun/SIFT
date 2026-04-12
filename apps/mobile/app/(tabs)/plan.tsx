@@ -8,16 +8,16 @@ import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ScreenWrapper from '../../components/ScreenWrapper';
-import { CaretLeft, CaretRight, Plus, Trash, CalendarBlank, CookingPot, Bell, BellSimple, Copy, Export, ArrowsClockwise } from 'phosphor-react-native';
+import { CaretLeft, CaretRight, Plus, Trash, CalendarBlank, CookingPot, Clock, Copy, Export, ArrowsClockwise } from 'phosphor-react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import { useFocusEffect } from 'expo-router';
 import { SiftPickerModal } from '../../components/modals/SiftPickerModal';
 import { MacroSummary } from '../../components/plan/MacroSummary';
 import { MonthView } from '../../components/plan/MonthView';
 import { GroceryList } from '../../components/plan/GroceryList';
-import { MealReminderPicker } from '../../components/plan/MealReminderPicker';
 import { ViewToggle } from '../../components/plan/ViewToggle';
 import { MealOptionsSheet } from '../../components/plan/MealOptionsSheet';
 import { MealTimePicker } from '../../components/plan/MealTimePicker';
@@ -99,8 +99,6 @@ export default function PlanScreen() {
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerMealType, setPickerMealType] = useState('Dinner');
     const [groceryVisible, setGroceryVisible] = useState(false);
-    const [reminderVisible, setReminderVisible] = useState(false);
-    const [reminderMeal, setReminderMeal] = useState<MealPlanEntry | null>(null);
     const [copySourceDate, setCopySourceDate] = useState<string | null>(null);
     const [mealTypes, setMealTypes] = useState<string[]>(DEFAULT_MEAL_TYPES);
     const [weekStartsMonday, setWeekStartsMonday] = useState(false);
@@ -112,15 +110,18 @@ export default function PlanScreen() {
     const [timePickerVisible, setTimePickerVisible] = useState(false);
     const [timePickerMeal, setTimePickerMeal] = useState<MealPlanEntry | null>(null);
 
-    // Load preferences
-    React.useEffect(() => {
-        AsyncStorage.getItem('meal_types').then(val => {
-            if (val) setMealTypes(JSON.parse(val));
-        }).catch(() => {});
-        AsyncStorage.getItem('week_starts_monday').then(val => {
-            if (val === 'true') setWeekStartsMonday(true);
-        }).catch(() => {});
-    }, []);
+    // Load preferences (re-runs on focus to pick up changes from settings screen)
+    useFocusEffect(
+        React.useCallback(() => {
+            AsyncStorage.getItem('meal_types').then(val => {
+                if (val) setMealTypes(JSON.parse(val));
+                else setMealTypes(DEFAULT_MEAL_TYPES);
+            }).catch(() => {});
+            AsyncStorage.getItem('week_starts_monday').then(val => {
+                setWeekStartsMonday(val === 'true');
+            }).catch(() => {});
+        }, [])
+    );
 
     const DAY_NAMES = weekStartsMonday ? DAY_NAMES_MON : DAY_NAMES_SUN;
 
@@ -169,11 +170,14 @@ export default function PlanScreen() {
         staleTime: 1000 * 60 * 2,
     });
 
-    // Auto-populate recurring meals for the current week
+    // Auto-populate recurring meals for the current week (run once per week change)
+    const populatedRef = React.useRef<Set<string>>(new Set());
     React.useEffect(() => {
         if (!user?.id || mealPlans.length === 0) return;
+        if (populatedRef.current.has(weekStart)) return;
         const recurring = mealPlans.filter(m => m.recurring_rule?.startsWith('weekly:'));
         if (recurring.length === 0) return;
+        populatedRef.current.add(weekStart);
 
         const populate = async () => {
             const inserts: any[] = [];
@@ -628,40 +632,6 @@ export default function PlanScreen() {
         }
     };
 
-    const handleSetReminder = async (minutesBefore: number | null) => {
-        if (!reminderMeal) return;
-        try {
-            if (minutesBefore === null) {
-                // Remove reminder
-                await supabase.from('meal_plans').update({ reminder_time: null }).eq('id', reminderMeal.id);
-                await Notifications.cancelScheduledNotificationAsync(reminderMeal.id).catch(() => {});
-            } else {
-                const reminderTime = `${minutesBefore}`;
-                await supabase.from('meal_plans').update({ reminder_time: reminderTime }).eq('id', reminderMeal.id);
-
-                // Schedule local notification
-                const mealDate = new Date(reminderMeal.date + 'T12:00:00'); // Default noon
-                mealDate.setMinutes(mealDate.getMinutes() - minutesBefore);
-
-                if (mealDate > new Date()) {
-                    await Notifications.scheduleNotificationAsync({
-                        content: {
-                            title: `Time to cook: ${reminderMeal.page?.title || 'Your meal'}`,
-                            body: minutesBefore > 0 ? `Starting in ${minutesBefore} minutes` : 'Time to start cooking!',
-                            sound: true,
-                        },
-                        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: mealDate },
-                        identifier: reminderMeal.id,
-                    });
-                }
-            }
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            queryClient.invalidateQueries({ queryKey: ['meal_plans', user?.id] });
-        } catch (e: any) {
-            Alert.alert('Error', e.message);
-        }
-    };
-
     const handleSharePlan = async () => {
         const dayNames = FULL_DAY_NAMES;
         let text = `My Meal Plan\n${monthLabel}\n\n`;
@@ -714,6 +684,7 @@ export default function PlanScreen() {
                                 { text: 'Copy Week → Next Week', onPress: handleCopyWeek },
                                 { text: 'Grocery List', onPress: () => setGroceryVisible(true) },
                                 { text: 'Meal Prep Mode', onPress: () => router.push({ pathname: '/meal-prep', params: { weekStart, weekEnd } }) },
+                                { text: 'Customize Meal Types', onPress: () => router.push('/settings/meal-types') },
                                 { text: 'Share Plan', onPress: handleSharePlan },
                                 { text: 'Cancel', style: 'cancel' as const },
                             ]);
@@ -903,11 +874,7 @@ export default function PlanScreen() {
                                         hitSlop={8}
                                         style={{ padding: 6 }}
                                     >
-                                        {meal.reminder_time ? (
-                                            <Bell size={16} color={colors.accent} weight="fill" />
-                                        ) : (
-                                            <BellSimple size={16} color={colors.stone} />
-                                        )}
+                                        <Clock size={16} color={meal.reminder_time && meal.reminder_time.includes(':') ? colors.accent : colors.stone} weight={meal.reminder_time && meal.reminder_time.includes(':') ? 'fill' : 'regular'} />
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={() => handleRemoveMeal(meal.id)} hitSlop={10} style={styles.removeButton}>
                                         <Trash size={16} color={colors.stone} />
@@ -957,14 +924,6 @@ export default function PlanScreen() {
                 weekKey={weekStart}
             />
 
-            <MealReminderPicker
-                visible={reminderVisible}
-                onClose={() => { setReminderVisible(false); setReminderMeal(null); }}
-                onSelect={handleSetReminder}
-                currentReminder={reminderMeal?.reminder_time}
-                mealTitle={reminderMeal?.page?.title || 'Meal'}
-            />
-
             <MealTimePicker
                 visible={timePickerVisible}
                 onClose={() => { setTimePickerVisible(false); setTimePickerMeal(null); }}
@@ -988,8 +947,12 @@ export default function PlanScreen() {
                 onViewRecipe={() => optionsMeal?.page?.id && router.push(`/page/${optionsMeal.page.id}`)}
                 onStartCooking={() => optionsMeal?.page?.id && router.push(`/page/${optionsMeal.page.id}`)}
                 onMoveTo={(newType) => optionsMeal && handleMoveMeal(optionsMeal.id, newType)}
-                onSetReminder={() => { if (optionsMeal) { setReminderMeal(optionsMeal); setReminderVisible(true); } }}
-                onRemoveReminder={() => { if (optionsMeal) { setReminderMeal(optionsMeal); handleSetReminder(null); } }}
+                onSetReminder={() => { if (optionsMeal) { setTimePickerMeal(optionsMeal); setTimePickerVisible(true); } }}
+                onRemoveReminder={async () => {
+                    if (!optionsMeal) return;
+                    setTimePickerMeal(optionsMeal);
+                    await handleSaveMealTime(null);
+                }}
                 onShareWithFriend={() => optionsMeal && handleInviteFriendToMeal(optionsMeal)}
                 onToggleRecurring={() => optionsMeal && handleToggleRecurring(optionsMeal)}
                 onStopRepeating={() => optionsMeal && handleStopRepeating(optionsMeal)}
