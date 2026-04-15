@@ -535,8 +535,8 @@ const styles = StyleSheet.create({
     },
     sectionHeader: {
         paddingHorizontal: SPACING.l,
-        marginBottom: SPACING.s,
-        marginTop: SPACING.m,
+        marginBottom: SPACING.m,
+        marginTop: SPACING.l,
     },
     feedWrapper: {
         marginTop: SPACING.s,

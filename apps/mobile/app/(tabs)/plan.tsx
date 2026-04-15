@@ -673,7 +673,7 @@ export default function PlanScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <Typography variant="h2" style={{ fontSize: 24, flex: 1 }}>Meal Plan</Typography>
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', gap: SPACING.m, alignItems: 'center' }}>
                     <ViewToggle value={viewMode} onChange={setViewMode} />
                     {/* Actions menu */}
                     <TouchableOpacity
@@ -978,9 +978,9 @@ const styles = StyleSheet.create({
         paddingBottom: SPACING.m,
     },
     headerBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 72,
         borderRadius: RADIUS.l,
-        gap: 6,
+        gap: SPACING.xs + 2,
         borderWidth: 1.5,
         borderColor: 'transparent',
     },
@@ -1081,7 +1081,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: SPACING.l - 4,
+        paddingVertical: SPACING.l,
         borderRadius: RADIUS.m,
         borderWidth: 1,
         borderStyle: 'dashed',

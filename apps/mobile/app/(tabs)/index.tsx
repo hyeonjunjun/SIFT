@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     headerContainer: {
         // No paddingHorizontal - FlashList contentContainerStyle provides 20pt padding
         paddingBottom: SPACING.xs,
-        gap: SPACING.m, // Reduced gap to tighten hierarchy
+        gap: SPACING.l,
     },
     omniActionCard: {
         backgroundColor: COLORS.surface,

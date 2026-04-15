@@ -67,7 +67,7 @@ interface SiftFeedProps {
 }
 
 const GRID_PADDING = SPACING.l;
-const GRID_GAP = SPACING.m - 1;
+const GRID_GAP = SPACING.m;
 
 const getLayoutInfo = (screenWidth: number) => {
     const isWeb = Platform.OS === 'web';
@@ -320,7 +320,7 @@ const Card = React.memo(({ item: page, index, numColumns = 2, onPin, onArchive, 
                             style={StyleSheet.absoluteFill}
                         />
                         <View style={styles.textOverlay}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.s - 2 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.s }}>
                                 <Typography variant="label" style={styles.overlayTag}>
                                     {item.category || 'General'}
                                 </Typography>
